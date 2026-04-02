@@ -33,10 +33,13 @@
 
 ## Current Status
 
-- State: `pending`
-- Next Step: implement provider persistence and secure secret handling.
+- State: `completed`
+- Next Step: hand off to T010 model config backend.
 - Blockers: none.
 
 ## Log
 
 - 2026-04-02: Task created from initial system design.
+- 2026-04-02: Started implementation. Updating task tracking before code changes.
+- 2026-04-02: Added provider config schema, encrypted secret handling, repository/service logic, and admin API routes.
+- 2026-04-02: Verified with `npm run db:generate`, `npm run build`, `npm run providers:verify`, and `npm run db:migrate`.

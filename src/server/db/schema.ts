@@ -1,12 +1,26 @@
 import { appConfig } from "@/server/config/app-config";
 
-import { index as mysqlIndex, mysqlTable, uniqueIndex as mysqlUniqueIndex, varchar as mysqlVarchar } from "drizzle-orm/mysql-core";
-import { index as pgIndex, pgTable, uniqueIndex as pgUniqueIndex, varchar as pgVarchar } from "drizzle-orm/pg-core";
-import { index as sqliteIndex, sqliteTable, text as sqliteText } from "drizzle-orm/sqlite-core";
+import {
+  boolean as mysqlBoolean,
+  index as mysqlIndex,
+  mysqlTable,
+  uniqueIndex as mysqlUniqueIndex,
+  varchar as mysqlVarchar
+} from "drizzle-orm/mysql-core";
+import {
+  boolean as pgBoolean,
+  index as pgIndex,
+  pgTable,
+  uniqueIndex as pgUniqueIndex,
+  varchar as pgVarchar
+} from "drizzle-orm/pg-core";
+import { index as sqliteIndex, integer as sqliteInteger, sqliteTable, text as sqliteText } from "drizzle-orm/sqlite-core";
 
 const USER_ROLE_VALUES = ["user", "admin"] as const;
+const PROVIDER_TYPE_VALUES = ["openai-responses"] as const;
 
 export type UserRole = (typeof USER_ROLE_VALUES)[number];
+export type ProviderType = (typeof PROVIDER_TYPE_VALUES)[number];
 
 function defineSqliteSchema() {
   const users = sqliteTable("users", {
@@ -31,7 +45,20 @@ function defineSqliteSchema() {
     userIdIdx: sqliteIndex("sessions_user_id_idx").on(table.userId)
   }));
 
-  return { users, sessions };
+  const providerConfigs = sqliteTable("provider_configs", {
+    id: sqliteText("id").primaryKey(),
+    name: sqliteText("name").notNull(),
+    providerType: sqliteText("provider_type", { enum: PROVIDER_TYPE_VALUES }).notNull(),
+    baseUrl: sqliteText("base_url"),
+    apiKeyEncrypted: sqliteText("api_key_encrypted").notNull(),
+    enabled: sqliteInteger("enabled", { mode: "boolean" }).notNull(),
+    createdAt: sqliteText("created_at").notNull(),
+    updatedAt: sqliteText("updated_at").notNull()
+  }, (table) => ({
+    enabledIdx: sqliteIndex("provider_configs_enabled_idx").on(table.enabled)
+  }));
+
+  return { users, sessions, providerConfigs };
 }
 
 function definePostgresSchema() {
@@ -68,7 +95,24 @@ function definePostgresSchema() {
     })
   );
 
-  return { users, sessions };
+  const providerConfigs = pgTable(
+    "provider_configs",
+    {
+      id: pgVarchar("id", { length: 191 }).primaryKey(),
+      name: pgVarchar("name", { length: 191 }).notNull(),
+      providerType: pgVarchar("provider_type", { length: 64 }).notNull(),
+      baseUrl: pgVarchar("base_url", { length: 2048 }),
+      apiKeyEncrypted: pgVarchar("api_key_encrypted", { length: 4096 }).notNull(),
+      enabled: pgBoolean("enabled").notNull(),
+      createdAt: pgVarchar("created_at", { length: 64 }).notNull(),
+      updatedAt: pgVarchar("updated_at", { length: 64 }).notNull()
+    },
+    (table) => ({
+      enabledIdx: pgIndex("provider_configs_enabled_idx").on(table.enabled)
+    })
+  );
+
+  return { users, sessions, providerConfigs };
 }
 
 function defineMysqlSchema() {
@@ -105,7 +149,24 @@ function defineMysqlSchema() {
     })
   );
 
-  return { users, sessions };
+  const providerConfigs = mysqlTable(
+    "provider_configs",
+    {
+      id: mysqlVarchar("id", { length: 191 }).primaryKey(),
+      name: mysqlVarchar("name", { length: 191 }).notNull(),
+      providerType: mysqlVarchar("provider_type", { length: 64 }).notNull(),
+      baseUrl: mysqlVarchar("base_url", { length: 2048 }),
+      apiKeyEncrypted: mysqlVarchar("api_key_encrypted", { length: 4096 }).notNull(),
+      enabled: mysqlBoolean("enabled").notNull(),
+      createdAt: mysqlVarchar("created_at", { length: 64 }).notNull(),
+      updatedAt: mysqlVarchar("updated_at", { length: 64 }).notNull()
+    },
+    (table) => ({
+      enabledIdx: mysqlIndex("provider_configs_enabled_idx").on(table.enabled)
+    })
+  );
+
+  return { users, sessions, providerConfigs };
 }
 
 const activeSchema =
@@ -117,7 +178,9 @@ const activeSchema =
 
 export const users = activeSchema.users;
 export const sessions = activeSchema.sessions;
+export const providerConfigs = activeSchema.providerConfigs;
 export const schema = {
   users,
-  sessions
+  sessions,
+  providerConfigs
 };
