@@ -30,10 +30,12 @@
 
 ## Current Status
 
-- State: `pending`
-- Next Step: add role-aware user menu and admin route checks.
+- State: `completed`
+- Next Step: hand off admin management page implementation to T009-T011.
 - Blockers: none.
 
 ## Log
 
 - 2026-04-02: Task created from initial system design.
+- 2026-04-02: Implementation started. Updating task tracking before code changes and wiring admin entry points plus role-based guards into the protected app shell.
+- 2026-04-02: Added shared role helpers, gated `/admin` behind a server-side admin guard, replaced the sidebar placeholder with a real admin menu entry, and verified the app with `npm run build`.

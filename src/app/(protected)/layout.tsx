@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { isAdminUser } from "@/lib/auth/roles";
 import { requireCurrentUser } from "@/server/auth/guards";
 
 type ProtectedLayoutProps = Readonly<{
@@ -89,13 +90,13 @@ function SidebarNavigation({
           Language control slot
         </div>
 
-        {currentUser.role === "admin" ? (
+        {isAdminUser(currentUser) ? (
           <Link
-            href="/#admin-entry"
+            href="/admin"
             className="flex items-center justify-between rounded-2xl border border-[var(--app-shell-border)] px-3 py-2.5 text-sm font-medium text-[var(--app-shell-text)] transition hover:bg-[var(--app-shell-panel-muted)]"
           >
             <span>Admin area</span>
-            <span className="text-xs text-[var(--app-shell-subtle)]">Soon</span>
+            <span className="text-xs text-[var(--app-shell-subtle)]">Manage</span>
           </Link>
         ) : null}
 

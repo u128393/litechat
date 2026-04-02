@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 
+import { isAdminUser } from "@/lib/auth/roles";
 import { getCurrentUser } from "@/server/auth/cookies";
 import type { CurrentUser } from "@/server/auth/types";
 
@@ -8,6 +9,16 @@ export async function requireCurrentUser(): Promise<CurrentUser> {
 
   if (!currentUser) {
     redirect("/login");
+  }
+
+  return currentUser;
+}
+
+export async function requireAdminUser(): Promise<CurrentUser> {
+  const currentUser = await requireCurrentUser();
+
+  if (!isAdminUser(currentUser)) {
+    redirect("/");
   }
 
   return currentUser;

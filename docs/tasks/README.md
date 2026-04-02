@@ -24,7 +24,7 @@ Tasks are ordered to produce a runnable system without leaving integration gaps.
 | T005 | Build setup script for database and first admin | T002, T003, T004 | completed |
 | T006 | Build login UI and protected route flow | T004, T005 | completed |
 | T007 | Build shared app shell and ChatGPT-style layout skeleton | T006 | completed |
-| T008 | Add admin entry points and authorization guards | T006, T007 | pending |
+| T008 | Add admin entry points and authorization guards | T006, T007 | completed |
 | T009 | Implement provider config backend | T003, T008 | pending |
 | T010 | Implement model config backend | T003, T009 | pending |
 | T011 | Build admin UI for provider and model management | T008, T009, T010 | pending |
