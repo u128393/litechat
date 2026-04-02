@@ -33,10 +33,13 @@
 
 ## Current Status
 
-- State: `pending`
-- Next Step: define local store shape and persistence API for the chat workspace.
+- State: `completed`
+- Next Step: T012A can layer language and model preference usage onto the shared browser-local store.
 - Blockers: none.
 
 ## Log
 
 - 2026-04-02: Task created from initial system design.
+- 2026-04-02: Started implementation. Updating task tracking before adding the browser-local conversation store and user-scoped IndexedDB helpers.
+- 2026-04-02: Added a user-scoped IndexedDB chat store for conversations, messages, drafts, lightweight UI state, and extensible preferences with typed storage errors for future UI handling.
+- 2026-04-02: Verified the new store with `npx tsc --noEmit` and `npm run build`.
