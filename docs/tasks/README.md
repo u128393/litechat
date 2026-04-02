@@ -17,12 +17,12 @@ Tasks are ordered to produce a runnable system without leaving integration gaps.
 
 | ID | Title | Depends On | Status |
 | --- | --- | --- | --- |
-| T001 | Bootstrap Next.js workspace | none | pending |
-| T002 | Add environment and app config | T001 | pending |
-| T003 | Set up multi-database layer and connection factory | T001, T002 | pending |
-| T004 | Implement auth domain and session services | T003 | pending |
-| T005 | Build setup script for database and first admin | T002, T003, T004 | pending |
-| T006 | Build login UI and protected route flow | T004, T005 | pending |
+| T001 | Bootstrap Next.js workspace | none | completed |
+| T002 | Add environment and app config | T001 | completed |
+| T003 | Set up multi-database layer and connection factory | T001, T002 | completed |
+| T004 | Implement auth domain and session services | T003 | completed |
+| T005 | Build setup script for database and first admin | T002, T003, T004 | completed |
+| T006 | Build login UI and protected route flow | T004, T005 | completed |
 | T007 | Build shared app shell and ChatGPT-style layout skeleton | T006 | pending |
 | T008 | Add admin entry points and authorization guards | T006, T007 | pending |
 | T009 | Implement provider config backend | T003, T008 | pending |
