@@ -1,5 +1,3 @@
-import "server-only";
-
 const APP_NAME = "LiteChat";
 const APP_DESCRIPTION = "A lightweight browser-based LLM chat workspace.";
 const DEFAULT_SESSION_COOKIE_NAME = "litechat_session";
@@ -13,12 +11,12 @@ type DatabaseType = (typeof DATABASE_TYPES)[number];
 type DatabaseSslMode = (typeof DATABASE_SSL_MODES)[number];
 type RuntimeEnvironment = "development" | "test" | "production";
 
-type UrlDatabaseConnectionConfig = {
+export type UrlDatabaseConnectionConfig = {
   kind: "url";
   url: string;
 };
 
-type NetworkDatabaseConnectionConfig = {
+export type NetworkDatabaseConnectionConfig = {
   kind: "credentials";
   host: string;
   port: number;

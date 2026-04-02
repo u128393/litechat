@@ -33,10 +33,12 @@
 
 ## Current Status
 
-- State: `pending`
-- Next Step: define the database config model, connection factory, and migration flow across the supported database types.
+- State: `completed`
+- Next Step: begin T004 by building auth and session services on top of the shared `src/server/db` seam and migration flow added here.
 - Blockers: none.
 
 ## Log
 
 - 2026-04-02: Task created from initial system design.
+- 2026-04-02: Implementation started. Building the shared Drizzle database seam, migration tooling, and repository scaffolding for the supported database types.
+- 2026-04-02: Shipped a shared `src/server/db` portability seam with Drizzle-backed SQLite, PostgreSQL, and MySQL-compatible connection factories; added `drizzle.config.ts`, runtime migration wiring, local-env loading for out-of-Next scripts, repository scaffolding helpers, and an empty initial migration journal under `drizzle/meta`. Verified adapter resolution with `npm run db:verify-factory`, verified migration execution wiring with `npm run db:migrate` and `npm run db:generate`, and confirmed the app still builds with `npm run build`.

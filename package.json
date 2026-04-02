@@ -5,20 +5,33 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "tsx scripts/db/migrate.ts",
+    "db:verify-factory": "tsx scripts/db/verify-factory.ts"
   },
   "dependencies": {
+    "better-sqlite3": "^12.8.0",
+    "dotenv": "^17.4.0",
+    "drizzle-orm": "^0.45.2",
+    "mysql2": "^3.20.0",
     "next": "16.2.2",
+    "pg": "^8.20.0",
     "react": "19.2.0",
-    "react-dom": "19.2.0"
+    "react-dom": "19.2.0",
+    "server-only": "^0.0.1"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "4.1.16",
+    "@types/better-sqlite3": "^7.6.13",
     "@types/node": "22.13.14",
+    "@types/pg": "^8.20.0",
     "@types/react": "19.0.10",
     "@types/react-dom": "19.0.4",
+    "drizzle-kit": "^0.31.10",
     "postcss": "8.5.3",
     "tailwindcss": "4.1.16",
+    "tsx": "^4.21.0",
     "typescript": "5.8.2"
   }
 }

@@ -4,7 +4,8 @@ const setupChecklist = [
   "Next.js App Router is configured with TypeScript.",
   "Tailwind CSS is available through the global stylesheet.",
   "The src layout leaves room for shared libraries and future app features.",
-  "Server-side app config now validates environment variables on render."
+  "Server-side app config now validates environment variables on render.",
+  "A shared Drizzle database seam and migration flow are ready for future server features."
 ];
 
 export default function HomePage() {
@@ -13,7 +14,7 @@ export default function HomePage() {
       ? appConfig.database.sqlitePath
       : appConfig.database.connection.kind === "url"
         ? "connection string"
-        : `${appConfig.database.connection.host}:${appConfig.database.connection.port}`;
+        : `${appConfig.database.connection.host}:${appConfig.database.connection.port}/${appConfig.database.connection.name}`;
 
   return (
     <main className="flex min-h-screen items-center px-6 py-16 sm:px-10">
