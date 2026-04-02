@@ -2,6 +2,13 @@
 
 :root {
   color-scheme: light;
+  --app-shell-bg: #eef2ff;
+  --app-shell-panel: rgba(255, 255, 255, 0.94);
+  --app-shell-panel-muted: rgba(248, 250, 252, 0.82);
+  --app-shell-border: rgba(148, 163, 184, 0.34);
+  --app-shell-text: #0f172a;
+  --app-shell-subtle: #475569;
+  --app-shell-accent: #2563eb;
 }
 
 html {
@@ -13,9 +20,9 @@ body {
   min-height: 100vh;
   margin: 0;
   background:
-    radial-gradient(circle at top, rgba(59, 130, 246, 0.14), transparent 42%),
-    linear-gradient(180deg, #f8fafc 0%, #eef2ff 100%);
-  color: #0f172a;
+    radial-gradient(circle at top, rgba(37, 99, 235, 0.18), transparent 36%),
+    linear-gradient(180deg, #f8fafc 0%, var(--app-shell-bg) 100%);
+  color: var(--app-shell-text);
   font-family: Arial, Helvetica, sans-serif;
 }
 

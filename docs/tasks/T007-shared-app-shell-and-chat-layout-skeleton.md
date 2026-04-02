@@ -32,10 +32,12 @@
 
 ## Current Status
 
-- State: `pending`
-- Next Step: build the base shell and placeholder components before real data wiring.
+- State: `completed`
+- Next Step: T008 can add admin entry routing and authorization guards on top of the shared shell menu affordance.
 - Blockers: none.
 
 ## Log
 
 - 2026-04-02: Task created from initial system design.
+- 2026-04-02: Implementation started. Replacing the temporary protected landing page with the shared authenticated app shell, responsive chat layout skeleton, and reserved integration points for localization and future admin menu actions.
+- 2026-04-02: Shipped a shared protected shell with a desktop sidebar, mobile drawer navigation, model/status top bar, empty-state chat timeline, multiline composer, user menu logout flow, admin-menu placeholder, and localization control slots. Verified with `npm run build`.
