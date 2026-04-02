@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { appConfig } from "@/server/config/app-config";
 
 export const metadata: Metadata = {
-  title: "LiteChat",
-  description: "A lightweight browser-based LLM chat workspace."
+  title: appConfig.app.name,
+  description: appConfig.app.description
 };
 
 type RootLayoutProps = Readonly<{

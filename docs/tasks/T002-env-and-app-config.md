@@ -32,10 +32,12 @@
 
 ## Current Status
 
-- State: `pending`
-- Next Step: define env contract for auth, database selection, driver-specific connection settings, and provider key encryption.
+- State: `completed`
+- Next Step: begin T003 by building the database portability seam on top of the shared config contract added here.
 - Blockers: none.
 
 ## Log
 
 - 2026-04-02: Task created from initial system design.
+- 2026-04-02: Implementation started. Defining the environment contract, validation, and shared app config for runtime and setup flows.
+- 2026-04-02: Shipped a server-only app config loader with explicit env parsing and validation for auth/session settings, database selection, database-specific connection settings, and provider-key encryption. Added `.env.example`, wired config loading into the server-rendered app path so invalid local config fails early, and verified the app with a temporary valid `.env.local` plus a production build.

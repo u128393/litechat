@@ -1,10 +1,20 @@
+import { appConfig } from "@/server/config/app-config";
+
 const setupChecklist = [
   "Next.js App Router is configured with TypeScript.",
   "Tailwind CSS is available through the global stylesheet.",
-  "The src layout leaves room for shared libraries and future app features."
+  "The src layout leaves room for shared libraries and future app features.",
+  "Server-side app config now validates environment variables on render."
 ];
 
 export default function HomePage() {
+  const databaseSummary =
+    appConfig.database.type === "sqlite"
+      ? appConfig.database.sqlitePath
+      : appConfig.database.connection.kind === "url"
+        ? "connection string"
+        : `${appConfig.database.connection.host}:${appConfig.database.connection.port}`;
+
   return (
     <main className="flex min-h-screen items-center px-6 py-16 sm:px-10">
       <div className="mx-auto grid w-full max-w-5xl gap-8 lg:grid-cols-[1.3fr_0.9fr]">
@@ -20,6 +30,20 @@ export default function HomePage() {
             Tailwind CSS, and a source layout that can grow into authentication, admin,
             and chat features without a major restructure.
           </p>
+          <div className="mt-8 grid gap-3 rounded-3xl border border-slate-200/80 bg-slate-50/90 p-5 text-sm text-slate-600">
+            <p className="font-medium text-slate-900">Runtime config is loaded on the server.</p>
+            <p>
+              Environment: <span className="font-medium text-slate-900">{appConfig.app.environment}</span>
+            </p>
+            <p>
+              Database: <span className="font-medium text-slate-900">{appConfig.database.type}</span>
+              {" "}
+              <span className="text-slate-500">({databaseSummary})</span>
+            </p>
+            <p>
+              Session cookie: <span className="font-medium text-slate-900">{appConfig.auth.sessionCookieName}</span>
+            </p>
+          </div>
         </section>
 
         <section className="rounded-[2rem] border border-slate-200/70 bg-slate-950 p-8 text-slate-50 shadow-[0_24px_80px_rgba(15,23,42,0.16)]">
@@ -33,7 +57,8 @@ export default function HomePage() {
             ))}
           </ul>
           <div className="mt-8 rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-slate-300">
-            Next steps will add environment config, database setup, auth, and the shared app shell.
+            Next steps will build on the validated config contract with database setup, auth,
+            and the shared app shell.
           </div>
         </section>
       </div>
