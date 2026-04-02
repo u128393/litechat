@@ -11,7 +11,8 @@
     "db:migrate": "tsx scripts/db/migrate.ts",
     "db:verify-factory": "tsx scripts/db/verify-factory.ts",
     "auth:verify": "tsx scripts/auth/verify-services.ts",
-    "providers:verify": "tsx scripts/providers/verify-services.ts"
+    "providers:verify": "tsx scripts/providers/verify-services.ts",
+    "models:verify": "tsx scripts/models/verify-services.ts"
   },
   "dependencies": {
     "argon2": "^0.44.0",

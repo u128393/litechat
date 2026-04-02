@@ -33,10 +33,12 @@
 
 ## Current Status
 
-- State: `pending`
-- Next Step: build model persistence, validation, and filtered listing APIs.
+- State: `completed`
+- Next Step: T011 can consume the admin APIs to build model management UI.
 - Blockers: none.
 
 ## Log
 
 - 2026-04-02: Task created from initial system design.
+- 2026-04-02: Started implementation. Reviewing provider backend patterns, then adding model config schema, services, and API routes.
+- 2026-04-02: Added model config schema, service/repository validation, admin CRUD APIs, authenticated user model listing, and verification coverage.

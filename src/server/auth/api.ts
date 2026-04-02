@@ -18,6 +18,16 @@ export async function requireAdminApiUser(): Promise<CurrentUser | NextResponse>
   return currentUser;
 }
 
+export async function requireApiUser(): Promise<CurrentUser | NextResponse> {
+  const currentUser = await getCurrentUser();
+
+  if (!currentUser) {
+    return jsonError("Authentication required.", 401);
+  }
+
+  return currentUser;
+}
+
 export function jsonError(message: string, status: number): NextResponse {
   return NextResponse.json({ error: message }, { status });
 }

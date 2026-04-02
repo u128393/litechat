@@ -2,6 +2,7 @@ import { appConfig } from "@/server/config/app-config";
 
 import {
   boolean as mysqlBoolean,
+  int as mysqlInt,
   index as mysqlIndex,
   mysqlTable,
   uniqueIndex as mysqlUniqueIndex,
@@ -9,6 +10,7 @@ import {
 } from "drizzle-orm/mysql-core";
 import {
   boolean as pgBoolean,
+  integer as pgInteger,
   index as pgIndex,
   pgTable,
   uniqueIndex as pgUniqueIndex,
@@ -58,7 +60,24 @@ function defineSqliteSchema() {
     enabledIdx: sqliteIndex("provider_configs_enabled_idx").on(table.enabled)
   }));
 
-  return { users, sessions, providerConfigs };
+  const modelConfigs = sqliteTable("model_configs", {
+    id: sqliteText("id").primaryKey(),
+    providerConfigId: sqliteText("provider_config_id")
+      .notNull()
+      .references(() => providerConfigs.id, { onDelete: "cascade" }),
+    modelId: sqliteText("model_id").notNull(),
+    displayName: sqliteText("display_name").notNull(),
+    enabled: sqliteInteger("enabled", { mode: "boolean" }).notNull(),
+    supportsWebSearch: sqliteInteger("supports_web_search", { mode: "boolean" }).notNull(),
+    sortOrder: sqliteInteger("sort_order").notNull(),
+    createdAt: sqliteText("created_at").notNull(),
+    updatedAt: sqliteText("updated_at").notNull()
+  }, (table) => ({
+    providerConfigIdIdx: sqliteIndex("model_configs_provider_config_id_idx").on(table.providerConfigId),
+    enabledSortIdx: sqliteIndex("model_configs_enabled_sort_order_idx").on(table.enabled, table.sortOrder)
+  }));
+
+  return { users, sessions, providerConfigs, modelConfigs };
 }
 
 function definePostgresSchema() {
@@ -112,7 +131,28 @@ function definePostgresSchema() {
     })
   );
 
-  return { users, sessions, providerConfigs };
+  const modelConfigs = pgTable(
+    "model_configs",
+    {
+      id: pgVarchar("id", { length: 191 }).primaryKey(),
+      providerConfigId: pgVarchar("provider_config_id", { length: 191 })
+        .notNull()
+        .references(() => providerConfigs.id, { onDelete: "cascade" }),
+      modelId: pgVarchar("model_id", { length: 191 }).notNull(),
+      displayName: pgVarchar("display_name", { length: 191 }).notNull(),
+      enabled: pgBoolean("enabled").notNull(),
+      supportsWebSearch: pgBoolean("supports_web_search").notNull(),
+      sortOrder: pgInteger("sort_order").notNull(),
+      createdAt: pgVarchar("created_at", { length: 64 }).notNull(),
+      updatedAt: pgVarchar("updated_at", { length: 64 }).notNull()
+    },
+    (table) => ({
+      providerConfigIdIdx: pgIndex("model_configs_provider_config_id_idx").on(table.providerConfigId),
+      enabledSortIdx: pgIndex("model_configs_enabled_sort_order_idx").on(table.enabled, table.sortOrder)
+    })
+  );
+
+  return { users, sessions, providerConfigs, modelConfigs };
 }
 
 function defineMysqlSchema() {
@@ -166,7 +206,28 @@ function defineMysqlSchema() {
     })
   );
 
-  return { users, sessions, providerConfigs };
+  const modelConfigs = mysqlTable(
+    "model_configs",
+    {
+      id: mysqlVarchar("id", { length: 191 }).primaryKey(),
+      providerConfigId: mysqlVarchar("provider_config_id", { length: 191 })
+        .notNull()
+        .references(() => providerConfigs.id, { onDelete: "cascade" }),
+      modelId: mysqlVarchar("model_id", { length: 191 }).notNull(),
+      displayName: mysqlVarchar("display_name", { length: 191 }).notNull(),
+      enabled: mysqlBoolean("enabled").notNull(),
+      supportsWebSearch: mysqlBoolean("supports_web_search").notNull(),
+      sortOrder: mysqlInt("sort_order").notNull(),
+      createdAt: mysqlVarchar("created_at", { length: 64 }).notNull(),
+      updatedAt: mysqlVarchar("updated_at", { length: 64 }).notNull()
+    },
+    (table) => ({
+      providerConfigIdIdx: mysqlIndex("model_configs_provider_config_id_idx").on(table.providerConfigId),
+      enabledSortIdx: mysqlIndex("model_configs_enabled_sort_order_idx").on(table.enabled, table.sortOrder)
+    })
+  );
+
+  return { users, sessions, providerConfigs, modelConfigs };
 }
 
 const activeSchema =
@@ -179,8 +240,10 @@ const activeSchema =
 export const users = activeSchema.users;
 export const sessions = activeSchema.sessions;
 export const providerConfigs = activeSchema.providerConfigs;
+export const modelConfigs = activeSchema.modelConfigs;
 export const schema = {
   users,
   sessions,
-  providerConfigs
+  providerConfigs,
+  modelConfigs
 };

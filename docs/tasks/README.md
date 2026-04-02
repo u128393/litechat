@@ -26,7 +26,7 @@ Tasks are ordered to produce a runnable system without leaving integration gaps.
 | T007 | Build shared app shell and ChatGPT-style layout skeleton | T006 | completed |
 | T008 | Add admin entry points and authorization guards | T006, T007 | completed |
 | T009 | Implement provider config backend | T003, T008 | completed |
-| T010 | Implement model config backend | T003, T009 | pending |
+| T010 | Implement model config backend | T003, T009 | completed |
 | T011 | Build admin UI for provider and model management | T008, T009, T010 | pending |
 | T012 | Implement browser local conversation store | T007 | pending |
 | T012A | Add localization and browser preferences | T007, T012 | pending |
