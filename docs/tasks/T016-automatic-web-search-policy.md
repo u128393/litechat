@@ -29,10 +29,13 @@
 
 ## Current Status
 
-- State: `pending`
-- Next Step: add capability-aware tool injection in the provider request path.
+- State: `completed`
+- Next Step: none.
 - Blockers: none.
 
 ## Log
 
 - 2026-04-02: Task created from initial system design.
+- 2026-04-02: Began implementation; updating task status before code changes and preparing server-side web search injection.
+- 2026-04-02: Added server-side automatic web search tool resolution in the chat route using adapter capabilities so supported models opt in without any UI changes.
+- 2026-04-02: Verified the updated chat adapter flow with `npm run chat:verify` and `npm run build`.

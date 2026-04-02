@@ -85,6 +85,16 @@ export function getChatProviderAdapter(providerType: ProviderType): ChatProvider
   return adapter;
 }
 
+export function resolveAutomaticChatTools(model: ChatModelTarget, adapter: ChatProviderAdapter): ChatAdapterTool[] | undefined {
+  const capabilities = adapter.getCapabilities(model);
+
+  if (!capabilities.supportsWebSearch) {
+    return undefined;
+  }
+
+  return [{ type: "web_search_preview" }];
+}
+
 export async function resolveChatModelTarget(
   modelConfigId: string,
   database?: DatabaseConnection

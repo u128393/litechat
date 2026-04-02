@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import {
   ChatAdapterError,
   getChatProviderAdapter,
+  resolveAutomaticChatTools,
   resolveChatModelTarget,
   toChatAdapterError
 } from "@/server/chat";
@@ -27,9 +28,11 @@ export async function POST(request: Request) {
   try {
     const model = await resolveChatModelTarget(parsedRequest.data.modelConfigId);
     const adapter = getChatProviderAdapter(model.providerType);
+    const tools = resolveAutomaticChatTools(model, adapter);
     const responseStream = await adapter.createResponseStream({
       model,
       messages: parsedRequest.data.messages,
+      tools,
       signal: request.signal
     });
 

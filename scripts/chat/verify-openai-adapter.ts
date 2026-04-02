@@ -14,7 +14,9 @@ async function main() {
   const { createDatabaseConnection } = await import("../../src/server/db");
   const { createProviderConfig } = await import("../../src/server/providers");
   const { createModelConfig } = await import("../../src/server/model-configs");
-  const { ChatAdapterError, getChatProviderAdapter, resolveChatModelTarget } = await import("../../src/server/chat");
+  const { ChatAdapterError, getChatProviderAdapter, resolveAutomaticChatTools, resolveChatModelTarget } = await import(
+    "../../src/server/chat"
+  );
   type ChatResponseStreamEvent = import("../../src/server/chat").ChatResponseStreamEvent;
 
   const database = createDatabaseConnection({
@@ -51,6 +53,11 @@ async function main() {
     const adapter = getChatProviderAdapter(target.providerType);
     const fetchCalls: Array<{ input: RequestInfo | URL; init?: RequestInit }> = [];
     const originalFetch = globalThis.fetch;
+
+    assert(
+      resolveAutomaticChatTools(target, adapter)?.[0]?.type === "web_search_preview",
+      "automatic tools should enable model-native web search when supported"
+    );
 
     try {
       globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {

@@ -1,6 +1,7 @@
 export {
   ChatAdapterError,
   getChatProviderAdapter,
+  resolveAutomaticChatTools,
   resolveChatModelTarget,
   toChatAdapterError,
   type ChatAdapterCapabilities,
