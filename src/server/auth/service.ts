@@ -19,6 +19,16 @@ type CreateSessionResult = {
   token: string;
 };
 
+type ChangePasswordInput = {
+  userId: string;
+  currentPassword: string;
+  nextPassword: string;
+};
+
+type ChangePasswordResult =
+  | { success: true; invalidatedSessionCount: number }
+  | { success: false; reason: "invalid_credentials" | "user_not_found" };
+
 export async function createUser(input: CreateUserInput, database?: DatabaseConnection): Promise<AuthUser> {
   const repository = getAuthRepository(database);
   const now = new Date().toISOString();
@@ -120,6 +130,35 @@ export async function invalidateSession(sessionId: string, database?: DatabaseCo
 export async function invalidateSessionToken(token: string, database?: DatabaseConnection): Promise<boolean> {
   const repository = getAuthRepository(database);
   return repository.invalidateSessionByTokenHash(hashSessionToken(token), new Date().toISOString());
+}
+
+export async function changePassword(input: ChangePasswordInput, database?: DatabaseConnection): Promise<ChangePasswordResult> {
+  const repository = getAuthRepository(database);
+  const user = await repository.getUserById(input.userId);
+
+  if (!user) {
+    return { success: false, reason: "user_not_found" };
+  }
+
+  const currentPasswordMatches = await verifyPassword(user.passwordHash, input.currentPassword);
+
+  if (!currentPasswordMatches) {
+    return { success: false, reason: "invalid_credentials" };
+  }
+
+  const now = new Date().toISOString();
+  const updated = await repository.updateUserPassword(user.id, await hashPassword(input.nextPassword), now);
+
+  if (!updated) {
+    return { success: false, reason: "user_not_found" };
+  }
+
+  const invalidatedSessionCount = await repository.invalidateSessionsByUserId(user.id, now);
+
+  return {
+    success: true,
+    invalidatedSessionCount
+  };
 }
 
 export function hashSessionToken(token: string): string {

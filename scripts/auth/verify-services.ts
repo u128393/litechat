@@ -33,7 +33,7 @@ async function main() {
   const { createSessionCookie, getCurrentUserFromCookieStore, hashPassword, logout, verifyPassword } = await import(
     "../../src/server/auth"
   );
-  const { createUser, verifyUserPassword } = await import("../../src/server/auth/service");
+  const { changePassword, createUser, verifyUserPassword } = await import("../../src/server/auth/service");
 
   const database = createDatabaseConnection({
     type: "sqlite",
@@ -68,17 +68,40 @@ async function main() {
     assert(currentUser?.userId === user.id, "current-user resolution should find the session owner");
     assert(currentUser?.role === "admin", "current-user resolution should include the user role");
 
-    const logoutResult = await logout(cookieStore, database);
-    const currentUserAfterLogout = await getCurrentUserFromCookieStore(cookieStore, database);
+    const passwordChangeResult = await changePassword(
+      {
+        userId: user.id,
+        currentPassword: "correct horse battery staple",
+        nextPassword: "correct horse battery staple again"
+      },
+      database
+    );
+    const currentUserAfterPasswordChange = await getCurrentUserFromCookieStore(cookieStore, database);
+    const oldPasswordUser = await verifyUserPassword("admin@example.com", "correct horse battery staple", database);
+    const newPasswordUser = await verifyUserPassword("admin@example.com", "correct horse battery staple again", database);
+
+    assert(passwordChangeResult.success, "password change should succeed with the correct current password");
+    const invalidatedSessionCount = passwordChangeResult.invalidatedSessionCount;
+
+    assert(invalidatedSessionCount === 1, "password change should invalidate active sessions for the user");
+    assert(currentUserAfterPasswordChange === null, "password change should invalidate existing sessions");
+    assert(oldPasswordUser === null, "old password should no longer authenticate the user");
+    assert(newPasswordUser?.id === user.id, "new password should authenticate the user");
+
+    const freshCookieStore = new MemoryCookieStore();
+    await createSessionCookie(user.id, freshCookieStore, database);
+
+    const logoutResult = await logout(freshCookieStore, database);
+    const currentUserAfterLogout = await getCurrentUserFromCookieStore(freshCookieStore, database);
 
     assert(logoutResult.invalidated, "logout should invalidate the stored session");
     assert(currentUserAfterLogout === null, "invalidated sessions should no longer resolve to a current user");
     assert(
-      cookieStore.get(appConfig.auth.sessionCookieName) === undefined,
+      freshCookieStore.get(appConfig.auth.sessionCookieName) === undefined,
       "logout should clear the session cookie"
     );
 
-    process.stdout.write(`Verified password hashing, session lifecycle, and logout invalidation using ${sqlitePath}.\n`);
+    process.stdout.write(`Verified password hashing, password changes, session lifecycle, and logout invalidation using ${sqlitePath}.\n`);
   } finally {
     await database.close();
 

@@ -7,6 +7,7 @@ type LoginPageProps = {
   searchParams: Promise<{
     error?: string;
     next?: string;
+    password_changed?: string;
   }>;
 };
 
@@ -20,6 +21,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
   }
 
   const showInvalidCredentials = params.error === "invalid_credentials";
+  const showPasswordChanged = params.password_changed === "1";
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-slate-100 px-6 py-16 sm:px-10">
@@ -58,6 +60,12 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
           {showInvalidCredentials ? (
             <p className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
               Invalid email or password.
+            </p>
+          ) : null}
+
+          {showPasswordChanged ? (
+            <p className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+              Password updated. Sign in again with your new password.
             </p>
           ) : null}
 

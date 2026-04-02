@@ -39,6 +39,18 @@ export const getAuthRepository = defineRepository(({ db }) => {
       return user ?? null;
     },
 
+    async updateUserPassword(userId: string, passwordHash: string, updatedAt: string): Promise<boolean> {
+      const [user] = await database.select({ id: users.id }).from(users).where(eq(users.id, userId)).limit(1);
+
+      if (!user) {
+        return false;
+      }
+
+      await database.update(users).set({ passwordHash, updatedAt }).where(eq(users.id, userId));
+
+      return true;
+    },
+
     async createSession(session: SessionRow): Promise<void> {
       await database.insert(sessions).values(session);
     },
@@ -93,6 +105,21 @@ export const getAuthRepository = defineRepository(({ db }) => {
       await database.update(sessions).set({ invalidatedAt }).where(eq(sessions.id, session.id));
 
       return true;
+    },
+
+    async invalidateSessionsByUserId(userId: string, invalidatedAt: string): Promise<number> {
+      const activeSessions = await database
+        .select({ id: sessions.id })
+        .from(sessions)
+        .where(and(eq(sessions.userId, userId), isNull(sessions.invalidatedAt)));
+
+      if (activeSessions.length === 0) {
+        return 0;
+      }
+
+      await database.update(sessions).set({ invalidatedAt }).where(and(eq(sessions.userId, userId), isNull(sessions.invalidatedAt)));
+
+      return activeSessions.length;
     }
   };
 });

@@ -35,10 +35,13 @@
 
 ## Current Status
 
-- State: `pending`
-- Next Step: define the minimal authenticated password-change UX and the session invalidation behavior.
+- State: `completed`
+- Next Step: none.
 - Blockers: none.
 
 ## Log
 
 - 2026-04-02: Task created as a lower-priority post-core auth enhancement.
+- 2026-04-02: Implementation started. Defining the minimal authenticated password-change UX and wiring password update plus session invalidation through the existing auth stack.
+- 2026-04-02: Added an authenticated password-change page and shell entry point, validated the current password before re-hashing the new password, invalidated active sessions on success, and kept email-based recovery explicitly out of scope in the UI.
+- 2026-04-02: Verified the new password-change flow with `npm run auth:verify` and `npm run build`.

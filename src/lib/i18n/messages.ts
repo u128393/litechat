@@ -27,6 +27,26 @@ export type AppMessages = {
     modelsLoading: string;
     modelsEmpty: string;
     languageStatus: string;
+    passwordSettings: string;
+    passwordManage: string;
+  };
+  password: {
+    badge: string;
+    title: string;
+    description: string;
+    currentPasswordLabel: string;
+    newPasswordLabel: string;
+    confirmPasswordLabel: string;
+    submit: string;
+    saving: string;
+    success: string;
+    incorrectCurrentPassword: string;
+    mismatch: string;
+    required: string;
+    minLength: string;
+    unknownError: string;
+    signInAgain: string;
+    forgotPasswordOutOfScope: string;
   };
   home: {
     title: string;
@@ -90,6 +110,26 @@ export const messagesByLocale: Record<AppLocale, AppMessages> = {
       modelsLoading: "Loading models...",
       modelsEmpty: "No enabled models",
       languageStatus: "Language preference saved locally",
+      passwordSettings: "Password",
+      passwordManage: "Update",
+    },
+    password: {
+      badge: "Account security",
+      title: "Change your password",
+      description: "Confirm your current password before setting a new one. Email-based forgot-password recovery is out of scope.",
+      currentPasswordLabel: "Current password",
+      newPasswordLabel: "New password",
+      confirmPasswordLabel: "Confirm new password",
+      submit: "Save new password",
+      saving: "Saving...",
+      success: "Password updated. Sign in again with your new password.",
+      incorrectCurrentPassword: "Current password is incorrect.",
+      mismatch: "New password confirmation does not match.",
+      required: "Enter your current password and a new password.",
+      minLength: "Use at least 8 characters for the new password.",
+      unknownError: "Could not update the password. Try again.",
+      signInAgain: "All active sessions are cleared after a password change.",
+      forgotPasswordOutOfScope: "Forgot-password email recovery is not included in this app yet.",
     },
     home: {
       title: "New conversation",
@@ -151,6 +191,26 @@ export const messagesByLocale: Record<AppLocale, AppMessages> = {
       modelsLoading: "正在加载模型...",
       modelsEmpty: "没有已启用模型",
       languageStatus: "语言偏好已保存在本地",
+      passwordSettings: "密码",
+      passwordManage: "修改",
+    },
+    password: {
+      badge: "账户安全",
+      title: "修改你的密码",
+      description: "设置新密码前，请先确认当前密码。邮件找回密码不在当前范围内。",
+      currentPasswordLabel: "当前密码",
+      newPasswordLabel: "新密码",
+      confirmPasswordLabel: "确认新密码",
+      submit: "保存新密码",
+      saving: "保存中...",
+      success: "密码已更新。请使用新密码重新登录。",
+      incorrectCurrentPassword: "当前密码不正确。",
+      mismatch: "两次输入的新密码不一致。",
+      required: "请输入当前密码和新密码。",
+      minLength: "新密码至少需要 8 个字符。",
+      unknownError: "密码更新失败，请重试。",
+      signInAgain: "修改密码后会清除所有活跃会话。",
+      forgotPasswordOutOfScope: "当前应用暂不提供忘记密码邮件找回。",
     },
     home: {
       title: "新会话",

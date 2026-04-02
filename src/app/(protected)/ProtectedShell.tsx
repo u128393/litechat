@@ -93,6 +93,14 @@ function SidebarNavigation({ currentUser, mobile = false }: { currentUser: Prote
 
         <LanguageSwitcher />
 
+        <Link
+          href="/account/password"
+          className="flex items-center justify-between rounded-2xl border border-[var(--app-shell-border)] px-3 py-2.5 text-sm font-medium text-[var(--app-shell-text)] transition hover:bg-[var(--app-shell-panel-muted)]"
+        >
+          <span>{messages.shell.passwordSettings}</span>
+          <span className="text-xs text-[var(--app-shell-subtle)]">{messages.shell.passwordManage}</span>
+        </Link>
+
         {isAdminUser({ role: currentUser.role }) ? (
           <Link
             href="/admin"
