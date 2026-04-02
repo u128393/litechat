@@ -1,3 +1,4 @@
+import { ChatWorkspaceProvider } from "@/app/(protected)/ChatWorkspaceProvider";
 import { ProtectedShell } from "@/app/(protected)/ProtectedShell";
 import { LocaleProvider } from "@/lib/i18n/provider";
 import { requireCurrentUser } from "@/server/auth/guards";
@@ -11,7 +12,9 @@ export default async function ProtectedLayout({ children }: ProtectedLayoutProps
 
   return (
     <LocaleProvider userId={currentUser.userId}>
-      <ProtectedShell currentUser={currentUser}>{children}</ProtectedShell>
+      <ChatWorkspaceProvider userId={currentUser.userId}>
+        <ProtectedShell currentUser={currentUser}>{children}</ProtectedShell>
+      </ChatWorkspaceProvider>
     </LocaleProvider>
   );
 }

@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 
+import { useChatWorkspace } from "@/app/(protected)/ChatWorkspaceProvider";
 import { LanguageSwitcher } from "@/app/(protected)/LanguageSwitcher";
-import { ModelPreferenceSelect } from "@/app/(protected)/ModelPreferenceSelect";
 import { isAdminUser } from "@/lib/auth/roles";
 import { useI18n } from "@/lib/i18n/provider";
 import type { CurrentUser } from "@/server/auth/types";
@@ -15,6 +15,7 @@ type ProtectedShellProps = {
 
 function SidebarNavigation({ currentUser, mobile = false }: { currentUser: ProtectedShellProps["currentUser"]; mobile?: boolean }) {
   const { messages } = useI18n();
+  const { conversations, activeConversationId, isLoadingWorkspace, createNewConversation, selectConversation } = useChatWorkspace();
 
   return (
     <div className="flex h-full flex-col gap-5">
@@ -27,6 +28,9 @@ function SidebarNavigation({ currentUser, mobile = false }: { currentUser: Prote
         <button
           type="button"
           className="flex w-full items-center justify-center rounded-2xl bg-[var(--app-shell-accent)] px-4 py-3 text-sm font-semibold text-white shadow-[0_16px_40px_rgba(37,99,235,0.28)] transition hover:bg-blue-500"
+          onClick={() => {
+            void createNewConversation();
+          }}
         >
           {messages.shell.newChat}
         </button>
@@ -41,14 +45,33 @@ function SidebarNavigation({ currentUser, mobile = false }: { currentUser: Prote
         </div>
 
         <ul className="space-y-2">
-          {messages.shell.conversationItems.map((conversation) => (
+          {isLoadingWorkspace ? (
+            <li className="rounded-2xl border border-[var(--app-shell-border)] bg-[var(--app-shell-panel-muted)] px-4 py-3 text-sm text-[var(--app-shell-subtle)]">
+              {messages.shell.conversationsLoading}
+            </li>
+          ) : null}
+
+          {!isLoadingWorkspace && conversations.length === 0 ? (
+            <li className="rounded-2xl border border-dashed border-[var(--app-shell-border)] bg-[var(--app-shell-panel-muted)] px-4 py-3 text-sm text-[var(--app-shell-subtle)]">
+              {messages.shell.conversationsEmpty}
+            </li>
+          ) : null}
+
+          {conversations.map((conversation) => (
             <li key={conversation.id}>
               <button
                 type="button"
-                className="flex w-full flex-col rounded-2xl border border-transparent bg-[var(--app-shell-panel-muted)] px-4 py-3 text-left transition hover:border-[var(--app-shell-border)] hover:bg-white"
+                className={`flex w-full flex-col rounded-2xl border px-4 py-3 text-left transition hover:bg-white ${
+                  conversation.id === activeConversationId
+                    ? "border-[var(--app-shell-accent)] bg-white"
+                    : "border-transparent bg-[var(--app-shell-panel-muted)] hover:border-[var(--app-shell-border)]"
+                }`}
+                onClick={() => {
+                  void selectConversation(conversation.id);
+                }}
               >
                 <span className="text-sm font-medium text-[var(--app-shell-text)]">{conversation.title}</span>
-                <span className="mt-1 text-xs text-[var(--app-shell-subtle)]">{conversation.meta}</span>
+                <span className="mt-1 text-xs text-[var(--app-shell-subtle)]">{formatConversationTimestamp(conversation.updatedAt)}</span>
               </button>
             </li>
           ))}
@@ -95,6 +118,8 @@ function SidebarNavigation({ currentUser, mobile = false }: { currentUser: Prote
 
 export function ProtectedShell({ currentUser, children }: ProtectedShellProps) {
   const { messages } = useI18n();
+  const { models, selectedModelId, isLoadingModels } = useChatWorkspace();
+  const selectedModel = models.find((model) => model.id === selectedModelId) ?? null;
 
   return (
     <div className="min-h-dvh bg-[var(--app-shell-bg)] text-[var(--app-shell-text)]">
@@ -119,13 +144,11 @@ export function ProtectedShell({ currentUser, children }: ProtectedShellProps) {
 
           <header className="border-b border-[var(--app-shell-border)] bg-white/72 px-4 py-4 backdrop-blur sm:px-6">
             <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-              <div className="flex items-center gap-3">
-                <ModelPreferenceSelect userId={currentUser.userId} />
-              </div>
-
               <div className="flex flex-wrap items-center gap-2 text-sm text-[var(--app-shell-subtle)]">
                 <span className="rounded-full border border-[var(--app-shell-border)] bg-[var(--app-shell-panel)] px-3 py-1.5">
-                  {messages.shell.modelStatus}
+                  {isLoadingModels
+                    ? messages.shell.modelsLoading
+                    : selectedModel?.displayName ?? messages.shell.modelsEmpty}
                 </span>
                 <LanguageSwitcher compact />
               </div>
@@ -137,4 +160,13 @@ export function ProtectedShell({ currentUser, children }: ProtectedShellProps) {
       </div>
     </div>
   );
+}
+
+function formatConversationTimestamp(value: string) {
+  return new Intl.DateTimeFormat(undefined, {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit"
+  }).format(new Date(value));
 }

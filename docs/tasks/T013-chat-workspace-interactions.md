@@ -36,10 +36,12 @@
 
 ## Current Status
 
-- State: `pending`
-- Next Step: connect local conversation state and shared model selection into the shell.
+- State: `completed`
+- Next Step: T015 can attach streaming responses to the shared workspace state and composer flow.
 - Blockers: none.
 
 ## Log
 
 - 2026-04-02: Task created from initial system design.
+- 2026-04-02: Started implementation. Updating the protected workspace to use browser-local conversations and shared enabled model configs.
+- 2026-04-02: Completed local conversation list, message timeline, composer/send flow, and enabled model selection with local preference restore. Verified with a production build.

@@ -11,6 +11,8 @@ export type AppMessages = {
     newChat: string;
     conversationsLabel: string;
     conversationsMeta: string;
+    conversationsLoading: string;
+    conversationsEmpty: string;
     menu: string;
     adminArea: string;
     adminManage: string;
@@ -22,23 +24,21 @@ export type AppMessages = {
     languageLabel: string;
     languageDescription: string;
     modelLabel: string;
-    modelStatus: string;
+    modelsLoading: string;
+    modelsEmpty: string;
     languageStatus: string;
-    conversationItems: { id: string; title: string; meta: string }[];
   };
   home: {
     title: string;
     description: string;
     timelineLabel: string;
+    loading: string;
     emptyState: string;
+    noConversation: string;
     heroTitle: string;
     heroDescription: string;
-    timelineCardTitle: string;
-    timelineCardDescription: string;
-    localizationCardTitle: string;
-    localizationCardDescription: string;
-    adminCardTitle: string;
-    adminCardDescription: string;
+    userMessageLabel: string;
+    assistantMessageLabel: string;
     composerLabel: string;
     composerPlaceholder: string;
     composerDescription: string;
@@ -55,7 +55,9 @@ export const messagesByLocale: Record<AppLocale, AppMessages> = {
       description: "Shared app shell for chat and future admin tools.",
       newChat: "New chat",
       conversationsLabel: "Conversations",
-      conversationsMeta: "Local only",
+      conversationsMeta: "Local",
+      conversationsLoading: "Loading local conversations...",
+      conversationsEmpty: "No local conversations yet.",
       menu: "Menu",
       adminArea: "Admin area",
       adminManage: "Manage",
@@ -67,31 +69,25 @@ export const messagesByLocale: Record<AppLocale, AppMessages> = {
       languageLabel: "Language",
       languageDescription: "Switch the authenticated workspace language instantly.",
       modelLabel: "Model",
-      modelStatus: "Ready for local conversation state",
+      modelsLoading: "Loading models...",
+      modelsEmpty: "No enabled models",
       languageStatus: "Language preference saved locally",
-      conversationItems: [
-        { id: "welcome", title: "Welcome to LiteChat", meta: "Shell placeholder" },
-        { id: "ideas", title: "Prompt ideas", meta: "Local history soon" },
-        { id: "notes", title: "Release notes draft", meta: "Recent conversations" }
-      ]
     },
     home: {
       title: "New conversation",
-      description: "Message history will appear here once local conversation storage is wired.",
+      description: "Local drafts and messages stay in this browser until streaming is connected.",
       timelineLabel: "Timeline",
+      loading: "Loading local workspace...",
       emptyState: "Empty state",
-      heroTitle: "Start a new chat in the shared workspace.",
+      noConversation: "No conversation selected",
+      heroTitle: "Start a local chat in the shared workspace.",
       heroDescription:
-        "This shell now includes the responsive sidebar, model header, timeline region, and composer frame shared by regular users and admins.",
-      timelineCardTitle: "Chat timeline",
-      timelineCardDescription: "Reserved for message history and streaming output.",
-      localizationCardTitle: "Localization",
-      localizationCardDescription: "The shell-level language switcher is now active and persists locally.",
-      adminCardTitle: "Admin entry",
-      adminCardDescription: "User menu reserves a lightweight management entry for admins.",
+        "Choose an enabled model, save drafts locally, and send messages into a timeline that is ready to connect to streaming responses.",
+      userMessageLabel: "You",
+      assistantMessageLabel: "Assistant",
       composerLabel: "Message",
       composerPlaceholder: "Message LiteChat",
-      composerDescription: "Multiline composer with reserved stop-generation control.",
+      composerDescription: "Drafts persist locally for the active conversation.",
       stop: "Stop",
       send: "Send"
     },
@@ -103,7 +99,9 @@ export const messagesByLocale: Record<AppLocale, AppMessages> = {
       description: "面向聊天与后续管理工具的共享应用外壳。",
       newChat: "新建聊天",
       conversationsLabel: "会话",
-      conversationsMeta: "仅本地",
+      conversationsMeta: "本地",
+      conversationsLoading: "正在加载本地会话...",
+      conversationsEmpty: "还没有本地会话。",
       menu: "菜单",
       adminArea: "管理区域",
       adminManage: "管理",
@@ -115,30 +113,24 @@ export const messagesByLocale: Record<AppLocale, AppMessages> = {
       languageLabel: "语言",
       languageDescription: "即时切换已登录工作区语言。",
       modelLabel: "模型",
-      modelStatus: "已为本地会话状态预留",
+      modelsLoading: "正在加载模型...",
+      modelsEmpty: "没有已启用模型",
       languageStatus: "语言偏好已保存在本地",
-      conversationItems: [
-        { id: "welcome", title: "欢迎使用 LiteChat", meta: "外壳占位内容" },
-        { id: "ideas", title: "提示词灵感", meta: "本地历史即将支持" },
-        { id: "notes", title: "发布说明草稿", meta: "最近会话" }
-      ]
     },
     home: {
       title: "新会话",
-      description: "接入本地会话存储后，消息历史会显示在这里。",
+      description: "在接入流式后端之前，本地草稿和消息会保存在当前浏览器中。",
       timelineLabel: "时间线",
+      loading: "正在加载本地工作区...",
       emptyState: "空状态",
-      heroTitle: "在共享工作区开始新的聊天。",
-      heroDescription: "这个外壳现在已经包含响应式侧边栏、模型头部、时间线区域，以及供普通用户和管理员共用的输入框框架。",
-      timelineCardTitle: "聊天时间线",
-      timelineCardDescription: "预留给消息历史与流式输出。",
-      localizationCardTitle: "本地化",
-      localizationCardDescription: "外壳级语言切换器现已启用，并会在本地持久化。",
-      adminCardTitle: "管理入口",
-      adminCardDescription: "管理员可从用户菜单进入轻量管理入口。",
+      noConversation: "尚未选择会话",
+      heroTitle: "在共享工作区开始本地聊天。",
+      heroDescription: "选择一个已启用模型，在本地保存草稿，并把消息发送到一个已为后续流式响应准备好的时间线中。",
+      userMessageLabel: "你",
+      assistantMessageLabel: "助手",
       composerLabel: "消息",
       composerPlaceholder: "向 LiteChat 发送消息",
-      composerDescription: "支持多行输入，并预留停止生成控制。",
+      composerDescription: "当前会话的草稿会保存在本地。",
       stop: "停止",
       send: "发送"
     },

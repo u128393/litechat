@@ -1,61 +1,35 @@
 "use client";
 
-import { useEffect, useState } from "react";
-
+import { useChatWorkspace } from "@/app/(protected)/ChatWorkspaceProvider";
 import { useI18n } from "@/lib/i18n/provider";
-import { createBrowserPreferencesStore } from "@/lib/preferences";
 
-const modelOptions = [
-  { id: "gpt-4.1", label: "GPT-4.1" },
-  { id: "gpt-4.1-mini", label: "GPT-4.1 mini" },
-  { id: "o4-mini", label: "o4-mini" }
-] as const;
-
-export function ModelPreferenceSelect({ userId }: { userId: string }) {
+export function ModelPreferenceSelect() {
   const { messages } = useI18n();
-  const [selectedModelId, setSelectedModelId] = useState<(typeof modelOptions)[number]["id"]>(modelOptions[0].id);
-
-  useEffect(() => {
-    let active = true;
-
-    void createBrowserPreferencesStore(userId)
-      .getLastSelectedModelConfigId()
-      .then((savedModelId) => {
-        if (!active || !savedModelId || !modelOptions.some((modelOption) => modelOption.id === savedModelId)) {
-          return;
-        }
-
-        setSelectedModelId(savedModelId as (typeof modelOptions)[number]["id"]);
-      })
-      .catch(() => undefined);
-
-    return () => {
-      active = false;
-    };
-  }, [userId]);
+  const { models, selectedModelId, isLoadingModels, selectModel } = useChatWorkspace();
 
   return (
-    <>
+    <div className="flex items-center gap-3">
       <label className="text-xs font-semibold uppercase tracking-[0.22em] text-[var(--app-shell-subtle)]" htmlFor="model-selector">
         {messages.shell.modelLabel}
       </label>
       <select
         id="model-selector"
         name="model-selector"
-        className="rounded-full border border-[var(--app-shell-border)] bg-[var(--app-shell-panel)] px-4 py-2 text-sm font-medium text-[var(--app-shell-text)] shadow-[0_10px_24px_rgba(15,23,42,0.05)] outline-none"
+        className="rounded-full border border-[var(--app-shell-border)] bg-[var(--app-shell-panel)] px-4 py-2 text-sm font-medium text-[var(--app-shell-text)] shadow-[0_10px_24px_rgba(15,23,42,0.05)] outline-none disabled:cursor-not-allowed disabled:opacity-70"
+        disabled={isLoadingModels || models.length === 0}
         onChange={(event) => {
-          const nextModelId = event.target.value as (typeof modelOptions)[number]["id"];
-          setSelectedModelId(nextModelId);
-          void createBrowserPreferencesStore(userId).setLastSelectedModelConfigId(nextModelId);
+          void selectModel(event.target.value);
         }}
-        value={selectedModelId}
+        value={selectedModelId ?? ""}
       >
-        {modelOptions.map((modelOption) => (
+        {isLoadingModels ? <option value="">{messages.shell.modelsLoading}</option> : null}
+        {!isLoadingModels && models.length === 0 ? <option value="">{messages.shell.modelsEmpty}</option> : null}
+        {models.map((modelOption) => (
           <option key={modelOption.id} value={modelOption.id}>
-            {modelOption.label}
+            {modelOption.displayName}
           </option>
         ))}
       </select>
-    </>
+    </div>
   );
 }
