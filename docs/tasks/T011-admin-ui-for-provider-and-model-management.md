@@ -34,10 +34,13 @@
 
 ## Current Status
 
-- State: `pending`
-- Next Step: build minimal admin pages that fully drive provider/model setup.
+- State: `completed`
+- Next Step: none.
 - Blockers: none.
 
 ## Log
 
 - 2026-04-02: Task created from initial system design.
+- 2026-04-02: Began implementation. Updating task tracking first, then reviewing the admin shell, API contracts, and shared UI patterns before building the provider and model management UI.
+- 2026-04-02: Built a single-page admin management workspace with lightweight section navigation, centralized admin UI copy, provider create/update flows, model create/update flows, and inline request error handling against the existing admin APIs.
+- 2026-04-02: Verification passed with `npm run build`. Task marked complete and ready to commit.
