@@ -14,6 +14,19 @@ import type { UserSelectableModel } from "@/server/model-configs/service";
 
 const activeConversationUiStateKey = "activeConversationId";
 
+type ChatFailureState = {
+  code: string;
+  message: string;
+  canRetry: boolean;
+};
+
+type ChatRetryState = {
+  conversation: ChatConversationRecord;
+  updatedConversation: ChatConversationRecord;
+  messageHistory: ChatMessageRecord[];
+  modelConfigId: string;
+};
+
 type ChatWorkspaceContextValue = {
   conversations: ChatConversationRecord[];
   activeConversationId: string | null;
@@ -24,10 +37,14 @@ type ChatWorkspaceContextValue = {
   isLoadingWorkspace: boolean;
   isLoadingModels: boolean;
   isSendingMessage: boolean;
+  chatError: ChatFailureState | null;
   createNewConversation(): Promise<void>;
   selectConversation(conversationId: string): Promise<void>;
   updateDraft(nextDraft: string): Promise<void>;
   sendMessage(): Promise<void>;
+  stopMessage(): void;
+  retryMessage(): Promise<void>;
+  clearChatError(): void;
   selectModel(modelId: string): Promise<void>;
 };
 
@@ -38,6 +55,8 @@ export function ChatWorkspaceProvider({ userId, children }: { userId: string; ch
   const conversationStore = useMemo(() => createBrowserConversationStore(userId), [userId]);
   const preferencesStore = useMemo(() => createBrowserPreferencesStore(userId), [userId]);
   const pendingConversationPromiseRef = useRef<Promise<ChatConversationRecord> | null>(null);
+  const activeAbortControllerRef = useRef<AbortController | null>(null);
+  const retryStateRef = useRef<ChatRetryState | null>(null);
 
   const [conversations, setConversations] = useState<ChatConversationRecord[]>([]);
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
@@ -48,6 +67,7 @@ export function ChatWorkspaceProvider({ userId, children }: { userId: string; ch
   const [isLoadingWorkspace, setIsLoadingWorkspace] = useState(true);
   const [isLoadingModels, setIsLoadingModels] = useState(true);
   const [isSendingMessage, setIsSendingMessage] = useState(false);
+  const [chatError, setChatError] = useState<ChatFailureState | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -239,10 +259,20 @@ export function ChatWorkspaceProvider({ userId, children }: { userId: string; ch
   }
 
   async function createNewConversation() {
+    if (isSendingMessage) {
+      return;
+    }
+
+    setChatError(null);
     await createConversationRecord();
   }
 
   async function selectConversation(conversationId: string) {
+    if (isSendingMessage) {
+      return;
+    }
+
+    setChatError(null);
     setActiveConversationId(conversationId);
 
     try {
@@ -303,7 +333,16 @@ export function ChatWorkspaceProvider({ userId, children }: { userId: string; ch
   async function sendMessage() {
     const trimmedDraft = draft.trim();
 
-    if (trimmedDraft === "" || !selectedModelId || isSendingMessage) {
+    if (trimmedDraft === "" || isSendingMessage) {
+      return;
+    }
+
+    if (!selectedModelId) {
+      setChatError({
+        code: "model_missing",
+        message: i18nMessages.home.errorModelMissing,
+        canRetry: false
+      });
       return;
     }
 
@@ -329,7 +368,12 @@ export function ChatWorkspaceProvider({ userId, children }: { userId: string; ch
     setConversations((currentConversations) =>
       sortConversations(upsertConversation(currentConversations, updatedConversation))
     );
-    setIsSendingMessage(true);
+    retryStateRef.current = {
+      conversation,
+      updatedConversation,
+      messageHistory: [...messages, message],
+      modelConfigId: selectedModelId
+    };
 
     try {
       await Promise.all([
@@ -339,44 +383,157 @@ export function ChatWorkspaceProvider({ userId, children }: { userId: string; ch
         persistActiveConversation(conversation.id)
       ]);
 
-      const assistantMessage = await streamAssistantMessage({
+      await continueAssistantResponse({
         assistantMessageId,
-        conversationId: conversation.id,
+        conversation,
+        updatedConversation,
         modelConfigId: selectedModelId,
-        messageHistory: [...messages, message],
-        setMessages
+        messageHistory: [...messages, message]
       });
+    } catch {
+      setChatError({
+        code: "unknown",
+        message: i18nMessages.home.errorUnknown,
+        canRetry: true
+      });
+      return;
+    }
+  }
 
-      if (!assistantMessage) {
+  function stopMessage() {
+    activeAbortControllerRef.current?.abort();
+  }
+
+  async function retryMessage() {
+    if (isSendingMessage || !retryStateRef.current) {
+      return;
+    }
+
+    const retryState = retryStateRef.current;
+
+    setActiveConversationId(retryState.conversation.id);
+    setChatError(null);
+
+    try {
+      await Promise.all([persistActiveConversation(retryState.conversation.id), loadConversationState(retryState.conversation.id)]);
+      await continueAssistantResponse({
+        assistantMessageId: crypto.randomUUID(),
+        conversation: retryState.conversation,
+        updatedConversation: retryState.updatedConversation,
+        modelConfigId: retryState.modelConfigId,
+        messageHistory: retryState.messageHistory
+      });
+    } catch {
+      setChatError({
+        code: "unknown",
+        message: i18nMessages.home.errorUnknown,
+        canRetry: true
+      });
+    }
+  }
+
+  function clearChatError() {
+    setChatError(null);
+  }
+
+  async function continueAssistantResponse({
+    assistantMessageId,
+    conversation,
+    updatedConversation,
+    modelConfigId,
+    messageHistory
+  }: {
+    assistantMessageId: string;
+    conversation: ChatConversationRecord;
+    updatedConversation: ChatConversationRecord;
+    modelConfigId: string;
+    messageHistory: ChatMessageRecord[];
+  }) {
+    setChatError(null);
+    setIsSendingMessage(true);
+
+    const abortController = new AbortController();
+    activeAbortControllerRef.current = abortController;
+
+    try {
+      let streamResult:
+        | Awaited<ReturnType<typeof streamAssistantMessage>>
+        | null = null;
+
+      try {
+        streamResult = await streamAssistantMessage({
+          assistantMessageId,
+          conversationId: conversation.id,
+          modelConfigId,
+          messageHistory,
+          signal: abortController.signal,
+          setMessages
+        });
+      } catch (error) {
+        setChatError(resolveChatFailure(error, i18nMessages.home));
         return;
       }
 
-      await Promise.all([
-        conversationStore.saveMessage(assistantMessage),
-        conversationStore.saveConversation({
+      if (streamResult.assistantMessage) {
+        await persistAssistantMessage(updatedConversation, streamResult.assistantMessage);
+      }
+
+      if (streamResult.status === "success") {
+        retryStateRef.current = null;
+        return;
+      }
+
+      if (streamResult.status === "aborted") {
+        setChatError({
+          code: "aborted",
+          message: i18nMessages.home.stopped,
+          canRetry: true
+        });
+        return;
+      }
+
+      if (streamResult.status === "empty") {
+        setChatError({
+          code: "empty",
+          message: i18nMessages.home.errorInterrupted,
+          canRetry: true
+        });
+        return;
+      }
+
+      setChatError(resolveChatFailure(streamResult.error, i18nMessages.home));
+    } finally {
+      if (activeAbortControllerRef.current === abortController) {
+        activeAbortControllerRef.current = null;
+      }
+
+      setIsSendingMessage(false);
+    }
+  }
+
+  async function persistAssistantMessage(updatedConversation: ChatConversationRecord, assistantMessage: ChatMessageRecord) {
+    await Promise.all([
+      conversationStore.saveMessage(assistantMessage),
+      conversationStore.saveConversation({
+        ...updatedConversation,
+        updatedAt: assistantMessage.updatedAt
+      })
+    ]);
+
+    setConversations((currentConversations) =>
+      sortConversations(
+        upsertConversation(currentConversations, {
           ...updatedConversation,
           updatedAt: assistantMessage.updatedAt
         })
-      ]);
-
-      setConversations((currentConversations) =>
-        sortConversations(
-          upsertConversation(currentConversations, {
-            ...updatedConversation,
-            updatedAt: assistantMessage.updatedAt
-          })
-        )
-      );
-    } catch {
-      return;
-    } finally {
-      setIsSendingMessage(false);
-    }
+      )
+    );
   }
 
   async function selectModel(modelId: string) {
     const nextModelId = models.some((model) => model.id === modelId) ? modelId : null;
     setSelectedModelId(nextModelId);
+    setChatError(null);
     await preferencesStore.setLastSelectedModelConfigId(nextModelId);
   }
 
@@ -392,10 +549,14 @@ export function ChatWorkspaceProvider({ userId, children }: { userId: string; ch
         isLoadingWorkspace,
         isLoadingModels,
         isSendingMessage,
+        chatError,
         createNewConversation,
         selectConversation,
         updateDraft,
         sendMessage,
+        stopMessage,
+        retryMessage,
+        clearChatError,
         selectModel
       }}
     >
@@ -445,20 +606,28 @@ async function streamAssistantMessage({
   conversationId,
   modelConfigId,
   messageHistory,
+  signal,
   setMessages
 }: {
   assistantMessageId: string;
   conversationId: string;
   modelConfigId: string;
   messageHistory: ChatMessageRecord[];
+  signal: AbortSignal;
   setMessages: React.Dispatch<React.SetStateAction<ChatMessageRecord[]>>;
-}): Promise<ChatMessageRecord | null> {
+}): Promise<
+  | { status: "success"; assistantMessage: ChatMessageRecord }
+  | { status: "aborted"; assistantMessage: ChatMessageRecord | null }
+  | { status: "empty"; assistantMessage: null }
+  | { status: "failed"; assistantMessage: ChatMessageRecord | null; error: unknown }
+> {
   const response = await fetch("/api/chat", {
     method: "POST",
     credentials: "same-origin",
     headers: {
       "content-type": "application/json"
     },
+    signal,
     body: JSON.stringify({
       modelConfigId,
       messages: messageHistory.map((message) => ({
@@ -469,7 +638,7 @@ async function streamAssistantMessage({
   });
 
   if (!response.ok || !response.body) {
-    throw new Error("Unable to stream assistant response.");
+    throw await createChatRequestError(response);
   }
 
   const createdAt = new Date().toISOString();
@@ -512,29 +681,117 @@ async function streamAssistantMessage({
 
     content += decoder.decode();
   } catch (error) {
-    setMessages((currentMessages) => currentMessages.filter((message) => message.id !== assistantMessageId));
-    throw error;
+    const assistantMessage = finalizeAssistantMessage(initialAssistantMessage, content);
+
+    if (isAbortError(error)) {
+      if (!assistantMessage) {
+        setMessages((currentMessages) => currentMessages.filter((message) => message.id !== assistantMessageId));
+      } else {
+        setMessages((currentMessages) =>
+          currentMessages.map((message) => (message.id === assistantMessageId ? assistantMessage : message))
+        );
+      }
+
+      return { status: "aborted", assistantMessage };
+    }
+
+    if (!assistantMessage) {
+      setMessages((currentMessages) => currentMessages.filter((message) => message.id !== assistantMessageId));
+    } else {
+      setMessages((currentMessages) =>
+        currentMessages.map((message) => (message.id === assistantMessageId ? assistantMessage : message))
+      );
+    }
+
+    return { status: "failed", assistantMessage, error };
   } finally {
     reader.releaseLock();
   }
 
   if (content === "") {
     setMessages((currentMessages) => currentMessages.filter((message) => message.id !== assistantMessageId));
-    return null;
+    return { status: "empty", assistantMessage: null };
   }
 
-  const completedAt = new Date().toISOString();
-  const assistantMessage: ChatMessageRecord = {
-    ...initialAssistantMessage,
-    content,
-    updatedAt: completedAt
-  };
+  const assistantMessage = finalizeAssistantMessage(initialAssistantMessage, content);
+
+  if (!assistantMessage) {
+    return { status: "empty", assistantMessage: null };
+  }
 
   setMessages((currentMessages) =>
     currentMessages.map((message) => (message.id === assistantMessageId ? assistantMessage : message))
   );
 
-  return assistantMessage;
+  return { status: "success", assistantMessage };
+}
+
+async function createChatRequestError(response: Response) {
+  let payload: { error?: unknown; code?: unknown } | null = null;
+
+  try {
+    payload = (await response.json()) as { error?: unknown; code?: unknown };
+  } catch {
+    payload = null;
+  }
+
+  const message = typeof payload?.error === "string" && payload.error.trim() !== "" ? payload.error : "Request failed.";
+  const code = typeof payload?.code === "string" && payload.code.trim() !== "" ? payload.code : "unknown";
+
+  return new ChatRequestError(code, message);
+}
+
+function finalizeAssistantMessage(initialAssistantMessage: ChatMessageRecord, content: string) {
+  if (content === "") {
+    return null;
+  }
+
+  return {
+    ...initialAssistantMessage,
+    content,
+    updatedAt: new Date().toISOString()
+  } satisfies ChatMessageRecord;
+}
+
+function resolveChatFailure(error: unknown, homeMessages: ReturnType<typeof useI18n>["messages"]["home"]): ChatFailureState {
+  if (error instanceof ChatRequestError) {
+    switch (error.code) {
+      case "invalid_request":
+        return { code: error.code, message: homeMessages.errorValidation, canRetry: true };
+      case "model_config_not_found":
+      case "provider_config_not_found":
+      case "model_not_available":
+      case "provider_not_available":
+      case "unsupported_provider":
+        return { code: error.code, message: homeMessages.errorModelUnavailable, canRetry: false };
+      case "upstream_request_failed":
+      case "upstream_response_invalid":
+      case "upstream_stream_failed":
+        return { code: error.code, message: homeMessages.errorUpstream, canRetry: true };
+      default:
+        return { code: error.code, message: error.message || homeMessages.errorUnknown, canRetry: true };
+    }
+  }
+
+  if (isAbortError(error)) {
+    return { code: "aborted", message: homeMessages.stopped, canRetry: true };
+  }
+
+  return { code: "unknown", message: homeMessages.errorInterrupted, canRetry: true };
+}
+
+function isAbortError(error: unknown) {
+  return error instanceof DOMException && error.name === "AbortError";
+}
+
+class ChatRequestError extends Error {
+  readonly code: string;
+
+  constructor(code: string, message: string) {
+    super(message);
+    this.name = "ChatRequestError";
+    this.code = code;
+  }
 }
 
 function sortConversations(conversations: ChatConversationRecord[]) {

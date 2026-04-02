@@ -22,7 +22,7 @@ export async function POST(request: Request) {
   const parsedRequest = await parseCreateChatRouteRequest(request);
 
   if (!parsedRequest.success) {
-    return NextResponse.json({ error: parsedRequest.error }, { status: 400 });
+    return NextResponse.json({ error: parsedRequest.error, code: "invalid_request" }, { status: 400 });
   }
 
   try {
@@ -44,7 +44,7 @@ export async function POST(request: Request) {
     });
   } catch (error) {
     const safeError = toChatAdapterError(error);
-    return NextResponse.json({ error: safeError.message }, { status: toStatusCode(safeError) });
+    return NextResponse.json({ error: safeError.message, code: safeError.code }, { status: toStatusCode(safeError) });
   }
 }
 

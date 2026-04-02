@@ -33,17 +33,35 @@ export type AppMessages = {
     description: string;
     timelineLabel: string;
     loading: string;
+    loadingHint: string;
     emptyState: string;
     noConversation: string;
     heroTitle: string;
     heroDescription: string;
+    heroTipModel: string;
+    heroTipDrafts: string;
+    heroTipRetry: string;
     userMessageLabel: string;
     assistantMessageLabel: string;
+    streamingLabel: string;
+    streamingStatus: string;
     composerLabel: string;
     composerPlaceholder: string;
     composerDescription: string;
+    composerSending: string;
+    composerError: string;
+    composerNoModel: string;
     stop: string;
+    retry: string;
+    clearError: string;
     send: string;
+    stopped: string;
+    errorModelMissing: string;
+    errorModelUnavailable: string;
+    errorValidation: string;
+    errorUpstream: string;
+    errorInterrupted: string;
+    errorUnknown: string;
   };
   admin: AdminMessages;
 };
@@ -75,21 +93,38 @@ export const messagesByLocale: Record<AppLocale, AppMessages> = {
     },
     home: {
       title: "New conversation",
-      description: "Local drafts and messages stay in this browser until streaming is connected.",
+      description: "Local conversations stay in this browser while responses stream from your selected model.",
       timelineLabel: "Timeline",
-      loading: "Loading local workspace...",
-      emptyState: "Empty state",
+      loading: "Loading your workspace...",
+      loadingHint: "Restoring local conversations, drafts, and model choices.",
+      emptyState: "Ready to chat",
       noConversation: "No conversation selected",
-      heroTitle: "Start a local chat in the shared workspace.",
-      heroDescription:
-        "Choose an enabled model, save drafts locally, and send messages into a timeline that is ready to connect to streaming responses.",
+      heroTitle: "Start a conversation with your shared workspace.",
+      heroDescription: "Pick an enabled model, keep drafts locally, and continue from recoverable streaming replies.",
+      heroTipModel: "Choose a model before sending your first message.",
+      heroTipDrafts: "Drafts are saved locally for the active conversation.",
+      heroTipRetry: "If a response fails, retry or stop without losing your place.",
       userMessageLabel: "You",
       assistantMessageLabel: "Assistant",
+      streamingLabel: "Streaming",
+      streamingStatus: "Assistant response in progress",
       composerLabel: "Message",
       composerPlaceholder: "Message LiteChat",
       composerDescription: "Drafts persist locally for the active conversation.",
+      composerSending: "Streaming a response. You can stop at any time.",
+      composerError: "The last response did not finish. Retry or clear the error to continue.",
+      composerNoModel: "Select an enabled model to start chatting.",
       stop: "Stop",
-      send: "Send"
+      retry: "Retry",
+      clearError: "Clear error",
+      send: "Send",
+      stopped: "Response stopped. You can retry from the latest user message.",
+      errorModelMissing: "Select an enabled model before sending.",
+      errorModelUnavailable: "The selected model is no longer available. Choose another model and try again.",
+      errorValidation: "The request could not be sent. Check the message and try again.",
+      errorUpstream: "The model provider could not complete the request. Retry in a moment.",
+      errorInterrupted: "The response stream was interrupted before completion. Retry to continue.",
+      errorUnknown: "Something went wrong while sending the message. Retry to continue."
     },
     admin: adminMessagesByLocale.en
   },
@@ -119,20 +154,38 @@ export const messagesByLocale: Record<AppLocale, AppMessages> = {
     },
     home: {
       title: "新会话",
-      description: "在接入流式后端之前，本地草稿和消息会保存在当前浏览器中。",
+      description: "本地会话会保存在当前浏览器中，同时从所选模型接收流式回复。",
       timelineLabel: "时间线",
-      loading: "正在加载本地工作区...",
-      emptyState: "空状态",
+      loading: "正在加载你的工作区...",
+      loadingHint: "正在恢复本地会话、草稿和模型选择。",
+      emptyState: "准备开始聊天",
       noConversation: "尚未选择会话",
-      heroTitle: "在共享工作区开始本地聊天。",
-      heroDescription: "选择一个已启用模型，在本地保存草稿，并把消息发送到一个已为后续流式响应准备好的时间线中。",
+      heroTitle: "在共享工作区中开始一段对话。",
+      heroDescription: "选择一个已启用模型，在本地保留草稿，并在可恢复的流式回复中继续交流。",
+      heroTipModel: "发送第一条消息前先选择一个模型。",
+      heroTipDrafts: "当前会话的草稿会保存在本地。",
+      heroTipRetry: "如果回复失败，可以重试或停止，而不会丢失当前进度。",
       userMessageLabel: "你",
       assistantMessageLabel: "助手",
+      streamingLabel: "生成中",
+      streamingStatus: "助手正在生成回复",
       composerLabel: "消息",
       composerPlaceholder: "向 LiteChat 发送消息",
       composerDescription: "当前会话的草稿会保存在本地。",
+      composerSending: "正在流式生成回复，你可以随时停止。",
+      composerError: "上一条回复未完成。你可以重试或清除错误后继续。",
+      composerNoModel: "请选择一个已启用模型后再开始聊天。",
       stop: "停止",
-      send: "发送"
+      retry: "重试",
+      clearError: "清除错误",
+      send: "发送",
+      stopped: "回复已停止。你可以基于最新的用户消息重新生成。",
+      errorModelMissing: "请先选择一个已启用模型后再发送。",
+      errorModelUnavailable: "当前所选模型已不可用。请选择其他模型后重试。",
+      errorValidation: "请求无法发送。请检查消息内容后重试。",
+      errorUpstream: "模型提供商暂时无法完成请求，请稍后重试。",
+      errorInterrupted: "回复流在完成前中断了。请重试继续。",
+      errorUnknown: "发送消息时发生异常。请重试后继续。"
     },
     admin: adminMessagesByLocale["zh-CN"]
   }

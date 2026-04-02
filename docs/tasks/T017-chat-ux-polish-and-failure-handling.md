@@ -37,10 +37,13 @@
 
 ## Current Status
 
-- State: `pending`
-- Next Step: add recovery paths and refine interaction states after live chat is working.
+- State: `completed`
+- Next Step: hand off for T018 end-to-end verification and runbook finalization.
 - Blockers: none.
 
 ## Log
 
 - 2026-04-02: Task created from initial system design.
+- 2026-04-02: Began implementation. Updating task tracking first, then wiring stop/retry/error recovery and bilingual UX polish across chat and admin surfaces.
+- 2026-04-02: Added abortable chat streaming with stop support, retryable error handling, localized UX copy, locale-aware timestamps, and fuller loading/empty/streaming states.
+- 2026-04-02: Verified with `npm run chat:verify` and `npm run build`. Build passed with the existing Next.js NFT tracing warning from `next.config.ts` -> `src/server/db/config.ts`.

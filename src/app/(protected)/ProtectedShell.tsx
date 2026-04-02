@@ -14,8 +14,8 @@ type ProtectedShellProps = {
 };
 
 function SidebarNavigation({ currentUser, mobile = false }: { currentUser: ProtectedShellProps["currentUser"]; mobile?: boolean }) {
-  const { messages } = useI18n();
-  const { conversations, activeConversationId, isLoadingWorkspace, createNewConversation, selectConversation } = useChatWorkspace();
+  const { locale, messages } = useI18n();
+  const { conversations, activeConversationId, isLoadingWorkspace, isSendingMessage, createNewConversation, selectConversation } = useChatWorkspace();
 
   return (
     <div className="flex h-full flex-col gap-5">
@@ -27,7 +27,8 @@ function SidebarNavigation({ currentUser, mobile = false }: { currentUser: Prote
 
         <button
           type="button"
-          className="flex w-full items-center justify-center rounded-2xl bg-[var(--app-shell-accent)] px-4 py-3 text-sm font-semibold text-white shadow-[0_16px_40px_rgba(37,99,235,0.28)] transition hover:bg-blue-500"
+          className="flex w-full items-center justify-center rounded-2xl bg-[var(--app-shell-accent)] px-4 py-3 text-sm font-semibold text-white shadow-[0_16px_40px_rgba(37,99,235,0.28)] transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-60"
+          disabled={isSendingMessage}
           onClick={() => {
             void createNewConversation();
           }}
@@ -61,17 +62,18 @@ function SidebarNavigation({ currentUser, mobile = false }: { currentUser: Prote
             <li key={conversation.id}>
               <button
                 type="button"
-                className={`flex w-full flex-col rounded-2xl border px-4 py-3 text-left transition hover:bg-white ${
+                className={`flex w-full flex-col rounded-2xl border px-4 py-3 text-left transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-60 ${
                   conversation.id === activeConversationId
                     ? "border-[var(--app-shell-accent)] bg-white"
                     : "border-transparent bg-[var(--app-shell-panel-muted)] hover:border-[var(--app-shell-border)]"
                 }`}
+                disabled={isSendingMessage}
                 onClick={() => {
                   void selectConversation(conversation.id);
                 }}
               >
                 <span className="text-sm font-medium text-[var(--app-shell-text)]">{conversation.title}</span>
-                <span className="mt-1 text-xs text-[var(--app-shell-subtle)]">{formatConversationTimestamp(conversation.updatedAt)}</span>
+                <span className="mt-1 text-xs text-[var(--app-shell-subtle)]">{formatConversationTimestamp(conversation.updatedAt, locale)}</span>
               </button>
             </li>
           ))}
@@ -162,8 +164,8 @@ export function ProtectedShell({ currentUser, children }: ProtectedShellProps) {
   );
 }
 
-function formatConversationTimestamp(value: string) {
-  return new Intl.DateTimeFormat(undefined, {
+function formatConversationTimestamp(value: string, locale: string) {
+  return new Intl.DateTimeFormat(locale, {
     month: "short",
     day: "numeric",
     hour: "numeric",

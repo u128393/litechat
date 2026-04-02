@@ -34,7 +34,7 @@ Tasks are ordered to produce a runnable system without leaving integration gaps.
 | T014 | Implement OpenAI Responses adapter | T003, T009, T010 | completed |
 | T015 | Implement chat streaming API route | T006, T010, T012, T014 | completed |
 | T016 | Enable automatic web search policy | T014, T015 | completed |
-| T017 | Polish chat UX and failure handling | T011, T013, T015, T016, T012A | pending |
+| T017 | Polish chat UX and failure handling | T011, T013, T015, T016, T012A | completed |
 | T018 | Verify end-to-end flow and finalize runbook | T005, T011, T017 | pending |
 | T019 | Add user password reset flow | T004, T006, T017 | pending |
 
