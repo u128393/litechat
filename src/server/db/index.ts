@@ -12,4 +12,4 @@ export {
   type RepositoryContext
 } from "@/server/db/repository";
 export { describeDatabaseConnection, resolveDrizzleKitCredentials, resolveDrizzleKitDialect } from "@/server/db/config";
-export { schema } from "@/server/db/schema";
+export { schema, sessions, users, type UserRole } from "@/server/db/schema";
