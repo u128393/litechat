@@ -23,6 +23,7 @@ type ChatWorkspaceContextValue = {
   selectedModelId: string | null;
   isLoadingWorkspace: boolean;
   isLoadingModels: boolean;
+  isSendingMessage: boolean;
   createNewConversation(): Promise<void>;
   selectConversation(conversationId: string): Promise<void>;
   updateDraft(nextDraft: string): Promise<void>;
@@ -46,6 +47,7 @@ export function ChatWorkspaceProvider({ userId, children }: { userId: string; ch
   const [selectedModelId, setSelectedModelId] = useState<string | null>(null);
   const [isLoadingWorkspace, setIsLoadingWorkspace] = useState(true);
   const [isLoadingModels, setIsLoadingModels] = useState(true);
+  const [isSendingMessage, setIsSendingMessage] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -301,7 +303,7 @@ export function ChatWorkspaceProvider({ userId, children }: { userId: string; ch
   async function sendMessage() {
     const trimmedDraft = draft.trim();
 
-    if (trimmedDraft === "" || !selectedModelId) {
+    if (trimmedDraft === "" || !selectedModelId || isSendingMessage) {
       return;
     }
 
@@ -320,12 +322,14 @@ export function ChatWorkspaceProvider({ userId, children }: { userId: string; ch
       title: messages.length === 0 ? buildConversationTitle(trimmedDraft, i18nMessages.home.title) : conversation.title,
       updatedAt: now
     };
+    const assistantMessageId = crypto.randomUUID();
 
     setMessages((currentMessages) => [...currentMessages, message]);
     setDraft("");
     setConversations((currentConversations) =>
       sortConversations(upsertConversation(currentConversations, updatedConversation))
     );
+    setIsSendingMessage(true);
 
     try {
       await Promise.all([
@@ -334,8 +338,39 @@ export function ChatWorkspaceProvider({ userId, children }: { userId: string; ch
         conversationStore.deleteDraft(conversation.id),
         persistActiveConversation(conversation.id)
       ]);
+
+      const assistantMessage = await streamAssistantMessage({
+        assistantMessageId,
+        conversationId: conversation.id,
+        modelConfigId: selectedModelId,
+        messageHistory: [...messages, message],
+        setMessages
+      });
+
+      if (!assistantMessage) {
+        return;
+      }
+
+      await Promise.all([
+        conversationStore.saveMessage(assistantMessage),
+        conversationStore.saveConversation({
+          ...updatedConversation,
+          updatedAt: assistantMessage.updatedAt
+        })
+      ]);
+
+      setConversations((currentConversations) =>
+        sortConversations(
+          upsertConversation(currentConversations, {
+            ...updatedConversation,
+            updatedAt: assistantMessage.updatedAt
+          })
+        )
+      );
     } catch {
       return;
+    } finally {
+      setIsSendingMessage(false);
     }
   }
 
@@ -356,6 +391,7 @@ export function ChatWorkspaceProvider({ userId, children }: { userId: string; ch
         selectedModelId,
         isLoadingWorkspace,
         isLoadingModels,
+        isSendingMessage,
         createNewConversation,
         selectConversation,
         updateDraft,
@@ -402,6 +438,103 @@ function buildConversationTitle(text: string | undefined, fallbackTitle: string)
   }
 
   return normalized.slice(0, 60);
+}
+
+async function streamAssistantMessage({
+  assistantMessageId,
+  conversationId,
+  modelConfigId,
+  messageHistory,
+  setMessages
+}: {
+  assistantMessageId: string;
+  conversationId: string;
+  modelConfigId: string;
+  messageHistory: ChatMessageRecord[];
+  setMessages: React.Dispatch<React.SetStateAction<ChatMessageRecord[]>>;
+}): Promise<ChatMessageRecord | null> {
+  const response = await fetch("/api/chat", {
+    method: "POST",
+    credentials: "same-origin",
+    headers: {
+      "content-type": "application/json"
+    },
+    body: JSON.stringify({
+      modelConfigId,
+      messages: messageHistory.map((message) => ({
+        role: message.role,
+        content: message.content
+      }))
+    })
+  });
+
+  if (!response.ok || !response.body) {
+    throw new Error("Unable to stream assistant response.");
+  }
+
+  const createdAt = new Date().toISOString();
+  const initialAssistantMessage: ChatMessageRecord = {
+    id: assistantMessageId,
+    conversationId,
+    role: "assistant",
+    content: "",
+    createdAt,
+    updatedAt: createdAt
+  };
+
+  setMessages((currentMessages) => [...currentMessages, initialAssistantMessage]);
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let content = "";
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+
+      if (done) {
+        break;
+      }
+
+      content += decoder.decode(value, { stream: true });
+      setMessages((currentMessages) =>
+        currentMessages.map((message) =>
+          message.id === assistantMessageId
+            ? {
+                ...message,
+                content,
+                updatedAt: new Date().toISOString()
+              }
+            : message
+        )
+      );
+    }
+
+    content += decoder.decode();
+  } catch (error) {
+    setMessages((currentMessages) => currentMessages.filter((message) => message.id !== assistantMessageId));
+    throw error;
+  } finally {
+    reader.releaseLock();
+  }
+
+  if (content === "") {
+    setMessages((currentMessages) => currentMessages.filter((message) => message.id !== assistantMessageId));
+    return null;
+  }
+
+  const completedAt = new Date().toISOString();
+  const assistantMessage: ChatMessageRecord = {
+    ...initialAssistantMessage,
+    content,
+    updatedAt: completedAt
+  };
+
+  setMessages((currentMessages) =>
+    currentMessages.map((message) => (message.id === assistantMessageId ? assistantMessage : message))
+  );
+
+  return assistantMessage;
 }
 
 function sortConversations(conversations: ChatConversationRecord[]) {

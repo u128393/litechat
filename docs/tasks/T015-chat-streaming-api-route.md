@@ -34,10 +34,14 @@
 
 ## Current Status
 
-- State: `pending`
-- Next Step: implement the route contract and adapter integration.
+- State: `completed`
+- Next Step: T016 can build on this route to add automatic web search policy.
 - Blockers: none.
 
 ## Log
 
 - 2026-04-02: Task created from initial system design.
+- 2026-04-02: Started implementation. Updating task status, then wiring the authenticated chat route and minimal browser streaming flow.
+- 2026-04-02: Added authenticated `POST /api/chat` request validation, model resolution, safe error mapping, and streaming response forwarding without server-side conversation persistence.
+- 2026-04-02: Wired the chat workspace send flow to `/api/chat` so assistant output streams into the existing local conversation state and remains browser-local.
+- 2026-04-02: Verified with `npm run chat:verify` and `npm run build`.
