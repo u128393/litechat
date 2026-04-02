@@ -32,10 +32,12 @@
 
 ## Current Status
 
-- State: `pending`
-- Next Step: initialize the Next.js app and baseline dependency set.
+- State: `completed`
+- Next Step: begin T002 by defining the environment contract and shared app config modules on top of the bootstrapped workspace.
 - Blockers: none.
 
 ## Log
 
 - 2026-04-02: Task created from initial system design.
+- 2026-04-02: Implementation started. Bootstrapping the Next.js workspace and baseline project structure.
+- 2026-04-02: Implemented a minimal Next.js App Router workspace with TypeScript, Tailwind CSS, baseline config files, and a `src` layout including `src/app` and `src/lib`. Verification passed with `npm install`, `npm run build`, and a `npm run dev` startup check followed by an HTTP request to `/`.
