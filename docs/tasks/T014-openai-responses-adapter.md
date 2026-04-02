@@ -33,10 +33,13 @@
 
 ## Current Status
 
-- State: `pending`
-- Next Step: define the adapter contract and the OpenAI Responses streaming implementation.
+- State: `completed`
+- Next Step: T015 can consume the adapter contract to resolve a configured model and stream normalized chat events through the API route.
 - Blockers: none.
 
 ## Log
 
 - 2026-04-02: Task created from initial system design.
+- 2026-04-02: Started implementation. Updating task tracking, inspecting provider and model service shapes, and preparing the adapter contract.
+- 2026-04-02: Added a minimal chat adapter contract, model/provider resolution, and an OpenAI Responses fetch-based streaming adapter with isolated message mapping and safe error translation.
+- 2026-04-02: Verified the adapter with a mocked streaming upstream check via `npm run chat:verify` and completed `npm run build` successfully.

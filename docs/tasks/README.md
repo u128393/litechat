@@ -31,7 +31,7 @@ Tasks are ordered to produce a runnable system without leaving integration gaps.
 | T012 | Implement browser local conversation store | T007 | completed |
 | T012A | Add localization and browser preferences | T007, T012 | completed |
 | T013 | Build chat workspace interactions | T007, T010, T012, T012A | completed |
-| T014 | Implement OpenAI Responses adapter | T003, T009, T010 | pending |
+| T014 | Implement OpenAI Responses adapter | T003, T009, T010 | completed |
 | T015 | Implement chat streaming API route | T006, T010, T012, T014 | pending |
 | T016 | Enable automatic web search policy | T014, T015 | pending |
 | T017 | Polish chat UX and failure handling | T011, T013, T015, T016, T012A | pending |
