@@ -10,7 +10,7 @@ export function loadLocalEnv(cwd = process.cwd()): void {
     const filePath = path.resolve(cwd, fileName);
 
     if (existsSync(filePath)) {
-      loadDotenv({ path: filePath, override: false });
+      loadDotenv({ path: filePath, override: false, quiet: true });
     }
   }
 }
