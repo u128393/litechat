@@ -33,10 +33,14 @@
 
 ## Current Status
 
-- State: `pending`
-- Next Step: execute and document the full local verification pass once all implementation tasks are complete.
-- Blockers: waits on prior tasks.
+- State: `completed`
+- Next Step: none.
+- Blockers: none.
 
 ## Log
 
 - 2026-04-02: Task created from initial system design.
+- 2026-04-02: Began end-to-end verification and runbook finalization; syncing task index status before executing the verification pass.
+- 2026-04-02: Added `docs/local-runbook.md` with standard setup, a no-secrets mock Responses verification path, manual browser smoke steps, and explicit known limitations.
+- 2026-04-02: Verified `scripts/setup/init-admin.ts` against a fresh temporary SQLite database, confirmed protected-route redirects and login flow, created provider and model configs through the admin APIs, and streamed chat successfully through `/api/chat` using a local OpenAI-compatible mock endpoint.
+- 2026-04-02: Ran `npm run build`, `npm run db:verify-factory`, `npm run auth:verify`, `npm run providers:verify`, `npm run models:verify`, and `npm run chat:verify` to close out the final integration pass.

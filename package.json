@@ -6,6 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "mock:openai-responses": "tsx scripts/mock/openai-responses-server.ts",
     "setup:init-admin": "tsx scripts/setup/init-admin.ts",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx scripts/db/migrate.ts",
