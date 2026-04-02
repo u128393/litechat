@@ -1,0 +1,45 @@
+# T012A - Add Localization And Browser Preferences
+
+## Scope
+
+- Add a shared i18n layer for English and Simplified Chinese.
+- Detect the initial language from the browser.
+- Add a user-facing language switcher.
+- Persist language preference locally in the browser.
+- Define a client-side preference store for last selected model.
+
+## Out Of Scope
+
+- Server-side user preference persistence.
+- Additional languages beyond English and Simplified Chinese.
+- Translation management tooling for non-developer editors.
+
+## Dependencies
+
+- T007.
+- T012.
+
+## Deliverables
+
+- Shared message dictionaries for `en` and `zh-CN`.
+- Locale resolution logic with browser detection and fallback.
+- Local preference helpers for `language` and `lastSelectedModelConfigId`.
+- A UI control that lets the user switch languages.
+
+## Acceptance Criteria
+
+- On first load, the app chooses English or Simplified Chinese based on the browser language.
+- Unsupported browser languages fall back to English.
+- Users can manually switch language without reauthentication.
+- The selected language is restored after reload from browser-local preferences.
+- The preference layer exposes an API that later chat tasks can use for remembering the last selected model.
+
+## Current Status
+
+- State: `pending`
+- Next Step: define the locale contract and local preference API shared by authenticated UI surfaces.
+- Blockers: none.
+
+## Log
+
+- 2026-04-02: Task created to cover bilingual UI and browser-local preferences.
