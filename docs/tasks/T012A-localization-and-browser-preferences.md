@@ -36,10 +36,13 @@
 
 ## Current Status
 
-- State: `pending`
-- Next Step: define the locale contract and local preference API shared by authenticated UI surfaces.
+- State: `completed`
+- Next Step: none.
 - Blockers: none.
 
 ## Log
 
 - 2026-04-02: Task created to cover bilingual UI and browser-local preferences.
+- 2026-04-02: Began implementation by updating task status, then reviewing the protected shell, admin surfaces, and browser-local IndexedDB store entry points for a minimal shared i18n and preference layer.
+- 2026-04-02: Added a shared client-side locale layer for `en` and `zh-CN`, browser-backed preference helpers for `language` and `lastSelectedModelConfigId`, a protected-shell language switcher, and localized authenticated shell/admin surfaces without introducing server-side preference persistence.
+- 2026-04-02: Verified the task with `npm run build`, including TypeScript checks from the Next.js production build, then prepared the worktree for commit.

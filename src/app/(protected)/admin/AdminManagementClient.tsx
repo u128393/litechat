@@ -2,7 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 
-import { adminMessages } from "@/app/(protected)/admin/messages";
+import { useI18n } from "@/lib/i18n/provider";
 import type { ModelConfig } from "@/server/model-configs";
 import type { ProviderConfig } from "@/server/providers";
 
@@ -48,6 +48,8 @@ function createDefaultModelForm(providerConfigs: ProviderConfig[]): ModelFormSta
 }
 
 export function AdminManagementClient({ initialProviderConfigs, initialModelConfigs }: AdminManagementClientProps) {
+  const { messages } = useI18n();
+  const adminMessages = messages.admin;
   const sortedInitialProviderConfigs = sortProviderConfigs(initialProviderConfigs);
   const sortedInitialModelConfigs = sortModelConfigs(initialModelConfigs);
 
@@ -103,7 +105,7 @@ export function AdminManagementClient({ initialProviderConfigs, initialModelConf
         setProviderPending(false);
         setProviderFeedback({
           type: "error",
-          message: `${adminMessages.providers.errorPrefix} ${readErrorMessage(payload)}`
+          message: `${adminMessages.providers.errorPrefix} ${readErrorMessage(payload, adminMessages.unexpectedResponse)}`
         });
         return;
       }
@@ -129,7 +131,7 @@ export function AdminManagementClient({ initialProviderConfigs, initialModelConf
       setProviderPending(false);
       setProviderFeedback({
         type: "error",
-        message: `${adminMessages.providers.errorPrefix} Unexpected response.`
+        message: `${adminMessages.providers.errorPrefix} ${adminMessages.unexpectedResponse}`
       });
       return;
     }
@@ -169,7 +171,7 @@ export function AdminManagementClient({ initialProviderConfigs, initialModelConf
         setModelPending(false);
         setModelFeedback({
           type: "error",
-          message: `${adminMessages.models.errorPrefix} ${readErrorMessage(payload)}`
+          message: `${adminMessages.models.errorPrefix} ${readErrorMessage(payload, adminMessages.unexpectedResponse)}`
         });
         return;
       }
@@ -188,7 +190,7 @@ export function AdminManagementClient({ initialProviderConfigs, initialModelConf
       setModelPending(false);
       setModelFeedback({
         type: "error",
-        message: `${adminMessages.models.errorPrefix} Unexpected response.`
+        message: `${adminMessages.models.errorPrefix} ${adminMessages.unexpectedResponse}`
       });
       return;
     }
@@ -289,9 +291,9 @@ export function AdminManagementClient({ initialProviderConfigs, initialModelConf
                             }`}
                           >
                             <span className="text-sm font-semibold text-[var(--app-shell-text)]">{providerConfig.name}</span>
-                            <span className="mt-1 text-xs text-[var(--app-shell-subtle)]">
-                              {providerConfig.providerType} {providerConfig.enabled ? "- enabled" : "- disabled"}
-                            </span>
+                              <span className="mt-1 text-xs text-[var(--app-shell-subtle)]">
+                              {providerConfig.providerType} {providerConfig.enabled ? `- ${adminMessages.listEnabledStatus}` : `- ${adminMessages.listDisabledStatus}`}
+                              </span>
                           </button>
                         </li>
                       );
@@ -312,7 +314,13 @@ export function AdminManagementClient({ initialProviderConfigs, initialModelConf
                       {selectedProvider?.name ?? adminMessages.providers.defaultProviderType}
                     </p>
                   </div>
-                  {selectedProvider ? <StatusBadge enabled={selectedProvider.enabled} /> : null}
+                  {selectedProvider ? (
+                    <StatusBadge
+                      disabledLabel={adminMessages.disabledStatus}
+                      enabled={selectedProvider.enabled}
+                      enabledLabel={adminMessages.enabledStatus}
+                    />
+                  ) : null}
                 </div>
 
                 <FeedbackBanner feedback={providerFeedback} />
@@ -436,9 +444,9 @@ export function AdminManagementClient({ initialProviderConfigs, initialModelConf
                             }`}
                           >
                             <span className="text-sm font-semibold text-[var(--app-shell-text)]">{modelConfig.displayName}</span>
-                            <span className="mt-1 text-xs text-[var(--app-shell-subtle)]">
-                              {modelConfig.modelId} - sort {modelConfig.sortOrder}
-                            </span>
+                              <span className="mt-1 text-xs text-[var(--app-shell-subtle)]">
+                              {modelConfig.modelId} - {adminMessages.listSortOrderPrefix} {modelConfig.sortOrder}
+                              </span>
                           </button>
                         </li>
                       );
@@ -461,7 +469,13 @@ export function AdminManagementClient({ initialProviderConfigs, initialModelConf
                       {selectedModel?.modelId ?? adminMessages.models.description}
                     </p>
                   </div>
-                  {selectedModel ? <StatusBadge enabled={selectedModel.enabled} /> : null}
+                  {selectedModel ? (
+                    <StatusBadge
+                      disabledLabel={adminMessages.disabledStatus}
+                      enabled={selectedModel.enabled}
+                      enabledLabel={adminMessages.enabledStatus}
+                    />
+                  ) : null}
                 </div>
 
                 <FeedbackBanner feedback={modelFeedback} />
@@ -607,10 +621,18 @@ function FeedbackBanner({ feedback }: { feedback: { type: "success" | "error"; m
   );
 }
 
-function StatusBadge({ enabled }: { enabled: boolean }) {
+function StatusBadge({
+  enabled,
+  enabledLabel,
+  disabledLabel
+}: {
+  enabled: boolean;
+  enabledLabel: string;
+  disabledLabel: string;
+}) {
   return (
     <span className="rounded-full border border-[var(--app-shell-border)] px-3 py-1 text-xs font-medium text-[var(--app-shell-subtle)]">
-      {enabled ? "Enabled" : "Disabled"}
+      {enabled ? enabledLabel : disabledLabel}
     </span>
   );
 }
@@ -676,12 +698,12 @@ async function readJsonResponse(response: Response): Promise<Record<string, unkn
   }
 }
 
-function readErrorMessage(payload: Record<string, unknown> | null): string {
+function readErrorMessage(payload: Record<string, unknown> | null, fallbackMessage: string): string {
   if (!payload) {
-    return "Unexpected response.";
+    return fallbackMessage;
   }
 
   const error = payload.error;
 
-  return typeof error === "string" && error.trim() !== "" ? error : "Unexpected response.";
+  return typeof error === "string" && error.trim() !== "" ? error : fallbackMessage;
 }

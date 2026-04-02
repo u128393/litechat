@@ -29,7 +29,7 @@ Tasks are ordered to produce a runnable system without leaving integration gaps.
 | T010 | Implement model config backend | T003, T009 | completed |
 | T011 | Build admin UI for provider and model management | T008, T009, T010 | completed |
 | T012 | Implement browser local conversation store | T007 | completed |
-| T012A | Add localization and browser preferences | T007, T012 | pending |
+| T012A | Add localization and browser preferences | T007, T012 | completed |
 | T013 | Build chat workspace interactions | T007, T010, T012, T012A | pending |
 | T014 | Implement OpenAI Responses adapter | T003, T009, T010 | pending |
 | T015 | Implement chat streaming API route | T006, T010, T012, T014 | pending |
