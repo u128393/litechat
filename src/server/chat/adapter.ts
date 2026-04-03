@@ -11,7 +11,7 @@ export type ChatRequestMessage = {
 };
 
 export type ChatAdapterTool = {
-  type: "web_search_preview";
+  type: "web_search";
 };
 
 export type ChatModelTarget = {
@@ -92,7 +92,7 @@ export function resolveAutomaticChatTools(model: ChatModelTarget, adapter: ChatP
     return undefined;
   }
 
-  return [{ type: "web_search_preview" }];
+  return [{ type: "web_search" }];
 }
 
 export async function resolveChatModelTarget(

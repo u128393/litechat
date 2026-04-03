@@ -127,7 +127,7 @@ function mapMessagesToResponsesInput(messages: ChatRequestMessage[]) {
 
 function mapTools(tools: ChatAdapterTool[], model: ChatModelTarget) {
   return tools.map((tool) => {
-    if (tool.type === "web_search_preview") {
+    if (tool.type === "web_search") {
       if (!model.supportsWebSearch) {
         throw new ChatAdapterError("invalid_request", "The selected model does not support web search.");
       }

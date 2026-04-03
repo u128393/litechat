@@ -73,7 +73,7 @@ npm run mock:openai-responses
 curl http://127.0.0.1:11434/requests/latest
 ```
 
-The response should include `stream: true` and, when the selected model supports it, `tools: [{"type":"web_search_preview"}]`.
+The response should include `stream: true` and, when the selected model supports it, `tools: [{"type":"web_search"}]`.
 
 ## Manual Smoke Checklist
 
@@ -107,7 +107,7 @@ The following checks were executed locally during T018:
 - Model creation through `/api/admin/model-configs`
 - Model discovery through `/api/models`
 - Streaming chat through `/api/chat` against the local mock Responses server
-- Mock request inspection confirming `web_search_preview` tool injection for a web-search-enabled model
+- Mock request inspection confirming `web_search` tool injection for a web-search-enabled model
 
 ## Known Limitations
 

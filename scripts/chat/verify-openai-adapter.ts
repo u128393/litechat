@@ -55,7 +55,7 @@ async function main() {
     const originalFetch = globalThis.fetch;
 
     assert(
-      resolveAutomaticChatTools(target, adapter)?.[0]?.type === "web_search_preview",
+      resolveAutomaticChatTools(target, adapter)?.[0]?.type === "web_search",
       "automatic tools should enable model-native web search when supported"
     );
 
@@ -86,7 +86,7 @@ async function main() {
           { role: "system", content: "You are concise." },
           { role: "user", content: "Say hello." }
         ],
-        tools: [{ type: "web_search_preview" }]
+        tools: [{ type: "web_search" }]
       });
       const events = await readStream<ChatResponseStreamEvent>(stream);
 
@@ -109,7 +109,7 @@ async function main() {
       assert(body.input?.length === 2, "adapter should map local messages into Responses input");
       assert(body.input?.[0]?.role === "system", "adapter should preserve supported message roles");
       assert(body.input?.[1]?.content[0]?.text === "Say hello.", "adapter should map text message content");
-      assert(body.tools?.[0]?.type === "web_search_preview", "adapter should map request tools when supported");
+      assert(body.tools?.[0]?.type === "web_search", "adapter should map request tools when supported");
       assert(events.length === 4, "adapter should emit normalized stream events");
       assert(events[0]?.type === "response.started", "stream should start with a response.started event");
       assert(events[1]?.type === "response.output_text.delta", "stream should include text delta events");
