@@ -1,10 +1,30 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import { useRouter } from "next/navigation";
+import { ArrowLeft, Plus, Pencil } from "lucide-react";
 
 import { useI18n } from "@/lib/i18n/provider";
 import type { ModelConfig } from "@/server/model-configs";
 import type { ProviderConfig } from "@/server/providers";
+
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 type AdminManagementClientProps = {
   initialProviderConfigs: ProviderConfig[];
@@ -48,6 +68,7 @@ function createDefaultModelForm(providerConfigs: ProviderConfig[]): ModelFormSta
 }
 
 export function AdminManagementClient({ initialProviderConfigs, initialModelConfigs }: AdminManagementClientProps) {
+  const router = useRouter();
   const { messages } = useI18n();
   const adminMessages = messages.admin;
   const sortedInitialProviderConfigs = sortProviderConfigs(initialProviderConfigs);
@@ -55,19 +76,38 @@ export function AdminManagementClient({ initialProviderConfigs, initialModelConf
 
   const [providerConfigs, setProviderConfigs] = useState(sortedInitialProviderConfigs);
   const [modelConfigs, setModelConfigs] = useState(sortedInitialModelConfigs);
-  const [selectedProviderId, setSelectedProviderId] = useState<string | null>(sortedInitialProviderConfigs[0]?.id ?? null);
-  const [selectedModelId, setSelectedModelId] = useState<string | null>(sortedInitialModelConfigs[0]?.id ?? null);
-  const [providerForm, setProviderForm] = useState<ProviderFormState>(() => createProviderForm(sortedInitialProviderConfigs[0] ?? null));
-  const [modelForm, setModelForm] = useState<ModelFormState>(() =>
-    createModelForm(sortedInitialModelConfigs[0] ?? null, sortedInitialProviderConfigs)
-  );
+
+  // Provider dialog state
+  const [providerDialogOpen, setProviderDialogOpen] = useState(false);
+  const [editingProvider, setEditingProvider] = useState<ProviderConfig | null>(null);
+  const [providerForm, setProviderForm] = useState<ProviderFormState>(DEFAULT_PROVIDER_FORM);
   const [providerPending, setProviderPending] = useState(false);
-  const [modelPending, setModelPending] = useState(false);
   const [providerFeedback, setProviderFeedback] = useState<{ type: "success" | "error"; message: string } | null>(null);
+
+  // Model dialog state
+  const [modelDialogOpen, setModelDialogOpen] = useState(false);
+  const [editingModel, setEditingModel] = useState<ModelConfig | null>(null);
+  const [modelForm, setModelForm] = useState<ModelFormState>(() =>
+    createDefaultModelForm(sortedInitialProviderConfigs)
+  );
+  const [modelPending, setModelPending] = useState(false);
   const [modelFeedback, setModelFeedback] = useState<{ type: "success" | "error"; message: string } | null>(null);
 
-  const selectedProvider = providerConfigs.find((providerConfig) => providerConfig.id === selectedProviderId) ?? null;
-  const selectedModel = modelConfigs.find((modelConfig) => modelConfig.id === selectedModelId) ?? null;
+  // --- Provider handlers ---
+
+  function openAddProvider() {
+    setEditingProvider(null);
+    setProviderForm(DEFAULT_PROVIDER_FORM);
+    setProviderFeedback(null);
+    setProviderDialogOpen(true);
+  }
+
+  function openEditProvider(providerConfig: ProviderConfig) {
+    setEditingProvider(providerConfig);
+    setProviderForm(createProviderForm(providerConfig));
+    setProviderFeedback(null);
+    setProviderDialogOpen(true);
+  }
 
   async function submitProviderForm(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -75,7 +115,7 @@ export function AdminManagementClient({ initialProviderConfigs, initialModelConf
     setProviderPending(true);
     setProviderFeedback(null);
 
-    const isEditing = selectedProvider !== null;
+    const isEditing = editingProvider !== null;
     const requestBody: Record<string, unknown> = {
       name: providerForm.name,
       providerType: providerForm.providerType,
@@ -89,12 +129,10 @@ export function AdminManagementClient({ initialProviderConfigs, initialModelConf
 
     try {
       const response = await fetch(
-        isEditing ? `/api/admin/provider-configs/${selectedProvider.id}` : "/api/admin/provider-configs",
+        isEditing ? `/api/admin/provider-configs/${editingProvider!.id}` : "/api/admin/provider-configs",
         {
           method: isEditing ? "PATCH" : "POST",
-          headers: {
-            "content-type": "application/json"
-          },
+          headers: { "content-type": "application/json" },
           body: JSON.stringify(requestBody)
         }
       );
@@ -114,19 +152,22 @@ export function AdminManagementClient({ initialProviderConfigs, initialModelConf
       const nextProviderConfigs = sortProviderConfigs(upsertById(providerConfigs, nextProviderConfig));
 
       setProviderConfigs(nextProviderConfigs);
-      setSelectedProviderId(nextProviderConfig.id);
+      setEditingProvider(nextProviderConfig);
       setProviderForm(createProviderForm(nextProviderConfig));
       setProviderFeedback({
         type: "success",
         message: isEditing ? adminMessages.providers.successUpdate : adminMessages.providers.successCreate
       });
 
-      if (!selectedModelId && modelForm.providerConfigId === "") {
+      // Update model form if its provider was just created
+      if (modelForm.providerConfigId === "") {
         setModelForm((currentForm) => ({
           ...currentForm,
           providerConfigId: nextProviderConfig.id
         }));
       }
+
+      setProviderDialogOpen(false);
     } catch {
       setProviderPending(false);
       setProviderFeedback({
@@ -139,21 +180,37 @@ export function AdminManagementClient({ initialProviderConfigs, initialModelConf
     setProviderPending(false);
   }
 
+  // --- Model handlers ---
+
+  function openAddModel() {
+    if (providerConfigs.length === 0) return;
+    setEditingModel(null);
+    setModelForm(createDefaultModelForm(providerConfigs));
+    setModelFeedback(null);
+    setModelDialogOpen(true);
+  }
+
+  function openEditModel(modelConfig: ModelConfig) {
+    setEditingModel(modelConfig);
+    setModelForm(createModelForm(modelConfig, providerConfigs));
+    setModelFeedback(null);
+    setModelDialogOpen(true);
+  }
+
   async function submitModelForm(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     setModelPending(true);
     setModelFeedback(null);
 
-    const isEditing = selectedModel !== null;
+    const isEditing = editingModel !== null;
+
     try {
       const response = await fetch(
-        isEditing ? `/api/admin/model-configs/${selectedModel.id}` : "/api/admin/model-configs",
+        isEditing ? `/api/admin/model-configs/${editingModel!.id}` : "/api/admin/model-configs",
         {
           method: isEditing ? "PATCH" : "POST",
-          headers: {
-            "content-type": "application/json"
-          },
+          headers: { "content-type": "application/json" },
           body: JSON.stringify({
             providerConfigId: modelForm.providerConfigId,
             modelId: modelForm.modelId,
@@ -180,12 +237,14 @@ export function AdminManagementClient({ initialProviderConfigs, initialModelConf
       const nextModelConfigs = sortModelConfigs(upsertById(modelConfigs, nextModelConfig));
 
       setModelConfigs(nextModelConfigs);
-      setSelectedModelId(nextModelConfig.id);
+      setEditingModel(nextModelConfig);
       setModelForm(createModelForm(nextModelConfig, providerConfigs));
       setModelFeedback({
         type: "success",
         message: isEditing ? adminMessages.models.successUpdate : adminMessages.models.successCreate
       });
+
+      setModelDialogOpen(false);
     } catch {
       setModelPending(false);
       setModelFeedback({
@@ -198,444 +257,435 @@ export function AdminManagementClient({ initialProviderConfigs, initialModelConf
     setModelPending(false);
   }
 
-  function startNewProvider() {
-    setSelectedProviderId(null);
-    setProviderForm(DEFAULT_PROVIDER_FORM);
-    setProviderFeedback(null);
-  }
-
-  function startNewModel() {
-    setSelectedModelId(null);
-    setModelForm(createDefaultModelForm(providerConfigs));
-    setModelFeedback(null);
-  }
-
-  function selectProvider(providerConfig: ProviderConfig) {
-    setSelectedProviderId(providerConfig.id);
-    setProviderForm(createProviderForm(providerConfig));
-    setProviderFeedback(null);
-  }
-
-  function selectModel(modelConfig: ModelConfig) {
-    setSelectedModelId(modelConfig.id);
-    setModelForm(createModelForm(modelConfig, providerConfigs));
-    setModelFeedback(null);
+  // Helper to get provider name by id (for model table display)
+  function getProviderName(providerConfigId: string): string {
+    return providerConfigs.find((p) => p.id === providerConfigId)?.name ?? "\u2014";
   }
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-5 px-4 py-4 sm:px-6 sm:py-6">
-      <div className="overflow-hidden rounded-[2rem] border border-[var(--app-shell-border)] bg-white/78 shadow-[0_28px_80px_rgba(15,23,42,0.10)] backdrop-blur">
-        <div className="border-b border-[var(--app-shell-border)] px-5 py-4 sm:px-6">
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-            <div>
-              <p className="text-sm font-semibold text-[var(--app-shell-text)]">{adminMessages.title}</p>
-              <p className="text-sm text-[var(--app-shell-subtle)]">{adminMessages.description}</p>
+    <div className="flex min-h-0 flex-1 flex-col bg-[var(--lc-bg-primary)]">
+      {/* Top Bar */}
+      <div className="flex h-14 shrink-0 items-center gap-3 border-b border-[var(--lc-border)] px-6">
+        <button
+          type="button"
+          onClick={() => router.push("/")}
+          className="flex size-8 items-center justify-center rounded-lg text-[var(--lc-text-secondary)] transition-colors hover:bg-[var(--lc-bg-secondary)] hover:text-[var(--lc-text-primary)]"
+          aria-label="Back"
+        >
+          <ArrowLeft className="size-[18px]" />
+        </button>
+        <h1 className="text-[20px] font-semibold text-[var(--lc-text-primary)]">{adminMessages.title}</h1>
+      </div>
+
+      {/* Content */}
+      <div className="flex-1 overflow-y-auto px-0 py-8">
+        <div className="mx-auto flex max-w-[800px] flex-col gap-8">
+
+          {/* Feedback banners */}
+          {providerFeedback && (
+            <FeedbackBanner feedback={providerFeedback} onDismiss={() => setProviderFeedback(null)} />
+          )}
+          {modelFeedback && (
+            <FeedbackBanner feedback={modelFeedback} onDismiss={() => setModelFeedback(null)} />
+          )}
+
+          {/* Providers Section */}
+          <section>
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-[var(--lc-text-primary)]">
+                {adminMessages.providersNav}
+              </h2>
+              <button
+                type="button"
+                onClick={openAddProvider}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--lc-accent)] px-3.5 py-1.5 text-sm font-medium text-[var(--lc-accent)] transition-colors hover:bg-[var(--lc-accent)]/5"
+              >
+                <Plus className="size-3.5" />
+                {adminMessages.providers.newAction}
+              </button>
             </div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs uppercase tracking-[0.22em] text-[var(--app-shell-subtle)]">{adminMessages.badge}</span>
-              <nav aria-label={adminMessages.navigationLabel} className="flex items-center gap-2">
-                <a
-                  href="#providers"
-                  className="rounded-full border border-[var(--app-shell-border)] bg-[var(--app-shell-panel)] px-3 py-1.5 text-sm font-medium text-[var(--app-shell-text)] transition hover:bg-[var(--app-shell-panel-muted)]"
-                >
-                  {adminMessages.providersNav}
-                </a>
-                <a
-                  href="#models"
-                  className="rounded-full border border-[var(--app-shell-border)] bg-[var(--app-shell-panel)] px-3 py-1.5 text-sm font-medium text-[var(--app-shell-text)] transition hover:bg-[var(--app-shell-panel-muted)]"
-                >
-                  {adminMessages.modelsNav}
-                </a>
-              </nav>
-            </div>
-          </div>
-        </div>
 
-        <div className="grid gap-5 p-5 sm:p-6 xl:grid-cols-2">
-          <section id="providers" className="flex flex-col gap-4 rounded-[1.75rem] border border-[var(--app-shell-border)] bg-[var(--app-shell-panel)] p-4 shadow-[0_18px_48px_rgba(15,23,42,0.06)] sm:p-5">
-            <SectionHeading
-              badge={adminMessages.providers.badge}
-              title={adminMessages.providers.title}
-              description={adminMessages.providers.description}
-            />
-
-            <div className="grid gap-4 lg:grid-cols-[minmax(0,0.92fr)_minmax(0,1.08fr)]">
-              <div className="space-y-3">
-                <div className="flex items-center justify-between gap-3">
-                  <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[var(--app-shell-subtle)]">
-                    {adminMessages.providers.selectionLabel}
-                  </p>
-                  <button
-                    type="button"
-                    onClick={startNewProvider}
-                    className="rounded-full border border-[var(--app-shell-border)] px-3 py-1.5 text-sm font-medium text-[var(--app-shell-text)] transition hover:bg-[var(--app-shell-panel-muted)]"
-                  >
-                    {adminMessages.providers.newAction}
-                  </button>
-                </div>
-
-                {providerConfigs.length > 0 ? (
-                  <ul className="space-y-2">
-                    {providerConfigs.map((providerConfig) => {
-                      const isSelected = providerConfig.id === selectedProviderId;
-
-                      return (
-                        <li key={providerConfig.id}>
-                          <button
-                            type="button"
-                            onClick={() => selectProvider(providerConfig)}
-                            className={`flex w-full flex-col rounded-2xl border px-4 py-3 text-left transition ${
-                              isSelected
-                                ? "border-[var(--app-shell-accent)] bg-white shadow-[0_16px_32px_rgba(37,99,235,0.10)]"
-                                : "border-[var(--app-shell-border)] bg-[var(--app-shell-panel-muted)] hover:bg-white"
-                            }`}
-                          >
-                            <span className="text-sm font-semibold text-[var(--app-shell-text)]">{providerConfig.name}</span>
-                              <span className="mt-1 text-xs text-[var(--app-shell-subtle)]">
-                              {providerConfig.providerType} {providerConfig.enabled ? `- ${adminMessages.listEnabledStatus}` : `- ${adminMessages.listDisabledStatus}`}
-                              </span>
-                          </button>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                ) : (
-                  <EmptyState title={adminMessages.providers.emptyTitle} description={adminMessages.providers.emptyDescription} />
-                )}
+            <div className="overflow-hidden rounded-lg border border-[var(--lc-border)]">
+              {/* Table Header */}
+              <div className="flex items-center bg-[var(--lc-bg-secondary)] px-4 py-2.5">
+                <span className="flex-1 text-xs font-medium text-[var(--lc-text-secondary)]">{adminMessages.providers.nameLabel}</span>
+                <span className="flex-1 text-xs font-medium text-[var(--lc-text-secondary)]">{adminMessages.providers.providerTypeLabel}</span>
+                <span className="w-24 text-xs font-medium text-[var(--lc-text-secondary)]">Status</span>
+                <span className="w-20" />
               </div>
 
-              <div className="rounded-[1.5rem] border border-[var(--app-shell-border)] bg-white/84 p-4">
-                <div className="mb-4 flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[var(--app-shell-subtle)]">
-                      {selectedProvider ? adminMessages.providers.editModeLabel : adminMessages.providers.createModeLabel}
-                    </p>
-                    <p className="mt-2 text-sm text-[var(--app-shell-subtle)]">
-                      {selectedProvider?.name ?? adminMessages.providers.defaultProviderType}
-                    </p>
-                  </div>
-                  {selectedProvider ? (
-                    <StatusBadge
-                      disabledLabel={adminMessages.disabledStatus}
-                      enabled={selectedProvider.enabled}
-                      enabledLabel={adminMessages.enabledStatus}
-                    />
-                  ) : null}
-                </div>
-
-                <FeedbackBanner feedback={providerFeedback} />
-
-                <form className="space-y-4" onSubmit={submitProviderForm}>
-                  <label className="block text-sm font-medium text-[var(--app-shell-text)]">
-                    {adminMessages.providers.nameLabel}
-                    <input
-                      value={providerForm.name}
-                      onChange={(event) => setProviderForm((currentForm) => ({ ...currentForm, name: event.target.value }))}
-                      className="mt-2 w-full rounded-2xl border border-[var(--app-shell-border)] bg-[var(--app-shell-panel)] px-4 py-3 text-sm text-[var(--app-shell-text)] outline-none"
-                      name="name"
-                      required
-                    />
-                  </label>
-
-                  <label className="block text-sm font-medium text-[var(--app-shell-text)]">
-                    {adminMessages.providers.providerTypeLabel}
-                    <select
-                      value={providerForm.providerType}
-                      onChange={(event) =>
-                        setProviderForm((currentForm) => ({
-                          ...currentForm,
-                          providerType: event.target.value as "openai-responses"
-                        }))
-                      }
-                      className="mt-2 w-full rounded-2xl border border-[var(--app-shell-border)] bg-[var(--app-shell-panel)] px-4 py-3 text-sm text-[var(--app-shell-text)] outline-none"
-                      name="providerType"
-                    >
-                      <option value="openai-responses">{adminMessages.providers.defaultProviderType}</option>
-                    </select>
-                  </label>
-
-                  <label className="block text-sm font-medium text-[var(--app-shell-text)]">
-                    {adminMessages.providers.baseUrlLabel}
-                    <input
-                      value={providerForm.baseUrl}
-                      onChange={(event) => setProviderForm((currentForm) => ({ ...currentForm, baseUrl: event.target.value }))}
-                      className="mt-2 w-full rounded-2xl border border-[var(--app-shell-border)] bg-[var(--app-shell-panel)] px-4 py-3 text-sm text-[var(--app-shell-text)] outline-none"
-                      name="baseUrl"
-                      type="url"
-                    />
-                  </label>
-
-                  <label className="block text-sm font-medium text-[var(--app-shell-text)]">
-                    {adminMessages.providers.apiKeyLabel}
-                    <input
-                      value={providerForm.apiKey}
-                      onChange={(event) => setProviderForm((currentForm) => ({ ...currentForm, apiKey: event.target.value }))}
-                      className="mt-2 w-full rounded-2xl border border-[var(--app-shell-border)] bg-[var(--app-shell-panel)] px-4 py-3 text-sm text-[var(--app-shell-text)] outline-none"
-                      name="apiKey"
-                      type="password"
-                      required={!selectedProvider}
-                    />
-                    <p className="mt-2 text-xs text-[var(--app-shell-subtle)]">
-                      {selectedProvider ? adminMessages.providers.apiKeyUpdateHint : adminMessages.providers.apiKeyCreateHint}
-                    </p>
-                  </label>
-
-                  <label className="flex items-center gap-3 rounded-2xl border border-[var(--app-shell-border)] bg-[var(--app-shell-panel)] px-4 py-3 text-sm text-[var(--app-shell-text)]">
-                    <input
-                      checked={providerForm.enabled}
-                      onChange={(event) => setProviderForm((currentForm) => ({ ...currentForm, enabled: event.target.checked }))}
-                      name="enabled"
-                      type="checkbox"
-                    />
-                    <span>{adminMessages.providers.enabledLabel}</span>
-                  </label>
-
-                  <button
-                    type="submit"
-                    disabled={providerPending}
-                    className="w-full rounded-2xl bg-[var(--app-shell-accent)] px-4 py-3 text-sm font-semibold text-white shadow-[0_16px_40px_rgba(37,99,235,0.24)] transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-70"
+              {/* Table Body */}
+              {providerConfigs.length > 0 ? (
+                providerConfigs.map((providerConfig, index) => (
+                  <div
+                    key={providerConfig.id}
+                    className={`flex items-center px-4 py-3 ${
+                      index < providerConfigs.length - 1 ? "border-b border-[var(--lc-border)]" : ""
+                    }`}
                   >
-                    {providerPending
-                      ? selectedProvider
-                        ? adminMessages.providers.updatingAction
-                        : adminMessages.providers.creatingAction
-                      : selectedProvider
-                        ? adminMessages.providers.updateAction
-                        : adminMessages.providers.createAction}
-                  </button>
-                </form>
-              </div>
-            </div>
-          </section>
-
-          <section id="models" className="flex flex-col gap-4 rounded-[1.75rem] border border-[var(--app-shell-border)] bg-[var(--app-shell-panel)] p-4 shadow-[0_18px_48px_rgba(15,23,42,0.06)] sm:p-5">
-            <SectionHeading badge={adminMessages.models.badge} title={adminMessages.models.title} description={adminMessages.models.description} />
-
-            <div className="grid gap-4 lg:grid-cols-[minmax(0,0.92fr)_minmax(0,1.08fr)]">
-              <div className="space-y-3">
-                <div className="flex items-center justify-between gap-3">
-                  <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[var(--app-shell-subtle)]">
-                    {adminMessages.models.selectionLabel}
-                  </p>
-                  <button
-                    type="button"
-                    onClick={startNewModel}
-                    disabled={providerConfigs.length === 0}
-                    className="rounded-full border border-[var(--app-shell-border)] px-3 py-1.5 text-sm font-medium text-[var(--app-shell-text)] transition hover:bg-[var(--app-shell-panel-muted)] disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    {adminMessages.models.newAction}
-                  </button>
-                </div>
-
-                {modelConfigs.length > 0 ? (
-                  <ul className="space-y-2">
-                    {modelConfigs.map((modelConfig) => {
-                      const isSelected = modelConfig.id === selectedModelId;
-
-                      return (
-                        <li key={modelConfig.id}>
-                          <button
-                            type="button"
-                            onClick={() => selectModel(modelConfig)}
-                            className={`flex w-full flex-col rounded-2xl border px-4 py-3 text-left transition ${
-                              isSelected
-                                ? "border-[var(--app-shell-accent)] bg-white shadow-[0_16px_32px_rgba(37,99,235,0.10)]"
-                                : "border-[var(--app-shell-border)] bg-[var(--app-shell-panel-muted)] hover:bg-white"
-                            }`}
-                          >
-                            <span className="text-sm font-semibold text-[var(--app-shell-text)]">{modelConfig.displayName}</span>
-                              <span className="mt-1 text-xs text-[var(--app-shell-subtle)]">
-                              {modelConfig.modelId} - {adminMessages.listSortOrderPrefix} {modelConfig.sortOrder}
-                              </span>
-                          </button>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                ) : providerConfigs.length > 0 ? (
-                  <EmptyState title={adminMessages.models.emptyTitle} description={adminMessages.models.emptyDescription} />
-                ) : (
-                  <EmptyState title={adminMessages.models.blockedTitle} description={adminMessages.models.blockedDescription} />
-                )}
-              </div>
-
-              <div className="rounded-[1.5rem] border border-[var(--app-shell-border)] bg-white/84 p-4">
-                <div className="mb-4 flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[var(--app-shell-subtle)]">
-                      {selectedModel ? adminMessages.models.editModeLabel : adminMessages.models.createModeLabel}
-                    </p>
-                    <p className="mt-2 text-sm text-[var(--app-shell-subtle)]">
-                      {selectedModel?.modelId ?? adminMessages.models.description}
-                    </p>
-                  </div>
-                  {selectedModel ? (
-                    <StatusBadge
-                      disabledLabel={adminMessages.disabledStatus}
-                      enabled={selectedModel.enabled}
-                      enabledLabel={adminMessages.enabledStatus}
-                    />
-                  ) : null}
-                </div>
-
-                <FeedbackBanner feedback={modelFeedback} />
-
-                <form className="space-y-4" onSubmit={submitModelForm}>
-                  <fieldset disabled={providerConfigs.length === 0 || modelPending} className="space-y-4 disabled:opacity-70">
-                    <label className="block text-sm font-medium text-[var(--app-shell-text)]">
-                      {adminMessages.models.providerLabel}
-                      <select
-                        value={modelForm.providerConfigId}
-                        onChange={(event) =>
-                          setModelForm((currentForm) => ({ ...currentForm, providerConfigId: event.target.value }))
-                        }
-                        className="mt-2 w-full rounded-2xl border border-[var(--app-shell-border)] bg-[var(--app-shell-panel)] px-4 py-3 text-sm text-[var(--app-shell-text)] outline-none"
-                        name="providerConfigId"
-                        required
+                    <span className="flex-1 text-sm font-medium text-[var(--lc-text-primary)]">
+                      {providerConfig.name}
+                    </span>
+                    <span className="flex-1 text-sm text-[var(--lc-text-secondary)]">
+                      {providerConfig.providerType}
+                    </span>
+                    <span className="w-24">
+                      <StatusBadge enabled={providerConfig.enabled} />
+                    </span>
+                    <span className="flex w-20 justify-end">
+                      <button
+                        type="button"
+                        onClick={() => openEditProvider(providerConfig)}
+                        className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-sm text-[var(--lc-text-secondary)] transition-colors hover:bg-[var(--lc-bg-secondary)] hover:text-[var(--lc-text-primary)]"
                       >
-                        {providerConfigs.map((providerConfig) => (
-                          <option key={providerConfig.id} value={providerConfig.id}>
-                            {providerConfig.name}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
+                        <Pencil className="size-3.5" />
+                        Edit
+                      </button>
+                    </span>
+                  </div>
+                ))
+              ) : (
+                <div className="px-4 py-8 text-center">
+                  <p className="text-sm font-medium text-[var(--lc-text-primary)]">{adminMessages.providers.emptyTitle}</p>
+                  <p className="mt-1 text-sm text-[var(--lc-text-secondary)]">{adminMessages.providers.emptyDescription}</p>
+                </div>
+              )}
+            </div>
+          </section>
 
-                    <label className="block text-sm font-medium text-[var(--app-shell-text)]">
-                      {adminMessages.models.modelIdLabel}
-                      <input
-                        value={modelForm.modelId}
-                        onChange={(event) => setModelForm((currentForm) => ({ ...currentForm, modelId: event.target.value }))}
-                        className="mt-2 w-full rounded-2xl border border-[var(--app-shell-border)] bg-[var(--app-shell-panel)] px-4 py-3 text-sm text-[var(--app-shell-text)] outline-none"
-                        name="modelId"
-                        required
-                      />
-                    </label>
+          {/* Models Section */}
+          <section>
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-[var(--lc-text-primary)]">
+                {adminMessages.modelsNav}
+              </h2>
+              <button
+                type="button"
+                onClick={openAddModel}
+                disabled={providerConfigs.length === 0}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--lc-accent)] px-3.5 py-1.5 text-sm font-medium text-[var(--lc-accent)] transition-colors hover:bg-[var(--lc-accent)]/5 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <Plus className="size-3.5" />
+                {adminMessages.models.newAction}
+              </button>
+            </div>
 
-                    <label className="block text-sm font-medium text-[var(--app-shell-text)]">
-                      {adminMessages.models.displayNameLabel}
-                      <input
-                        value={modelForm.displayName}
-                        onChange={(event) => setModelForm((currentForm) => ({ ...currentForm, displayName: event.target.value }))}
-                        className="mt-2 w-full rounded-2xl border border-[var(--app-shell-border)] bg-[var(--app-shell-panel)] px-4 py-3 text-sm text-[var(--app-shell-text)] outline-none"
-                        name="displayName"
-                        required
-                      />
-                    </label>
-
-                    <label className="block text-sm font-medium text-[var(--app-shell-text)]">
-                      {adminMessages.models.sortOrderLabel}
-                      <input
-                        value={modelForm.sortOrder}
-                        onChange={(event) => setModelForm((currentForm) => ({ ...currentForm, sortOrder: event.target.value }))}
-                        className="mt-2 w-full rounded-2xl border border-[var(--app-shell-border)] bg-[var(--app-shell-panel)] px-4 py-3 text-sm text-[var(--app-shell-text)] outline-none"
-                        name="sortOrder"
-                        type="number"
-                        step="1"
-                        required
-                      />
-                    </label>
-
-                    <label className="flex items-center gap-3 rounded-2xl border border-[var(--app-shell-border)] bg-[var(--app-shell-panel)] px-4 py-3 text-sm text-[var(--app-shell-text)]">
-                      <input
-                        checked={modelForm.enabled}
-                        onChange={(event) => setModelForm((currentForm) => ({ ...currentForm, enabled: event.target.checked }))}
-                        name="enabled"
-                        type="checkbox"
-                      />
-                      <span>{adminMessages.models.enabledLabel}</span>
-                    </label>
-
-                    <label className="flex items-center gap-3 rounded-2xl border border-[var(--app-shell-border)] bg-[var(--app-shell-panel)] px-4 py-3 text-sm text-[var(--app-shell-text)]">
-                      <input
-                        checked={modelForm.supportsWebSearch}
-                        onChange={(event) =>
-                          setModelForm((currentForm) => ({ ...currentForm, supportsWebSearch: event.target.checked }))
-                        }
-                        name="supportsWebSearch"
-                        type="checkbox"
-                      />
-                      <span>{adminMessages.models.supportsWebSearchLabel}</span>
-                    </label>
-
-                    <button
-                      type="submit"
-                      disabled={providerConfigs.length === 0 || modelPending}
-                      className="w-full rounded-2xl bg-[var(--app-shell-accent)] px-4 py-3 text-sm font-semibold text-white shadow-[0_16px_40px_rgba(37,99,235,0.24)] transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-70"
-                    >
-                      {modelPending
-                        ? selectedModel
-                          ? adminMessages.models.updatingAction
-                          : adminMessages.models.creatingAction
-                        : selectedModel
-                          ? adminMessages.models.updateAction
-                          : adminMessages.models.createAction}
-                    </button>
-                  </fieldset>
-                </form>
+            <div className="overflow-hidden rounded-lg border border-[var(--lc-border)]">
+              {/* Table Header */}
+              <div className="flex items-center bg-[var(--lc-bg-secondary)] px-4 py-2.5">
+                <span className="flex-1 text-xs font-medium text-[var(--lc-text-secondary)]">{adminMessages.models.displayNameLabel}</span>
+                <span className="flex-1 text-xs font-medium text-[var(--lc-text-secondary)]">{adminMessages.models.modelIdLabel}</span>
+                <span className="w-32 text-xs font-medium text-[var(--lc-text-secondary)]">{adminMessages.models.providerLabel}</span>
+                <span className="w-24 text-xs font-medium text-[var(--lc-text-secondary)]">Status</span>
+                <span className="w-20" />
               </div>
+
+              {/* Table Body */}
+              {modelConfigs.length > 0 ? (
+                modelConfigs.map((modelConfig, index) => (
+                  <div
+                    key={modelConfig.id}
+                    className={`flex items-center px-4 py-3 ${
+                      index < modelConfigs.length - 1 ? "border-b border-[var(--lc-border)]" : ""
+                    }`}
+                  >
+                    <span className="flex-1 text-sm font-medium text-[var(--lc-text-primary)]">
+                      {modelConfig.displayName}
+                    </span>
+                    <span className="flex-1 text-sm text-[var(--lc-text-secondary)]">
+                      {modelConfig.modelId}
+                    </span>
+                    <span className="w-32 text-sm text-[var(--lc-text-secondary)]">
+                      {getProviderName(modelConfig.providerConfigId)}
+                    </span>
+                    <span className="w-24">
+                      <StatusBadge enabled={modelConfig.enabled} />
+                    </span>
+                    <span className="flex w-20 justify-end">
+                      <button
+                        type="button"
+                        onClick={() => openEditModel(modelConfig)}
+                        className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-sm text-[var(--lc-text-secondary)] transition-colors hover:bg-[var(--lc-bg-secondary)] hover:text-[var(--lc-text-primary)]"
+                      >
+                        <Pencil className="size-3.5" />
+                        Edit
+                      </button>
+                    </span>
+                  </div>
+                ))
+              ) : providerConfigs.length > 0 ? (
+                <div className="px-4 py-8 text-center">
+                  <p className="text-sm font-medium text-[var(--lc-text-primary)]">{adminMessages.models.emptyTitle}</p>
+                  <p className="mt-1 text-sm text-[var(--lc-text-secondary)]">{adminMessages.models.emptyDescription}</p>
+                </div>
+              ) : (
+                <div className="px-4 py-8 text-center">
+                  <p className="text-sm font-medium text-[var(--lc-text-primary)]">{adminMessages.models.blockedTitle}</p>
+                  <p className="mt-1 text-sm text-[var(--lc-text-secondary)]">{adminMessages.models.blockedDescription}</p>
+                </div>
+              )}
             </div>
           </section>
         </div>
       </div>
+
+      {/* Provider Dialog */}
+      <Dialog open={providerDialogOpen} onOpenChange={(open) => setProviderDialogOpen(open)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {editingProvider ? adminMessages.providers.editModeLabel : adminMessages.providers.createModeLabel}
+            </DialogTitle>
+          </DialogHeader>
+
+          <form className="space-y-4" onSubmit={submitProviderForm}>
+            <div className="space-y-2">
+              <Label htmlFor="provider-name">{adminMessages.providers.nameLabel}</Label>
+              <Input
+                id="provider-name"
+                value={providerForm.name}
+                onChange={(event) => setProviderForm((f) => ({ ...f, name: event.target.value }))}
+                name="name"
+                required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="provider-type">{adminMessages.providers.providerTypeLabel}</Label>
+              <Select
+                value={providerForm.providerType}
+                onValueChange={(value) =>
+                  setProviderForm((f) => ({ ...f, providerType: value as "openai-responses" }))
+                }
+              >
+                <SelectTrigger className="w-full" id="provider-type">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="openai-responses">{adminMessages.providers.defaultProviderType}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="provider-base-url">{adminMessages.providers.baseUrlLabel}</Label>
+              <Input
+                id="provider-base-url"
+                value={providerForm.baseUrl}
+                onChange={(event) => setProviderForm((f) => ({ ...f, baseUrl: event.target.value }))}
+                name="baseUrl"
+                type="url"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="provider-api-key">{adminMessages.providers.apiKeyLabel}</Label>
+              <Input
+                id="provider-api-key"
+                value={providerForm.apiKey}
+                onChange={(event) => setProviderForm((f) => ({ ...f, apiKey: event.target.value }))}
+                name="apiKey"
+                type="password"
+                required={!editingProvider}
+              />
+              <p className="text-xs text-[var(--lc-text-secondary)]">
+                {editingProvider ? adminMessages.providers.apiKeyUpdateHint : adminMessages.providers.apiKeyCreateHint}
+              </p>
+            </div>
+
+            <label className="flex items-center gap-2 text-sm text-[var(--lc-text-primary)]">
+              <input
+                checked={providerForm.enabled}
+                onChange={(event) => setProviderForm((f) => ({ ...f, enabled: event.target.checked }))}
+                name="enabled"
+                type="checkbox"
+                className="size-4 rounded border-[var(--lc-border)] accent-[var(--lc-accent)]"
+              />
+              {adminMessages.providers.enabledLabel}
+            </label>
+
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setProviderDialogOpen(false)}
+                disabled={providerPending}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={providerPending}>
+                {providerPending
+                  ? editingProvider
+                    ? adminMessages.providers.updatingAction
+                    : adminMessages.providers.creatingAction
+                  : editingProvider
+                    ? adminMessages.providers.updateAction
+                    : adminMessages.providers.createAction}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Model Dialog */}
+      <Dialog open={modelDialogOpen} onOpenChange={(open) => setModelDialogOpen(open)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {editingModel ? adminMessages.models.editModeLabel : adminMessages.models.createModeLabel}
+            </DialogTitle>
+          </DialogHeader>
+
+          <form className="space-y-4" onSubmit={submitModelForm}>
+            <fieldset disabled={providerConfigs.length === 0 || modelPending} className="space-y-4 disabled:opacity-70">
+              <div className="space-y-2">
+                <Label htmlFor="model-provider">{adminMessages.models.providerLabel}</Label>
+                <Select
+                  value={modelForm.providerConfigId}
+                  onValueChange={(value) =>
+                    setModelForm((f) => ({ ...f, providerConfigId: value }))
+                  }
+                >
+                  <SelectTrigger className="w-full" id="model-provider">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {providerConfigs.map((providerConfig) => (
+                      <SelectItem key={providerConfig.id} value={providerConfig.id}>
+                        {providerConfig.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="model-id">{adminMessages.models.modelIdLabel}</Label>
+                <Input
+                  id="model-id"
+                  value={modelForm.modelId}
+                  onChange={(event) => setModelForm((f) => ({ ...f, modelId: event.target.value }))}
+                  name="modelId"
+                  required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="model-display-name">{adminMessages.models.displayNameLabel}</Label>
+                <Input
+                  id="model-display-name"
+                  value={modelForm.displayName}
+                  onChange={(event) => setModelForm((f) => ({ ...f, displayName: event.target.value }))}
+                  name="displayName"
+                  required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="model-sort-order">{adminMessages.models.sortOrderLabel}</Label>
+                <Input
+                  id="model-sort-order"
+                  value={modelForm.sortOrder}
+                  onChange={(event) => setModelForm((f) => ({ ...f, sortOrder: event.target.value }))}
+                  name="sortOrder"
+                  type="number"
+                  step="1"
+                  required
+                />
+              </div>
+
+              <label className="flex items-center gap-2 text-sm text-[var(--lc-text-primary)]">
+                <input
+                  checked={modelForm.enabled}
+                  onChange={(event) => setModelForm((f) => ({ ...f, enabled: event.target.checked }))}
+                  name="enabled"
+                  type="checkbox"
+                  className="size-4 rounded border-[var(--lc-border)] accent-[var(--lc-accent)]"
+                />
+                {adminMessages.models.enabledLabel}
+              </label>
+
+              <label className="flex items-center gap-2 text-sm text-[var(--lc-text-primary)]">
+                <input
+                  checked={modelForm.supportsWebSearch}
+                  onChange={(event) => setModelForm((f) => ({ ...f, supportsWebSearch: event.target.checked }))}
+                  name="supportsWebSearch"
+                  type="checkbox"
+                  className="size-4 rounded border-[var(--lc-border)] accent-[var(--lc-accent)]"
+                />
+                {adminMessages.models.supportsWebSearchLabel}
+              </label>
+            </fieldset>
+
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setModelDialogOpen(false)}
+                disabled={modelPending}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={providerConfigs.length === 0 || modelPending}>
+                {modelPending
+                  ? editingModel
+                    ? adminMessages.models.updatingAction
+                    : adminMessages.models.creatingAction
+                  : editingModel
+                    ? adminMessages.models.updateAction
+                    : adminMessages.models.createAction}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
 
-function SectionHeading({ badge, title, description }: { badge: string; title: string; description: string }) {
-  return (
-    <div>
-      <div className="inline-flex rounded-full bg-[var(--app-shell-accent)]/12 px-3 py-1 text-xs font-semibold uppercase tracking-[0.22em] text-[var(--app-shell-accent)]">
-        {badge}
-      </div>
-      <h2 className="mt-3 text-xl font-semibold tracking-tight text-[var(--app-shell-text)]">{title}</h2>
-      <p className="mt-2 text-sm leading-6 text-[var(--app-shell-subtle)]">{description}</p>
-    </div>
-  );
-}
+// --- Shared sub-components ---
 
-function EmptyState({ title, description }: { title: string; description: string }) {
-  return (
-    <div className="rounded-[1.5rem] border border-dashed border-[var(--app-shell-border)] bg-[var(--app-shell-panel-muted)] px-4 py-6">
-      <p className="text-sm font-semibold text-[var(--app-shell-text)]">{title}</p>
-      <p className="mt-2 text-sm text-[var(--app-shell-subtle)]">{description}</p>
-    </div>
-  );
-}
-
-function FeedbackBanner({ feedback }: { feedback: { type: "success" | "error"; message: string } | null }) {
-  if (!feedback) {
-    return null;
-  }
-
-  return (
-    <div
-      className={`mb-4 rounded-2xl border px-4 py-3 text-sm ${
-        feedback.type === "success"
-          ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-          : "border-rose-200 bg-rose-50 text-rose-700"
-      }`}
-    >
-      {feedback.message}
-    </div>
-  );
-}
-
-function StatusBadge({
-  enabled,
-  enabledLabel,
-  disabledLabel
-}: {
-  enabled: boolean;
-  enabledLabel: string;
-  disabledLabel: string;
-}) {
-  return (
-    <span className="rounded-full border border-[var(--app-shell-border)] px-3 py-1 text-xs font-medium text-[var(--app-shell-subtle)]">
-      {enabled ? enabledLabel : disabledLabel}
+function StatusBadge({ enabled }: { enabled: boolean }) {
+  return enabled ? (
+    <span className="inline-flex items-center rounded-full bg-[var(--lc-success)]/10 px-2 py-0.5 text-xs font-medium text-[var(--lc-success)]">
+      {enabled ? "Enabled" : "Disabled"}
+    </span>
+  ) : (
+    <span className="inline-flex items-center rounded-full bg-[var(--lc-danger)]/10 px-2 py-0.5 text-xs font-medium text-[var(--lc-danger)]">
+      Disabled
     </span>
   );
 }
+
+function FeedbackBanner({
+  feedback,
+  onDismiss,
+}: {
+  feedback: { type: "success" | "error"; message: string };
+  onDismiss: () => void;
+}) {
+  return (
+    <div
+      className={`flex items-center justify-between rounded-lg border px-4 py-3 text-sm ${
+        feedback.type === "success"
+          ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-400"
+          : "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-800 dark:bg-rose-950/50 dark:text-rose-400"
+      }`}
+    >
+      <span>{feedback.message}</span>
+      <button
+        type="button"
+        onClick={onDismiss}
+        className="ml-2 text-current opacity-60 transition-opacity hover:opacity-100"
+        aria-label="Dismiss"
+      >
+        &times;
+      </button>
+    </div>
+  );
+}
+
+// --- Pure helper functions ---
 
 function createProviderForm(providerConfig: ProviderConfig | null): ProviderFormState {
   if (!providerConfig) {
