@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition, type FormEvent } from "react";
+import { ArrowLeft } from "lucide-react";
 
 import type { AppMessages } from "@/lib/i18n/messages";
 import { useI18n } from "@/lib/i18n/provider";
@@ -76,70 +77,88 @@ export default function PasswordSettingsPage() {
   }
 
   return (
-    <main className="flex flex-1 px-4 py-6 sm:px-6 sm:py-8">
-      <div className="mx-auto w-full max-w-2xl rounded-[2rem] border border-[var(--app-shell-border)] bg-white/82 p-6 shadow-[0_28px_80px_rgba(15,23,42,0.10)] backdrop-blur sm:p-8">
-        <div className="rounded-full bg-[var(--app-shell-accent)]/12 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.24em] text-[var(--app-shell-accent)] inline-flex">
-          {messages.password.badge}
+    <main className="flex min-h-screen items-center justify-center bg-[var(--lc-bg-primary)] font-sans">
+      <div className="flex w-[400px] flex-col gap-6">
+        {/* Header */}
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => router.push("/")}
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-[var(--lc-text-primary)] transition hover:bg-[var(--lc-border)]"
+          >
+            <ArrowLeft className="h-[18px] w-[18px]" />
+          </button>
+          <h1 className="text-xl font-semibold text-[var(--lc-text-primary)]">
+            {messages.password.title}
+          </h1>
         </div>
-        <h1 className="mt-5 text-3xl font-semibold tracking-tight text-[var(--app-shell-text)]">{messages.password.title}</h1>
-        <p className="mt-3 text-sm leading-7 text-[var(--app-shell-subtle)]">{messages.password.description}</p>
 
-        <form className="mt-8 space-y-5" onSubmit={(event) => void handleSubmit(event)}>
-          <label className="block text-sm font-medium text-[var(--app-shell-text)]">
-            {messages.password.currentPasswordLabel}
+        {/* Form */}
+        <form className="flex flex-col gap-4" onSubmit={(event) => void handleSubmit(event)}>
+          {/* Current Password */}
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-medium text-[var(--lc-text-primary)]">
+              {messages.password.currentPasswordLabel}
+            </label>
             <input
               type="password"
               name="currentPassword"
               autoComplete="current-password"
               required
-              className="mt-2 w-full rounded-2xl border border-[var(--app-shell-border)] bg-[var(--app-shell-panel)] px-4 py-3 text-base text-[var(--app-shell-text)] outline-none transition focus:border-[var(--app-shell-accent)]"
+              placeholder="••••••••"
+              className="w-full rounded-lg border border-[var(--lc-border)] bg-[var(--lc-bg-primary)] px-3 py-2.5 text-sm text-[var(--lc-text-primary)] outline-none transition placeholder:text-[var(--lc-text-tertiary)] focus:border-[var(--lc-accent)]"
             />
-          </label>
+          </div>
 
-          <label className="block text-sm font-medium text-[var(--app-shell-text)]">
-            {messages.password.newPasswordLabel}
+          {/* New Password */}
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-medium text-[var(--lc-text-primary)]">
+              {messages.password.newPasswordLabel}
+            </label>
             <input
               type="password"
               name="newPassword"
               autoComplete="new-password"
               minLength={8}
               required
-              className="mt-2 w-full rounded-2xl border border-[var(--app-shell-border)] bg-[var(--app-shell-panel)] px-4 py-3 text-base text-[var(--app-shell-text)] outline-none transition focus:border-[var(--app-shell-accent)]"
+              placeholder="Enter new password"
+              className="w-full rounded-lg border border-[var(--lc-border)] bg-[var(--lc-bg-primary)] px-3 py-2.5 text-sm text-[var(--lc-text-primary)] outline-none transition placeholder:text-[var(--lc-text-tertiary)] focus:border-[var(--lc-accent)]"
             />
-          </label>
+          </div>
 
-          <label className="block text-sm font-medium text-[var(--app-shell-text)]">
-            {messages.password.confirmPasswordLabel}
+          {/* Confirm New Password */}
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-medium text-[var(--lc-text-primary)]">
+              {messages.password.confirmPasswordLabel}
+            </label>
             <input
               type="password"
               name="confirmPassword"
               autoComplete="new-password"
               minLength={8}
               required
-              className="mt-2 w-full rounded-2xl border border-[var(--app-shell-border)] bg-[var(--app-shell-panel)] px-4 py-3 text-base text-[var(--app-shell-text)] outline-none transition focus:border-[var(--app-shell-accent)]"
+              placeholder="Confirm new password"
+              className="w-full rounded-lg border border-[var(--lc-border)] bg-[var(--lc-bg-primary)] px-3 py-2.5 text-sm text-[var(--lc-text-primary)] outline-none transition placeholder:text-[var(--lc-text-tertiary)] focus:border-[var(--lc-accent)]"
             />
-          </label>
+          </div>
 
+          {/* Error / Success messages */}
           {errorMessage ? (
-            <p className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{errorMessage}</p>
+            <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-red-700">{errorMessage}</p>
           ) : null}
 
           {successMessage ? (
-            <p className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{successMessage}</p>
+            <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-sm text-emerald-700">{successMessage}</p>
           ) : null}
 
-          <div className="rounded-[1.5rem] border border-dashed border-[var(--app-shell-border)] bg-[var(--app-shell-panel-muted)] px-4 py-3 text-sm text-[var(--app-shell-subtle)]">
-            {messages.password.signInAgain}
-          </div>
+          {/* Spacer */}
+          <div className="h-2" />
 
-          <div className="rounded-[1.5rem] border border-dashed border-[var(--app-shell-border)] bg-[var(--app-shell-panel-muted)] px-4 py-3 text-sm text-[var(--app-shell-subtle)]">
-            {messages.password.forgotPasswordOutOfScope}
-          </div>
-
+          {/* Submit */}
           <button
             type="submit"
             disabled={isSubmitting || isPending}
-            className="rounded-full bg-[var(--app-shell-accent)] px-5 py-3 text-sm font-semibold text-white shadow-[0_14px_34px_rgba(37,99,235,0.28)] transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-60"
+            className="h-10 w-full rounded-lg bg-[var(--lc-accent)] text-sm font-medium text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {isSubmitting || isPending ? messages.password.saving : messages.password.submit}
           </button>
