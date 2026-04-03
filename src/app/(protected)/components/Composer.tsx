@@ -42,7 +42,7 @@ export function Composer() {
   const canSend = draft.trim() !== "" && selectedModelId && !isSendingMessage && !isLoadingWorkspace;
 
   return (
-    <div className="w-full px-0 pb-4 md:pb-6">
+    <div className="w-full px-0 pb-6">
       <div className="mx-auto flex w-full max-w-[720px] flex-col gap-2">
         {/* Error banner */}
         {chatError ? (

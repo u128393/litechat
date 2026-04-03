@@ -8,7 +8,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useChatWorkspace } from "@/app/(protected)/ChatWorkspaceProvider";
 import { useI18n } from "@/lib/i18n/provider";
-import { ChevronDown } from "lucide-react";
+import { Check, ChevronDown, Globe } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type ModelSelectorProps = {
@@ -41,20 +41,27 @@ export function ModelSelector({ className }: ModelSelectorProps) {
         align="start"
         side="bottom"
         sideOffset={4}
-        className="w-[220px] rounded-lg border border-[var(--lc-border)] bg-[var(--lc-bg-primary)] p-1 shadow-lg"
+        className="w-[260px] rounded-lg border border-[var(--lc-border)] bg-[var(--lc-bg-primary)] p-1 shadow-lg"
       >
         {models.map((model) => (
           <DropdownMenuItem
             key={model.id}
             className={cn(
-              "flex cursor-pointer items-center gap-2 rounded-md px-3 py-2 text-[13px] text-[var(--lc-text-primary)]",
-              model.id === selectedModelId && "font-medium"
+              "flex cursor-pointer items-center gap-2 rounded-[4px] px-3 py-2 text-[14px] text-[var(--lc-text-primary)]",
+              model.id === selectedModelId
+                ? "bg-[var(--lc-bg-tertiary)] font-medium"
+                : "font-normal"
             )}
             onClick={() => {
               void selectModel(model.id);
             }}
           >
-            {model.displayName}
+            <span className="flex-1">{model.displayName}</span>
+            {model.id === selectedModelId ? (
+              <Check className="size-4 text-[var(--lc-accent)]" />
+            ) : model.supportsWebSearch ? (
+              <Globe className="size-[14px] text-[var(--lc-text-tertiary)]" />
+            ) : null}
           </DropdownMenuItem>
         ))}
       </DropdownMenuContent>

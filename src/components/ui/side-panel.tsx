@@ -54,14 +54,12 @@ function SidePanelOverlay({
 
 interface SidePanelContentProps extends DialogPrimitive.Popup.Props {
   panelWidth?: number
-  showCloseButton?: boolean
 }
 
 function SidePanelContent({
   className,
   children,
   panelWidth = 480,
-  showCloseButton = true,
   ...props
 }: SidePanelContentProps) {
   const contextValue = React.useMemo<SidePanelContextValue>(
@@ -81,34 +79,34 @@ function SidePanelContent({
             } as React.CSSProperties
           }
           className={cn(
-            "fixed top-0 right-0 z-50 h-full w-[var(--panel-width)] bg-[var(--lc-bg-primary)] border-l border-[var(--lc-border)] shadow-[-4px_0_24px_rgba(0,0,0,0.1)] duration-300 outline-none data-open:animate-in data-open:slide-in-from-right data-closed:animate-out data-closed:slide-out-to-right",
+            "fixed top-0 right-0 z-50 flex h-full w-[var(--panel-width)] flex-col bg-[var(--lc-bg-primary)] border-l border-[var(--lc-border)] shadow-[-4px_0_24px_rgba(0,0,0,0.1)] duration-300 outline-none data-open:animate-in data-open:slide-in-from-right data-closed:animate-out data-closed:slide-out-to-right",
             className
           )}
           {...props}
         >
           {children}
-          {showCloseButton && (
-            <DialogPrimitive.Close
-              data-slot="side-panel-close"
-              className="absolute top-3 right-6 flex size-8 items-center justify-center rounded-md text-[var(--lc-text-secondary)] transition-colors hover:bg-[var(--lc-bg-secondary)] hover:text-[var(--lc-text-primary)]"
-            >
-              <X className="size-[18px]" />
-              <span className="sr-only">Close</span>
-            </DialogPrimitive.Close>
-          )}
         </DialogPrimitive.Popup>
       </SidePanelContext.Provider>
     </SidePanelPortal>
   )
 }
 
-function SidePanelHeader({ className, ...props }: React.ComponentProps<"div">) {
+function SidePanelHeader({ className, children, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="side-panel-header"
       className={cn("flex h-14 shrink-0 items-center justify-between border-b border-[var(--lc-border)] px-6", className)}
       {...props}
-    />
+    >
+      {children}
+      <DialogPrimitive.Close
+        data-slot="side-panel-close"
+        className="flex size-8 items-center justify-center rounded-md text-[var(--lc-text-secondary)] transition-colors hover:bg-[var(--lc-bg-secondary)] hover:text-[var(--lc-text-primary)]"
+      >
+        <X className="size-[18px]" />
+        <span className="sr-only">Close</span>
+      </DialogPrimitive.Close>
+    </div>
   )
 }
 

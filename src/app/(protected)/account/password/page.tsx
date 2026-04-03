@@ -84,7 +84,7 @@ export default function PasswordSettingsPage() {
           <button
             type="button"
             onClick={() => router.push("/")}
-            className="flex h-8 w-8 items-center justify-center rounded-lg text-[var(--lc-text-primary)] transition hover:bg-[var(--lc-border)]"
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-[var(--lc-text-primary)] transition-colors hover:bg-[var(--lc-bg-secondary)]"
           >
             <ArrowLeft className="h-[18px] w-[18px]" />
           </button>
