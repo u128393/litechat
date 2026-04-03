@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
+
 import "./globals.css";
 import { appConfig } from "@/server/config/app-config";
-import { defaultAppLocale, getLocaleBootstrapScript } from "@/lib/i18n/locales";
+import { appLocaleRequestHeaderName, defaultAppLocale, resolveRequestLocale } from "@/lib/i18n/locales";
 
 export const metadata: Metadata = {
   title: appConfig.app.name,
@@ -12,11 +14,16 @@ type RootLayoutProps = Readonly<{
   children: React.ReactNode;
 }>;
 
-export default function RootLayout({ children }: RootLayoutProps) {
+export default async function RootLayout({ children }: RootLayoutProps) {
+  const requestHeaders = await headers();
+  const locale = resolveRequestLocale({
+    headerLocale: requestHeaders.get(appLocaleRequestHeaderName),
+    acceptLanguage: requestHeaders.get("accept-language")
+  });
+
   return (
-    <html lang={defaultAppLocale} suppressHydrationWarning>
+    <html lang={locale ?? defaultAppLocale} suppressHydrationWarning>
       <body>
-        <script dangerouslySetInnerHTML={{ __html: getLocaleBootstrapScript() }} />
         {children}
       </body>
     </html>

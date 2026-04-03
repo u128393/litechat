@@ -1,6 +1,9 @@
 export type AppLocale = "en" | "zh-CN";
 
+export const appLocaleCookieName = "litechat.locale";
 export const appLocaleStorageKey = "litechat.locale";
+export const appLocaleRequestHeaderName = "x-litechat-locale";
+export const appLocaleCookieMaxAgeSeconds = 60 * 60 * 24 * 365;
 export const defaultAppLocale: AppLocale = "en";
 export const supportedAppLocales: AppLocale[] = ["en", "zh-CN"];
 
@@ -49,45 +52,44 @@ export function detectBrowserLocale(): AppLocale {
   return defaultAppLocale;
 }
 
-export function getLocaleBootstrapScript(): string {
-  return `(() => {
-    try {
-      const storedLocale = window.localStorage.getItem(${JSON.stringify(appLocaleStorageKey)});
-      const browserLocales = [...(navigator.languages ?? []), navigator.language];
-      const resolveLocale = (value) => {
-        if (typeof value !== "string") {
-          return null;
-        }
-        const normalizedValue = value.trim().toLowerCase();
-        if (
-          normalizedValue === "zh" ||
-          normalizedValue === "zh-cn" ||
-          normalizedValue === "zh-hans" ||
-          normalizedValue.startsWith("zh-cn-") ||
-          normalizedValue.startsWith("zh-hans-")
-        ) {
-          return "zh-CN";
-        }
-        if (normalizedValue === "en" || normalizedValue.startsWith("en-")) {
-          return "en";
-        }
-        return null;
-      };
+export function resolveAcceptLanguageLocale(headerValue: string | null | undefined): AppLocale | null {
+  if (!headerValue) {
+    return null;
+  }
 
-      let nextLocale = resolveLocale(storedLocale);
+  for (const entry of headerValue.split(",")) {
+    const acceptedLocale = resolveSupportedLocale(entry.split(";")[0]);
 
-      if (!nextLocale) {
-        for (const browserLocale of browserLocales) {
-          nextLocale = resolveLocale(browserLocale);
-          if (nextLocale) {
-            break;
-          }
-        }
-      }
-
-      document.documentElement.lang = nextLocale ?? ${JSON.stringify(defaultAppLocale)};
-    } catch {
-      document.documentElement.lang = ${JSON.stringify(defaultAppLocale)};
+    if (acceptedLocale) {
+      return acceptedLocale;
     }
-  })();`;
+  }
+
+  return null;
+}
+
+export function resolveRequestLocale({
+  cookieLocale,
+  headerLocale,
+  acceptLanguage
+}: {
+  cookieLocale?: string | null;
+  headerLocale?: string | null;
+  acceptLanguage?: string | null;
+}): AppLocale {
+  return (
+    resolveSupportedLocale(headerLocale) ??
+    resolveSupportedLocale(cookieLocale) ??
+    resolveAcceptLanguageLocale(acceptLanguage) ??
+    defaultAppLocale
+  );
+}
+
+export function writeLocaleCookie(locale: AppLocale): void {
+  if (typeof document === "undefined") {
+    return;
+  }
+
+  const secure = typeof window !== "undefined" && window.location.protocol === "https:" ? "; Secure" : "";
+  document.cookie = `${appLocaleCookieName}=${encodeURIComponent(locale)}; Path=/; Max-Age=${appLocaleCookieMaxAgeSeconds}; SameSite=Lax${secure}`;
 }

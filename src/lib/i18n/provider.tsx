@@ -3,7 +3,7 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 
 import { getMessages, type AppMessages } from "@/lib/i18n/messages";
-import { defaultAppLocale, detectBrowserLocale, type AppLocale } from "@/lib/i18n/locales";
+import { writeLocaleCookie, type AppLocale } from "@/lib/i18n/locales";
 import { createBrowserPreferencesStore } from "@/lib/preferences";
 
 type LocaleContextValue = {
@@ -14,8 +14,16 @@ type LocaleContextValue = {
 
 const LocaleContext = createContext<LocaleContextValue | null>(null);
 
-export function LocaleProvider({ userId, children }: { userId: string; children: React.ReactNode }) {
-  const [locale, setLocaleState] = useState<AppLocale>(() => detectBrowserLocale());
+export function LocaleProvider({
+  userId,
+  initialLocale,
+  children
+}: {
+  userId: string;
+  initialLocale: AppLocale;
+  children: React.ReactNode;
+}) {
+  const [locale, setLocaleState] = useState<AppLocale>(initialLocale);
 
   useEffect(() => {
     let active = true;
@@ -28,12 +36,9 @@ export function LocaleProvider({ userId, children }: { userId: string; children:
         }
 
         setLocaleState(resolvedLocale);
+        writeLocaleCookie(resolvedLocale);
       })
-      .catch(() => {
-        if (active) {
-          setLocaleState(defaultAppLocale);
-        }
-      });
+      .catch(() => undefined);
 
     return () => {
       active = false;

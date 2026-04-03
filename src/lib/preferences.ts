@@ -1,8 +1,8 @@
 import {
   appLocaleStorageKey,
-  defaultAppLocale,
   detectBrowserLocale,
   resolveSupportedLocale,
+  writeLocaleCookie,
   type AppLocale
 } from "@/lib/i18n/locales";
 import {
@@ -116,7 +116,7 @@ async function deletePreference(store: ReturnType<typeof createBrowserConversati
 
 function readMirroredLanguagePreference(): AppLocale | null {
   if (typeof window === "undefined") {
-    return defaultAppLocale;
+    return null;
   }
 
   return resolveSupportedLocale(window.localStorage.getItem(appLocaleStorageKey));
@@ -128,4 +128,5 @@ function mirrorLanguagePreference(locale: AppLocale) {
   }
 
   window.localStorage.setItem(appLocaleStorageKey, locale);
+  writeLocaleCookie(locale);
 }
