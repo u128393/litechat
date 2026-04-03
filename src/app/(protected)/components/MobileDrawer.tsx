@@ -21,7 +21,7 @@ export function MobileDrawer({ currentUser, open, onOpenChange }: MobileDrawerPr
       >
         <SheetTitle className="sr-only">Navigation</SheetTitle>
         <Sidebar />
-        <div className="border-t border-[var(--lc-border)] p-3">
+        <div className="p-3">
           <UserMenu currentUser={currentUser} />
         </div>
       </SheetContent>

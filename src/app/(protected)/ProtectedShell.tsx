@@ -23,7 +23,7 @@ export function ProtectedShell({ currentUser, children }: ProtectedShellProps) {
       {/* Desktop Sidebar */}
       <aside className="hidden w-[280px] shrink-0 flex-col border-r border-[var(--lc-border)] bg-[var(--lc-bg-secondary)] md:flex">
         <Sidebar className="flex-1 min-h-0" />
-        <div className="border-t border-[var(--lc-border)] p-3">
+        <div className="p-3">
           <UserMenu currentUser={currentUser} />
         </div>
       </aside>

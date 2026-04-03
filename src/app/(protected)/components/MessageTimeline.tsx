@@ -44,7 +44,7 @@ export function MessageTimeline() {
 
   return (
     <div className="flex flex-1 flex-col overflow-y-auto py-4">
-      <div className="mx-auto flex w-full max-w-[720px] flex-col gap-5 px-3 md:gap-6 md:px-4">
+      <div className="mx-auto flex w-full max-w-[720px] flex-col gap-6">
         {conversationMessages.map((message, index) => {
           const isStreaming = isSendingMessage && message.role === "assistant" && index === conversationMessages.length - 1 && message.content === "";
           const isLastAssistantStreaming = isSendingMessage && message.role === "assistant" && index === conversationMessages.length - 1 && message.content !== "";
@@ -52,7 +52,7 @@ export function MessageTimeline() {
           if (message.role === "user") {
             return (
               <div key={message.id} className="flex justify-end">
-                <div className="max-w-[80%] rounded-xl bg-[var(--lc-user-bubble)] px-[14px] py-[10px] md:px-4 md:py-3">
+                <div className="rounded-xl bg-[var(--lc-user-bubble)] px-4 py-3">
                   <p className="whitespace-pre-wrap text-[15px] text-[var(--lc-text-primary)]">
                     {message.content}
                   </p>
