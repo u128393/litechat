@@ -4,6 +4,10 @@ import { headers } from "next/headers";
 import "./globals.css";
 import { appConfig } from "@/server/config/app-config";
 import { appLocaleRequestHeaderName, defaultAppLocale, resolveRequestLocale } from "@/lib/i18n/locales";
+import { Geist } from "next/font/google";
+import { cn } from "@/lib/utils";
+
+const geist = Geist({subsets:['latin'],variable:'--font-sans'});
 
 export const metadata: Metadata = {
   title: appConfig.app.name,
@@ -22,7 +26,7 @@ export default async function RootLayout({ children }: RootLayoutProps) {
   });
 
   return (
-    <html lang={locale ?? defaultAppLocale} suppressHydrationWarning>
+    <html lang={locale ?? defaultAppLocale} suppressHydrationWarning className={cn("font-sans", geist.variable)}>
       <body>
         {children}
       </body>
