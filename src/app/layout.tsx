@@ -1,13 +1,14 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
+import { Inter } from "next/font/google";
 
 import "./globals.css";
 import { appConfig } from "@/server/config/app-config";
 import { appLocaleRequestHeaderName, defaultAppLocale, resolveRequestLocale } from "@/lib/i18n/locales";
-import { Geist } from "next/font/google";
 import { cn } from "@/lib/utils";
+import { ThemeProvider } from "@/components/theme-provider";
 
-const geist = Geist({subsets:['latin'],variable:'--font-sans'});
+const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
 
 export const metadata: Metadata = {
   title: appConfig.app.name,
@@ -26,9 +27,11 @@ export default async function RootLayout({ children }: RootLayoutProps) {
   });
 
   return (
-    <html lang={locale ?? defaultAppLocale} suppressHydrationWarning className={cn("font-sans", geist.variable)}>
-      <body>
-        {children}
+    <html lang={locale ?? defaultAppLocale} suppressHydrationWarning className={cn(inter.variable)}>
+      <body className="font-sans antialiased">
+        <ThemeProvider>
+          {children}
+        </ThemeProvider>
       </body>
     </html>
   );

@@ -24,54 +24,83 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
   const showPasswordChanged = params.password_changed === "1";
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-slate-100 px-6 py-16 sm:px-10">
-      <div className="w-full max-w-md rounded-[2rem] border border-slate-200 bg-white p-8 shadow-[0_24px_80px_rgba(15,23,42,0.08)] sm:p-10">
-        <p className="text-sm font-medium uppercase tracking-[0.24em] text-blue-600">LiteChat Login</p>
-        <h1 className="mt-4 text-3xl font-semibold tracking-tight text-slate-950">Sign in with your admin account</h1>
-        <p className="mt-3 text-sm leading-6 text-slate-600">
-          Use the email and password provisioned through the setup script.
-        </p>
+    <main className="flex min-h-screen items-center justify-center bg-background font-sans">
+      <div className="flex w-[400px] flex-col">
+        {/* Brand section */}
+        <div className="flex flex-col gap-2">
+          <span className="text-2xl font-semibold text-[var(--lc-text-primary)]">
+            LiteChat
+          </span>
+          <span className="text-sm font-normal text-[var(--lc-text-secondary)]">
+            Your team&apos;s AI assistant
+          </span>
+        </div>
 
-        <form action="/api/auth/login" method="post" className="mt-8 space-y-5">
+        {/* Spacer */}
+        <div className="h-8" />
+
+        {/* Form */}
+        <form action="/api/auth/login" method="post" className="flex flex-col gap-4">
           <input type="hidden" name="next" value={nextPath} />
 
-          <label className="block text-sm font-medium text-slate-700">
-            Email
+          {/* Email group */}
+          <div className="flex flex-col gap-1.5">
+            <label
+              htmlFor="email"
+              className="text-sm font-medium text-[var(--lc-text-primary)]"
+            >
+              Email
+            </label>
             <input
+              id="email"
               type="email"
               name="email"
               autoComplete="email"
               required
-              className="mt-2 w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-base text-slate-950 outline-none transition focus:border-blue-500"
+              placeholder="name@example.com"
+              className="w-full rounded-lg border border-[var(--lc-border)] bg-[var(--lc-bg-primary)] px-3 py-2.5 text-sm text-[var(--lc-text-primary)] outline-none placeholder:text-[var(--lc-text-tertiary)]"
             />
-          </label>
+          </div>
 
-          <label className="block text-sm font-medium text-slate-700">
-            Password
+          {/* Password group */}
+          <div className="flex flex-col gap-1.5">
+            <label
+              htmlFor="password"
+              className="text-sm font-medium text-[var(--lc-text-primary)]"
+            >
+              Password
+            </label>
             <input
+              id="password"
               type="password"
               name="password"
               autoComplete="current-password"
               required
-              className="mt-2 w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-base text-slate-950 outline-none transition focus:border-blue-500"
+              placeholder="••••••••"
+              className="w-full rounded-lg border border-[var(--lc-border)] bg-[var(--lc-bg-primary)] px-3 py-2.5 text-sm text-[var(--lc-text-primary)] outline-none placeholder:text-[var(--lc-text-tertiary)]"
             />
-          </label>
+          </div>
 
+          {/* Messages */}
           {showInvalidCredentials ? (
-            <p className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-red-700">
               Invalid email or password.
             </p>
           ) : null}
 
           {showPasswordChanged ? (
-            <p className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+            <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-sm text-emerald-700">
               Password updated. Sign in again with your new password.
             </p>
           ) : null}
 
+          {/* Spacer */}
+          <div className="h-2" />
+
+          {/* Sign in button */}
           <button
             type="submit"
-            className="w-full rounded-full bg-slate-950 px-5 py-3 text-sm font-medium text-white transition hover:bg-slate-800"
+            className="h-10 w-full cursor-pointer rounded-lg bg-[var(--lc-accent)] text-center text-sm font-medium text-white"
           >
             Sign in
           </button>
