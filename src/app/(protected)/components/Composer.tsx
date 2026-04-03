@@ -42,8 +42,8 @@ export function Composer() {
   const canSend = draft.trim() !== "" && selectedModelId && !isSendingMessage && !isLoadingWorkspace;
 
   return (
-    <div className="w-full px-0 pb-6">
-      <div className="mx-auto flex w-full max-w-[720px] flex-col gap-2 px-4">
+    <div className="w-full px-0 pb-4 md:pb-6">
+      <div className="mx-auto flex w-full max-w-[720px] flex-col gap-2 px-3 md:px-4">
         {/* Error banner */}
         {chatError ? (
           <div className="flex items-center gap-2 rounded-lg border border-[#FECACA] bg-[#FEF2F2] px-3 py-2.5 text-[13px] text-[#991B1B] dark:border-[#7F1D1D] dark:bg-[#450A0A] dark:text-[#FCA5A5]">
@@ -73,7 +73,7 @@ export function Composer() {
         ) : null}
 
         {/* Textarea box */}
-        <div className="flex items-end gap-2 rounded-[20px] border border-[var(--lc-border)] bg-[var(--lc-bg-tertiary)] px-4 py-3">
+        <div className="flex items-end gap-2 rounded-[20px] border border-[var(--lc-border)] bg-[var(--lc-bg-tertiary)] px-[14px] py-[10px] md:border-0 md:px-4 md:py-3">
           <textarea
             ref={textareaRef}
             rows={1}
@@ -90,7 +90,7 @@ export function Composer() {
           {isSendingMessage ? (
             <button
               type="button"
-              className="flex size-9 shrink-0 items-center justify-center rounded-full bg-[var(--lc-text-primary)] text-white transition-colors"
+              className="flex size-[34px] md:size-9 shrink-0 items-center justify-center rounded-full bg-[var(--lc-text-primary)] text-white transition-colors"
               onClick={stopMessage}
             >
               <div className="size-3 rounded-[2px] bg-white" />
@@ -99,7 +99,7 @@ export function Composer() {
             <button
               type="button"
               className={cn(
-                "flex size-9 shrink-0 items-center justify-center rounded-full transition-colors disabled:opacity-60",
+                "flex size-[34px] md:size-9 shrink-0 items-center justify-center rounded-full transition-colors disabled:opacity-60",
                 canSend
                   ? "bg-[var(--lc-text-primary)] text-white"
                   : "bg-[var(--lc-border)] text-[var(--lc-text-tertiary)]"
@@ -115,7 +115,7 @@ export function Composer() {
         </div>
 
         {/* Hint text */}
-        <p className="px-1 text-[11px] text-[var(--lc-text-tertiary)]">
+        <p className="hidden px-1 text-[11px] text-[var(--lc-text-tertiary)] md:block">
           Enter to send, Shift+Enter for new line
         </p>
       </div>

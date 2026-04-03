@@ -7,6 +7,7 @@ import type { CurrentUser } from "@/server/auth/types";
 import { Sidebar } from "@/app/(protected)/components/Sidebar";
 import { UserMenu } from "@/app/(protected)/components/UserMenu";
 import { MobileDrawer } from "@/app/(protected)/components/MobileDrawer";
+import { MobileModelSelector } from "@/app/(protected)/components/MobileModelSelector";
 
 type ProtectedShellProps = {
   currentUser: Pick<CurrentUser, "userId" | "email" | "role">;
@@ -38,6 +39,7 @@ export function ProtectedShell({ currentUser, children }: ProtectedShellProps) {
           >
             <Menu className="size-5" />
           </button>
+          <MobileModelSelector />
           <div className="flex size-7 items-center justify-center rounded-full bg-[var(--lc-accent)] text-[10px] font-semibold text-white">
             {initials}
           </div>

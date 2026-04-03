@@ -82,6 +82,7 @@ export type AppMessages = {
     errorUpstream: string;
     errorInterrupted: string;
     errorUnknown: string;
+    selectModel: string;
   };
   admin: AdminMessages;
 };
@@ -164,7 +165,8 @@ export const messagesByLocale: Record<AppLocale, AppMessages> = {
       errorValidation: "The request could not be sent. Check the message and try again.",
       errorUpstream: "The model provider could not complete the request. Retry in a moment.",
       errorInterrupted: "The response stream was interrupted before completion. Retry to continue.",
-      errorUnknown: "Something went wrong while sending the message. Retry to continue."
+      errorUnknown: "Something went wrong while sending the message. Retry to continue.",
+      selectModel: "Select Model"
     },
     admin: adminMessagesByLocale.en
   },
@@ -245,7 +247,8 @@ export const messagesByLocale: Record<AppLocale, AppMessages> = {
       errorValidation: "请求无法发送。请检查消息内容后重试。",
       errorUpstream: "模型提供商暂时无法完成请求，请稍后重试。",
       errorInterrupted: "回复流在完成前中断了。请重试继续。",
-      errorUnknown: "发送消息时发生异常。请重试后继续。"
+      errorUnknown: "发送消息时发生异常。请重试后继续。",
+      selectModel: "选择模型"
     },
     admin: adminMessagesByLocale["zh-CN"]
   }
