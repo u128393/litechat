@@ -19,12 +19,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  SidePanel,
+  SidePanelBody,
+  SidePanelContent,
+  SidePanelFooter,
+  SidePanelHeader,
+  SidePanelTitle,
+} from "@/components/ui/side-panel";
 
 type AdminManagementClientProps = {
   initialProviderConfigs: ProviderConfig[];
@@ -429,28 +430,29 @@ export function AdminManagementClient({ initialProviderConfigs, initialModelConf
         </div>
       </div>
 
-      {/* Provider Dialog */}
-      <Dialog open={providerDialogOpen} onOpenChange={(open) => setProviderDialogOpen(open)}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>
+      {/* Provider Side Panel */}
+      <SidePanel open={providerDialogOpen} onOpenChange={(open) => setProviderDialogOpen(open)}>
+        <SidePanelContent>
+          <SidePanelHeader>
+            <SidePanelTitle>
               {editingProvider ? adminMessages.providers.editModeLabel : adminMessages.providers.createModeLabel}
-            </DialogTitle>
-          </DialogHeader>
+            </SidePanelTitle>
+          </SidePanelHeader>
 
-          <form className="space-y-4" onSubmit={submitProviderForm}>
-            <div className="space-y-2">
-              <Label htmlFor="provider-name">{adminMessages.providers.nameLabel}</Label>
-              <Input
-                id="provider-name"
-                value={providerForm.name}
-                onChange={(event) => setProviderForm((f) => ({ ...f, name: event.target.value }))}
-                name="name"
-                required
-              />
-            </div>
+          <form className="flex flex-col" onSubmit={submitProviderForm}>
+            <SidePanelBody className="flex flex-col gap-5">
+              <div className="flex flex-col gap-[6px]">
+                <Label htmlFor="provider-name">{adminMessages.providers.nameLabel}</Label>
+                <Input
+                  id="provider-name"
+                  value={providerForm.name}
+                  onChange={(event) => setProviderForm((f) => ({ ...f, name: event.target.value }))}
+                  name="name"
+                  required
+                />
+              </div>
 
-            <div className="space-y-2">
+            <div className="flex flex-col gap-[6px]">
               <Label htmlFor="provider-type">{adminMessages.providers.providerTypeLabel}</Label>
               <Select
                 value={providerForm.providerType}
@@ -467,7 +469,7 @@ export function AdminManagementClient({ initialProviderConfigs, initialModelConf
               </Select>
             </div>
 
-            <div className="space-y-2">
+            <div className="flex flex-col gap-[6px]">
               <Label htmlFor="provider-base-url">{adminMessages.providers.baseUrlLabel}</Label>
               <Input
                 id="provider-base-url"
@@ -478,7 +480,7 @@ export function AdminManagementClient({ initialProviderConfigs, initialModelConf
               />
             </div>
 
-            <div className="space-y-2">
+            <div className="flex flex-col gap-[6px]">
               <Label htmlFor="provider-api-key">{adminMessages.providers.apiKeyLabel}</Label>
               <Input
                 id="provider-api-key"
@@ -503,8 +505,9 @@ export function AdminManagementClient({ initialProviderConfigs, initialModelConf
               />
               {adminMessages.providers.enabledLabel}
             </label>
+            </SidePanelBody>
 
-            <DialogFooter>
+            <SidePanelFooter>
               <Button
                 type="button"
                 variant="outline"
@@ -522,23 +525,24 @@ export function AdminManagementClient({ initialProviderConfigs, initialModelConf
                     ? adminMessages.providers.updateAction
                     : adminMessages.providers.createAction}
               </Button>
-            </DialogFooter>
+            </SidePanelFooter>
           </form>
-        </DialogContent>
-      </Dialog>
+        </SidePanelContent>
+      </SidePanel>
 
-      {/* Model Dialog */}
-      <Dialog open={modelDialogOpen} onOpenChange={(open) => setModelDialogOpen(open)}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>
+      {/* Model Side Panel */}
+      <SidePanel open={modelDialogOpen} onOpenChange={(open) => setModelDialogOpen(open)}>
+        <SidePanelContent>
+          <SidePanelHeader>
+            <SidePanelTitle>
               {editingModel ? adminMessages.models.editModeLabel : adminMessages.models.createModeLabel}
-            </DialogTitle>
-          </DialogHeader>
+            </SidePanelTitle>
+          </SidePanelHeader>
 
-          <form className="space-y-4" onSubmit={submitModelForm}>
-            <fieldset disabled={providerConfigs.length === 0 || modelPending} className="space-y-4 disabled:opacity-70">
-              <div className="space-y-2">
+          <form className="flex flex-col" onSubmit={submitModelForm}>
+            <SidePanelBody className="flex flex-col gap-5">
+              <fieldset disabled={providerConfigs.length === 0 || modelPending} className="contents disabled:opacity-70">
+              <div className="flex flex-col gap-[6px]">
                 <Label htmlFor="model-provider">{adminMessages.models.providerLabel}</Label>
                 <Select
                   value={modelForm.providerConfigId}
@@ -559,7 +563,7 @@ export function AdminManagementClient({ initialProviderConfigs, initialModelConf
                 </Select>
               </div>
 
-              <div className="space-y-2">
+              <div className="flex flex-col gap-[6px]">
                 <Label htmlFor="model-id">{adminMessages.models.modelIdLabel}</Label>
                 <Input
                   id="model-id"
@@ -570,7 +574,7 @@ export function AdminManagementClient({ initialProviderConfigs, initialModelConf
                 />
               </div>
 
-              <div className="space-y-2">
+              <div className="flex flex-col gap-[6px]">
                 <Label htmlFor="model-display-name">{adminMessages.models.displayNameLabel}</Label>
                 <Input
                   id="model-display-name"
@@ -581,7 +585,7 @@ export function AdminManagementClient({ initialProviderConfigs, initialModelConf
                 />
               </div>
 
-              <div className="space-y-2">
+              <div className="flex flex-col gap-[6px]">
                 <Label htmlFor="model-sort-order">{adminMessages.models.sortOrderLabel}</Label>
                 <Input
                   id="model-sort-order"
@@ -615,9 +619,10 @@ export function AdminManagementClient({ initialProviderConfigs, initialModelConf
                 />
                 {adminMessages.models.supportsWebSearchLabel}
               </label>
-            </fieldset>
+              </fieldset>
+            </SidePanelBody>
 
-            <DialogFooter>
+            <SidePanelFooter>
               <Button
                 type="button"
                 variant="outline"
@@ -635,10 +640,10 @@ export function AdminManagementClient({ initialProviderConfigs, initialModelConf
                     ? adminMessages.models.updateAction
                     : adminMessages.models.createAction}
               </Button>
-            </DialogFooter>
+            </SidePanelFooter>
           </form>
-        </DialogContent>
-      </Dialog>
+        </SidePanelContent>
+      </SidePanel>
     </div>
   );
 }
