@@ -47,7 +47,7 @@ export function ModelSelector({ className }: ModelSelectorProps) {
           <DropdownMenuItem
             key={model.id}
             className={cn(
-              "flex cursor-pointer items-center gap-2 rounded-[4px] px-3 py-2 text-[14px] text-[var(--lc-text-primary)]",
+              "flex items-center gap-2 rounded-[4px] px-3 py-2 text-[14px] text-[var(--lc-text-primary)]",
               model.id === selectedModelId
                 ? "bg-[var(--lc-bg-tertiary)] font-medium"
                 : "font-normal"

@@ -61,7 +61,7 @@ export function UserMenu({ currentUser }: UserMenuProps) {
       >
         {/* Theme toggle */}
         <DropdownMenuItem
-          className="flex cursor-pointer items-center gap-2 rounded-[4px] px-3 py-2 text-[14px] text-[var(--lc-text-primary)]"
+          className="flex items-center gap-2 rounded-[4px] px-3 py-2 text-[14px] text-[var(--lc-text-primary)]"
           onClick={() => {
             setTheme(theme === "dark" ? "light" : "dark");
           }}
@@ -72,7 +72,7 @@ export function UserMenu({ currentUser }: UserMenuProps) {
 
         {/* Language */}
         <DropdownMenuItem
-          className="flex cursor-pointer items-center gap-2 rounded-[4px] px-3 py-2 text-[14px] text-[var(--lc-text-primary)]"
+          className="flex items-center gap-2 rounded-[4px] px-3 py-2 text-[14px] text-[var(--lc-text-primary)]"
           onClick={() => {
             const nextLocale = supportedAppLocales.find((l) => l !== locale) ?? locale;
             void setLocale(nextLocale);
@@ -86,7 +86,7 @@ export function UserMenu({ currentUser }: UserMenuProps) {
 
         {/* Change password */}
         <DropdownMenuItem
-          className="flex cursor-pointer items-center gap-2 rounded-[4px] px-3 py-2 text-[14px] text-[var(--lc-text-primary)]"
+          className="flex items-center gap-2 rounded-[4px] px-3 py-2 text-[14px] text-[var(--lc-text-primary)]"
         >
           <Link href="/account/password" className="flex w-full items-center gap-2">
             <Lock className="size-4" />
@@ -97,7 +97,7 @@ export function UserMenu({ currentUser }: UserMenuProps) {
         {/* Admin panel (conditional) */}
         {isAdminUser({ role: currentUser.role }) ? (
           <DropdownMenuItem
-            className="flex cursor-pointer items-center gap-2 rounded-[4px] px-3 py-2 text-[14px] text-[var(--lc-text-primary)]"
+            className="flex items-center gap-2 rounded-[4px] px-3 py-2 text-[14px] text-[var(--lc-text-primary)]"
           >
             <Link href="/admin" className="flex w-full items-center gap-2">
               <Shield className="size-4" />
@@ -110,7 +110,7 @@ export function UserMenu({ currentUser }: UserMenuProps) {
 
         {/* Sign out */}
         <DropdownMenuItem
-          className="flex cursor-pointer items-center gap-2 rounded-[4px] px-3 py-2 text-[14px] text-[var(--lc-danger)]"
+          className="flex items-center gap-2 rounded-[4px] px-3 py-2 text-[14px] text-[var(--lc-danger)]"
           onClick={() => {
             handleLogout();
           }}

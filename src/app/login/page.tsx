@@ -100,7 +100,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
           {/* Sign in button */}
           <button
             type="submit"
-            className="h-10 w-full cursor-pointer rounded-lg bg-[var(--lc-accent)] text-center text-sm font-medium text-white"
+            className="h-10 w-full rounded-lg bg-[var(--lc-accent)] text-center text-sm font-medium text-white"
           >
             Sign in
           </button>
