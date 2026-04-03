@@ -542,8 +542,8 @@ export function AdminManagementClient({ initialProviderConfigs, initialModelConf
                 <Label htmlFor="model-provider">{adminMessages.models.providerLabel}</Label>
                 <Select
                   value={modelForm.providerConfigId}
-                  onValueChange={(value) =>
-                    setModelForm((f) => ({ ...f, providerConfigId: value }))
+                  onValueChange={(value: string | null) =>
+                    setModelForm((f) => ({ ...f, providerConfigId: value ?? "" }))
                   }
                 >
                   <SelectTrigger className="w-full" id="model-provider">
