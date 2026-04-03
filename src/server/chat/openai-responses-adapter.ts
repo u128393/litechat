@@ -118,9 +118,11 @@ function mapMessagesToResponsesInput(messages: ChatRequestMessage[]) {
       throw new ChatAdapterError("invalid_request", "Tool messages are not supported by this adapter.");
     }
 
+    const contentType = message.role === "assistant" ? "output_text" : "input_text";
+
     return {
       role: message.role,
-      content: [{ type: "input_text", text: message.content }]
+      content: [{ type: contentType, text: message.content }]
     };
   });
 }

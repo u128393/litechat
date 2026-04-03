@@ -84,6 +84,7 @@ async function main() {
         model: target,
         messages: [
           { role: "system", content: "You are concise." },
+          { role: "assistant", content: "Previous reply." },
           { role: "user", content: "Say hello." }
         ],
         tools: [{ type: "web_search" }]
@@ -106,9 +107,13 @@ async function main() {
       assert(headers?.authorization === "Bearer sk-test-adapter", "adapter should send decrypted bearer token");
       assert(body.model === "gpt-4.1-mini", "adapter should send configured model id");
       assert(body.stream === true, "adapter should request streaming responses");
-      assert(body.input?.length === 2, "adapter should map local messages into Responses input");
+      assert(body.input?.length === 3, "adapter should map local messages into Responses input");
       assert(body.input?.[0]?.role === "system", "adapter should preserve supported message roles");
-      assert(body.input?.[1]?.content[0]?.text === "Say hello.", "adapter should map text message content");
+      assert(body.input?.[0]?.content[0]?.type === "input_text", "adapter should map system content as input text");
+      assert(body.input?.[1]?.role === "assistant", "adapter should preserve assistant history");
+      assert(body.input?.[1]?.content[0]?.type === "output_text", "adapter should map assistant content as output text");
+      assert(body.input?.[2]?.content[0]?.text === "Say hello.", "adapter should map text message content");
+      assert(body.input?.[2]?.content[0]?.type === "input_text", "adapter should map user content as input text");
       assert(body.tools?.[0]?.type === "web_search", "adapter should map request tools when supported");
       assert(events.length === 4, "adapter should emit normalized stream events");
       assert(events[0]?.type === "response.started", "stream should start with a response.started event");

@@ -123,7 +123,7 @@ function readPromptText(payload: Record<string, unknown> | null) {
       const type = (item as { type?: unknown }).type;
       const text = (item as { text?: unknown }).text;
 
-      if (type === "input_text" && typeof text === "string" && text.trim() !== "") {
+      if ((type === "input_text" || type === "output_text") && typeof text === "string" && text.trim() !== "") {
         textParts.push(text.trim());
       }
     }
