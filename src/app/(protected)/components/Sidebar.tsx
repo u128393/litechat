@@ -43,7 +43,7 @@ export function Sidebar({ className }: SidebarProps) {
 
       {/* Conversation list */}
       <ScrollArea className="flex-1 min-h-0">
-        <div className="flex flex-col gap-1 px-3 pb-3">
+        <div className="flex flex-col gap-1 px-3 pt-2 pb-3">
           {isLoadingWorkspace ? (
             <div className="px-3 py-2 text-[13px] text-[var(--lc-text-tertiary)]">
               {messages.shell.conversationsLoading}

@@ -35,7 +35,7 @@ export function ProtectedShell({ currentUser, children }: ProtectedShellProps) {
           <button
             type="button"
             onClick={() => setMobileMenuOpen(true)}
-            className="flex size-8 items-center justify-center rounded-lg text-[var(--lc-text-secondary)] hover:bg-[var(--lc-bg-tertiary)]"
+            className="flex size-8 items-center justify-center rounded-lg text-[var(--lc-text-primary)] hover:bg-[var(--lc-bg-tertiary)]"
           >
             <Menu className="size-5" />
           </button>

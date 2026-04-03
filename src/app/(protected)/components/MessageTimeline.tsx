@@ -4,7 +4,7 @@ import { useState } from "react";
 
 import { useChatWorkspace } from "@/app/(protected)/ChatWorkspaceProvider";
 import { useI18n } from "@/lib/i18n/provider";
-import { Copy, Check } from "lucide-react";
+import { Copy, Check, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export function MessageTimeline() {
@@ -14,6 +14,7 @@ export function MessageTimeline() {
     messages: conversationMessages,
     isLoadingWorkspace,
     isSendingMessage,
+    retryMessage,
   } = useChatWorkspace();
 
   if (isLoadingWorkspace) {
@@ -79,7 +80,19 @@ export function MessageTimeline() {
                       <span className="inline-block animate-pulse text-[var(--lc-text-primary)]">{"\u258A"}</span>
                     )}
                   </p>
-                  <CopyButton text={message.content} />
+                  <div className="flex gap-1">
+                    <CopyButton text={message.content} />
+                    <button
+                      type="button"
+                      className="flex size-8 items-center justify-center rounded-[6px] text-[var(--lc-text-tertiary)] transition-colors hover:bg-[var(--lc-bg-tertiary)]"
+                      disabled={isSendingMessage}
+                      onClick={() => {
+                        void retryMessage();
+                      }}
+                    >
+                      <RefreshCw className="size-4" />
+                    </button>
+                  </div>
                 </>
               )}
             </div>
@@ -97,7 +110,7 @@ function CopyButton({ text }: { text: string }) {
     <button
       type="button"
       className={cn(
-        "flex size-8 items-center justify-center rounded-md text-[var(--lc-text-secondary)] transition-colors hover:bg-[var(--lc-bg-tertiary)]"
+        "flex size-8 items-center justify-center rounded-[6px] text-[var(--lc-text-tertiary)] transition-colors hover:bg-[var(--lc-bg-tertiary)]"
       )}
       onClick={() => {
         void navigator.clipboard.writeText(text).then(() => {

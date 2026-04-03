@@ -38,7 +38,7 @@ export function MobileModelSelector() {
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetContent
           side="bottom"
-          className="rounded-t-4xl flex flex-col gap-0 border-t border-[var(--lc-border)] bg-[var(--lc-bg-primary)] p-0 shadow-xl"
+          className="rounded-t-[16px] flex flex-col gap-0 border-t border-[var(--lc-border)] bg-[var(--lc-bg-primary)] p-0 shadow-xl"
           showCloseButton={false}
         >
           <SheetTitle className="sr-only">Select Model</SheetTitle>

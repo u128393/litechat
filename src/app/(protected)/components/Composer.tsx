@@ -102,7 +102,7 @@ export function Composer() {
                 "flex size-[34px] md:size-9 shrink-0 items-center justify-center rounded-full transition-colors disabled:opacity-60",
                 canSend
                   ? "bg-[var(--lc-text-primary)] text-white"
-                  : "bg-[var(--lc-border)] text-[var(--lc-text-tertiary)]"
+                  : "bg-[var(--lc-border)] text-[var(--lc-text-primary)]"
               )}
               disabled={!canSend}
               onClick={() => {
