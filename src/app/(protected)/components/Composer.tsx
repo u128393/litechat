@@ -84,7 +84,7 @@ export function Composer() {
             ref={textareaRef}
             rows={1}
             placeholder={messages.home.composerPlaceholder}
-            className="flex-1 resize-none border-0 bg-transparent text-[15px] text-[var(--lc-text-primary)] outline-none placeholder:text-[var(--lc-text-tertiary)]"
+            className="min-h-9 flex-1 resize-none border-0 bg-transparent py-2 text-[15px] leading-5 text-[var(--lc-text-primary)] outline-none placeholder:text-[var(--lc-text-tertiary)]"
             disabled={isLoadingWorkspace}
             onChange={(event) => {
               void updateDraft(event.target.value);
