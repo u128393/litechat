@@ -74,6 +74,9 @@ export function AdminManagementClient({ initialProviderConfigs, initialModelConf
   const adminMessages = messages.admin;
   const sortedInitialProviderConfigs = sortProviderConfigs(initialProviderConfigs);
   const sortedInitialModelConfigs = sortModelConfigs(initialModelConfigs);
+  const providerTypeSelectItems: Record<ProviderFormState["providerType"], string> = {
+    "openai-responses": adminMessages.providers.defaultProviderType
+  };
 
   const [providerConfigs, setProviderConfigs] = useState(sortedInitialProviderConfigs);
   const [modelConfigs, setModelConfigs] = useState(sortedInitialModelConfigs);
@@ -298,6 +301,10 @@ export function AdminManagementClient({ initialProviderConfigs, initialModelConf
     return providerConfigs.find((p) => p.id === providerConfigId)?.name ?? "\u2014";
   }
 
+  function getProviderTypeName(providerType: ProviderConfig["providerType"]): string {
+    return providerTypeSelectItems[providerType] ?? providerType;
+  }
+
   return (
     <div className="flex min-h-0 flex-1 flex-col bg-[var(--lc-bg-primary)]">
       <div className="flex h-14 shrink-0 items-center gap-3 border-b border-[var(--lc-border)] px-6">
@@ -361,7 +368,7 @@ export function AdminManagementClient({ initialProviderConfigs, initialModelConf
                       {providerConfig.name}
                     </span>
                     <span className="w-[180px]">
-                      <TypeBadge type={providerConfig.providerType} />
+                      <TypeBadge type={getProviderTypeName(providerConfig.providerType)} />
                     </span>
                     <span className="flex-1 text-sm text-[var(--lc-text-secondary)]">
                       {providerConfig.baseUrl ?? "Default"}
@@ -488,6 +495,7 @@ export function AdminManagementClient({ initialProviderConfigs, initialModelConf
             <div className="flex flex-col gap-[6px]">
               <Label htmlFor="provider-type">{adminMessages.providers.providerTypeLabel}</Label>
               <Select
+                items={providerTypeSelectItems}
                 value={providerForm.providerType}
                 onValueChange={(value) =>
                   setProviderForm((f) => ({ ...f, providerType: value as "openai-responses" }))
@@ -571,6 +579,10 @@ export function AdminManagementClient({ initialProviderConfigs, initialModelConf
               <div className="flex flex-col gap-[6px]">
                 <Label htmlFor="model-provider">{adminMessages.models.providerLabel}</Label>
                 <Select
+                  items={providerConfigs.map((providerConfig) => ({
+                    label: providerConfig.name,
+                    value: providerConfig.id
+                  }))}
                   value={modelForm.providerConfigId}
                   onValueChange={(value: string | null) =>
                     setModelForm((f) => ({ ...f, providerConfigId: value ?? "" }))
