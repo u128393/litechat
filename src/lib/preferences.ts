@@ -13,6 +13,10 @@ import {
 
 export const languagePreferenceKey = "language";
 export const lastSelectedModelConfigIdPreferenceKey = "lastSelectedModelConfigId";
+export const sidebarCollapsedPreferenceKey = "sidebarCollapsed";
+export const sidebarCollapsedStorageKey = "litechat.sidebarCollapsed";
+export const sidebarCollapsedCookieName = "litechat.sidebarCollapsed";
+export const sidebarCollapsedCookieMaxAgeSeconds = 60 * 60 * 24 * 365;
 
 export type BrowserPreferencesStore = {
   getLanguagePreference(): Promise<AppLocale | null>;
@@ -20,6 +24,8 @@ export type BrowserPreferencesStore = {
   resolveLanguagePreference(): Promise<AppLocale>;
   getLastSelectedModelConfigId(): Promise<string | null>;
   setLastSelectedModelConfigId(modelConfigId: string | null): Promise<void>;
+  getSidebarCollapsed(): Promise<boolean | null>;
+  setSidebarCollapsed(collapsed: boolean): Promise<void>;
 };
 
 export function createBrowserPreferencesStore(userId: string): BrowserPreferencesStore {
@@ -56,13 +62,50 @@ export function createBrowserPreferencesStore(userId: string): BrowserPreference
     await writePreference(store, createPreferenceRecord(lastSelectedModelConfigIdPreferenceKey, modelConfigId));
   }
 
+  async function getSidebarCollapsed() {
+    const preferenceRecord = await readPreference<boolean>(store, sidebarCollapsedPreferenceKey);
+    return resolveSidebarCollapsedPreference(preferenceRecord?.value ?? readMirroredSidebarCollapsedPreference());
+  }
+
+  async function setSidebarCollapsed(collapsed: boolean) {
+    mirrorSidebarCollapsedPreference(collapsed);
+    await writePreference(store, createPreferenceRecord(sidebarCollapsedPreferenceKey, collapsed));
+  }
+
   return {
     getLanguagePreference,
     setLanguagePreference,
     resolveLanguagePreference,
     getLastSelectedModelConfigId,
-    setLastSelectedModelConfigId
+    setLastSelectedModelConfigId,
+    getSidebarCollapsed,
+    setSidebarCollapsed
   };
+}
+
+export function resolveSidebarCollapsedPreference(value: unknown): boolean | null {
+  if (typeof value === "boolean") {
+    return value;
+  }
+
+  if (value === "true") {
+    return true;
+  }
+
+  if (value === "false") {
+    return false;
+  }
+
+  return null;
+}
+
+export function writeSidebarCollapsedCookie(collapsed: boolean): void {
+  if (typeof document === "undefined") {
+    return;
+  }
+
+  const secure = typeof window !== "undefined" && window.location.protocol === "https:" ? "; Secure" : "";
+  document.cookie = `${sidebarCollapsedCookieName}=${encodeURIComponent(String(collapsed))}; Path=/; Max-Age=${sidebarCollapsedCookieMaxAgeSeconds}; SameSite=Lax${secure}`;
 }
 
 function createPreferenceRecord<TValue extends ChatPreferenceRecord["value"]>(
@@ -129,4 +172,21 @@ function mirrorLanguagePreference(locale: AppLocale) {
 
   window.localStorage.setItem(appLocaleStorageKey, locale);
   writeLocaleCookie(locale);
+}
+
+function readMirroredSidebarCollapsedPreference(): boolean | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  return resolveSidebarCollapsedPreference(window.localStorage.getItem(sidebarCollapsedStorageKey));
+}
+
+function mirrorSidebarCollapsedPreference(collapsed: boolean) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  window.localStorage.setItem(sidebarCollapsedStorageKey, String(collapsed));
+  writeSidebarCollapsedCookie(collapsed);
 }

@@ -21,6 +21,8 @@ export type AppMessages = {
     workspaceMenu: string;
     open: string;
     close: string;
+    collapseSidebar: string;
+    expandSidebar: string;
     languageLabel: string;
     languageDescription: string;
     modelLabel: string;
@@ -105,6 +107,8 @@ export const messagesByLocale: Record<AppLocale, AppMessages> = {
       workspaceMenu: "Workspace menu",
       open: "Open",
       close: "Close",
+      collapseSidebar: "Collapse sidebar",
+      expandSidebar: "Expand sidebar",
       languageLabel: "Language",
       languageDescription: "Switch the authenticated workspace language instantly.",
       modelLabel: "Model",
@@ -174,7 +178,7 @@ export const messagesByLocale: Record<AppLocale, AppMessages> = {
     shell: {
       brand: "LiteChat",
       description: "面向聊天与后续管理工具的共享应用外壳。",
-      newChat: "新建聊天",
+      newChat: "新聊天",
       conversationsLabel: "会话",
       conversationsMeta: "本地",
       conversationsLoading: "正在加载本地会话...",
@@ -187,6 +191,8 @@ export const messagesByLocale: Record<AppLocale, AppMessages> = {
       workspaceMenu: "工作区菜单",
       open: "打开",
       close: "关闭",
+      collapseSidebar: "收起侧边栏",
+      expandSidebar: "展开侧边栏",
       languageLabel: "语言",
       languageDescription: "即时切换已登录工作区语言。",
       modelLabel: "模型",

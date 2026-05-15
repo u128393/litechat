@@ -15,6 +15,7 @@ import { isAdminUser } from "@/lib/auth/roles";
 import { supportedAppLocales } from "@/lib/i18n/locales";
 import { ChevronDown, Sun, Moon, Globe, Lock, Shield, LogOut } from "lucide-react";
 import type { CurrentUser } from "@/server/auth/types";
+import { cn } from "@/lib/utils";
 
 const languageNames: Record<string, string> = {
   en: "English",
@@ -23,9 +24,10 @@ const languageNames: Record<string, string> = {
 
 type UserMenuProps = {
   currentUser: Pick<CurrentUser, "userId" | "email" | "role">;
+  collapsed?: boolean;
 };
 
-export function UserMenu({ currentUser }: UserMenuProps) {
+export function UserMenu({ currentUser, collapsed = false }: UserMenuProps) {
   const { locale, messages, setLocale } = useI18n();
   const { theme, setTheme } = useTheme();
 
@@ -44,13 +46,27 @@ export function UserMenu({ currentUser }: UserMenuProps) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
-        className="flex h-10 w-full items-center gap-2.5 rounded-lg px-2 py-1 text-left transition-colors hover:bg-[var(--lc-bg-tertiary)] outline-none"
+        className="flex h-10 w-full items-center justify-start gap-2.5 overflow-hidden rounded-lg px-2 py-1 text-left transition-colors duration-200 ease-out hover:bg-[var(--lc-bg-tertiary)] outline-none"
+        aria-label={messages.shell.workspaceMenu}
+        title={collapsed ? messages.shell.workspaceMenu : undefined}
       >
-        <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-[var(--lc-accent)] text-[12px] font-semibold text-white">
+        <div className="flex size-6 shrink-0 items-center justify-center rounded-full bg-[var(--lc-accent)] text-[10px] font-semibold text-white">
           {initials}
         </div>
-        <span className="flex-1 truncate text-[13px] text-[var(--lc-text-primary)]">{currentUser.email}</span>
-        <ChevronDown className="size-4 shrink-0 text-[var(--lc-text-secondary)]" />
+        <span
+          className={cn(
+            "min-w-0 flex-1 truncate text-[13px] text-[var(--lc-text-primary)] transition-[opacity,width] duration-200 ease-out",
+            collapsed && "w-0 flex-none opacity-0"
+          )}
+        >
+          {currentUser.email}
+        </span>
+        <ChevronDown
+          className={cn(
+            "size-4 shrink-0 text-[var(--lc-text-secondary)] transition-[opacity,width] duration-200 ease-out",
+            collapsed && "w-0 opacity-0"
+          )}
+        />
       </DropdownMenuTrigger>
 
       <DropdownMenuContent
