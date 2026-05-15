@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useState, type FormEvent, type KeyboardEvent } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Plus, Globe } from "lucide-react";
 
@@ -349,10 +349,13 @@ export function AdminManagementClient({ initialProviderConfigs, initialModelConf
                 providerConfigs.map((providerConfig, index) => (
                   <div
                     key={providerConfig.id}
-                    className={`flex cursor-pointer items-center px-4 py-3 transition-colors hover:bg-[var(--lc-bg-secondary)] ${
+                    role="button"
+                    tabIndex={0}
+                    className={`flex items-center px-4 py-3 transition-colors hover:bg-[var(--lc-bg-secondary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--lc-accent)] ${
                       index < providerConfigs.length - 1 ? "border-b border-[var(--lc-border)]" : ""
                     }`}
                     onClick={() => openEditProvider(providerConfig)}
+                    onKeyDown={(event) => handleRowKeyDown(event, () => openEditProvider(providerConfig))}
                   >
                     <span className="w-[200px] text-sm font-medium text-[var(--lc-text-primary)]">
                       {providerConfig.name}
@@ -390,7 +393,7 @@ export function AdminManagementClient({ initialProviderConfigs, initialModelConf
                 type="button"
                 onClick={openAddModel}
                 disabled={providerConfigs.length === 0}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--lc-accent)] px-3.5 py-1.5 text-[13px] font-medium text-[var(--lc-accent)] transition-colors hover:bg-[var(--lc-accent)]/5 disabled:cursor-not-allowed disabled:opacity-50"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--lc-accent)] px-3.5 py-1.5 text-[13px] font-medium text-[var(--lc-accent)] transition-colors hover:bg-[var(--lc-accent)]/5 disabled:opacity-50"
               >
                 <Plus className="size-3.5" />
                 {adminMessages.models.newAction}
@@ -411,10 +414,13 @@ export function AdminManagementClient({ initialProviderConfigs, initialModelConf
                 modelConfigs.map((modelConfig, index) => (
                   <div
                     key={modelConfig.id}
-                    className={`flex cursor-pointer items-center px-4 py-3 transition-colors hover:bg-[var(--lc-bg-secondary)] ${
+                    role="button"
+                    tabIndex={0}
+                    className={`flex items-center px-4 py-3 transition-colors hover:bg-[var(--lc-bg-secondary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--lc-accent)] ${
                       index < modelConfigs.length - 1 ? "border-b border-[var(--lc-border)]" : ""
                     }`}
                     onClick={() => openEditModel(modelConfig)}
+                    onKeyDown={(event) => handleRowKeyDown(event, () => openEditModel(modelConfig))}
                   >
                     <span className="w-[150px] text-sm font-medium text-[var(--lc-text-primary)]">
                       {modelConfig.displayName}
@@ -670,7 +676,7 @@ function SwitchToggle({ checked, disabled, onChange }: { checked: boolean; disab
       aria-checked={checked}
       disabled={disabled}
       onClick={onChange}
-      className={`relative inline-flex h-[20px] w-[36px] shrink-0 cursor-pointer rounded-full border border-transparent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--lc-accent)] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 ${
+      className={`relative inline-flex h-[20px] w-[36px] shrink-0 rounded-full border border-transparent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--lc-accent)] focus-visible:ring-offset-2 disabled:opacity-50 ${
         checked ? "bg-[var(--lc-accent)]" : "bg-[var(--lc-border)]"
       }`}
     >
@@ -717,6 +723,19 @@ function FeedbackBanner({
       </button>
     </div>
   );
+}
+
+function handleRowKeyDown(event: KeyboardEvent<HTMLDivElement>, action: () => void) {
+  if (event.target !== event.currentTarget) {
+    return;
+  }
+
+  if (event.key !== "Enter" && event.key !== " ") {
+    return;
+  }
+
+  event.preventDefault();
+  action();
 }
 
 function createProviderForm(providerConfig: ProviderConfig | null): ProviderFormState {

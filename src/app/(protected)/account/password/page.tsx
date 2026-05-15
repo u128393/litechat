@@ -158,7 +158,7 @@ export default function PasswordSettingsPage() {
           <button
             type="submit"
             disabled={isSubmitting || isPending}
-            className="h-10 w-full rounded-lg bg-[var(--lc-accent)] text-sm font-medium text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+            className="h-10 w-full rounded-lg bg-[var(--lc-accent)] text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-60"
           >
             {isSubmitting || isPending ? messages.password.saving : messages.password.submit}
           </button>

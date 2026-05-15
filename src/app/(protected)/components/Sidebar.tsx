@@ -15,13 +15,13 @@ const sidebarHeaderBrandClass =
 const sidebarToggleButtonClass =
   "ml-auto flex size-10 shrink-0 items-center justify-center rounded-lg text-[var(--lc-text-secondary)] transition-colors hover:bg-[var(--lc-bg-tertiary)] hover:text-[var(--lc-text-primary)]";
 const sidebarItemClass =
-  "flex h-9 w-full items-center justify-start gap-2 overflow-hidden rounded-lg px-2.5 text-[13px] font-medium text-[var(--lc-text-primary)] transition-colors duration-200 ease-out hover:bg-[var(--lc-bg-tertiary)] disabled:cursor-not-allowed disabled:opacity-60";
+  "flex h-9 w-full items-center justify-start gap-2 overflow-hidden rounded-lg px-2.5 text-[13px] font-medium text-[var(--lc-text-primary)] transition-colors duration-200 ease-out hover:bg-[var(--lc-bg-tertiary)] disabled:opacity-60";
 const sidebarItemLabelClass = "min-w-0 truncate transition-[opacity,max-width] duration-200 ease-out";
 const sidebarListStatusClass = "px-2.5 py-2 text-[13px] text-[var(--lc-text-tertiary)]";
 const sidebarListGroupLabelClass =
   "px-2.5 pt-1 text-[11px] font-medium uppercase tracking-[0.5px] text-[var(--lc-text-tertiary)]";
 const sidebarConversationButtonClass =
-  "flex h-9 w-full items-center rounded-lg px-2.5 text-left text-[13px] transition-colors disabled:cursor-not-allowed disabled:opacity-60";
+  "flex h-9 w-full items-center rounded-lg px-2.5 text-left text-[13px] transition-colors disabled:opacity-60";
 
 type SidebarProps = {
   className?: string;

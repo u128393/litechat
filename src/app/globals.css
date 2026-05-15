@@ -158,4 +158,36 @@
     color: inherit;
     text-decoration: none;
   }
+  :where(
+    button,
+    input[type="button"],
+    input[type="submit"],
+    input[type="reset"],
+    [role="button"],
+    [role="menuitem"],
+    [role="option"],
+    [role="switch"],
+    [data-slot="button"],
+    [data-slot$="-button"],
+    [data-slot$="-trigger"],
+    [data-slot$="-close"]
+  ):where(:not(:disabled, [aria-disabled="true"], [data-disabled])) {
+    cursor: pointer;
+  }
+  :where(
+    button,
+    input[type="button"],
+    input[type="submit"],
+    input[type="reset"],
+    [role="button"],
+    [role="menuitem"],
+    [role="option"],
+    [role="switch"],
+    [data-slot="button"],
+    [data-slot$="-button"],
+    [data-slot$="-trigger"],
+    [data-slot$="-close"]
+  ):where(:disabled, [aria-disabled="true"], [data-disabled]) {
+    cursor: not-allowed;
+  }
 }
