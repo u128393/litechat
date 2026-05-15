@@ -621,6 +621,18 @@ async function streamAssistantMessage({
   | { status: "empty"; assistantMessage: null }
   | { status: "failed"; assistantMessage: ChatMessageRecord | null; error: unknown }
 > {
+  const createdAt = new Date().toISOString();
+  const initialAssistantMessage: ChatMessageRecord = {
+    id: assistantMessageId,
+    conversationId,
+    role: "assistant",
+    content: "",
+    createdAt,
+    updatedAt: createdAt
+  };
+
+  setMessages((currentMessages) => [...currentMessages, initialAssistantMessage]);
+
   const response = await fetch("/api/chat", {
     method: "POST",
     credentials: "same-origin",
@@ -638,20 +650,9 @@ async function streamAssistantMessage({
   });
 
   if (!response.ok || !response.body) {
+    setMessages((currentMessages) => currentMessages.filter((message) => message.id !== assistantMessageId));
     throw await createChatRequestError(response);
   }
-
-  const createdAt = new Date().toISOString();
-  const initialAssistantMessage: ChatMessageRecord = {
-    id: assistantMessageId,
-    conversationId,
-    role: "assistant",
-    content: "",
-    createdAt,
-    updatedAt: createdAt
-  };
-
-  setMessages((currentMessages) => [...currentMessages, initialAssistantMessage]);
 
   const reader = response.body.getReader();
   const decoder = new TextDecoder();

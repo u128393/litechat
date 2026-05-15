@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useLayoutEffect, useRef, useState, type UIEvent } from "react";
 
 import { useChatWorkspace } from "@/app/(protected)/ChatWorkspaceProvider";
 import { useI18n } from "@/lib/i18n/provider";
@@ -9,6 +9,9 @@ import { cn } from "@/lib/utils";
 
 export function MessageTimeline() {
   const { messages: i18nMessages } = useI18n();
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const isPinnedToBottomRef = useRef(true);
+  const previousConversationIdRef = useRef<string | null>(null);
   const {
     activeConversationId,
     messages: conversationMessages,
@@ -16,6 +19,32 @@ export function MessageTimeline() {
     isSendingMessage,
     retryMessage,
   } = useChatWorkspace();
+  const lastMessage = conversationMessages.at(-1);
+  const scrollDependency = `${activeConversationId ?? ""}:${conversationMessages.length}:${lastMessage?.id ?? ""}:${lastMessage?.content.length ?? 0}`;
+
+  useLayoutEffect(() => {
+    const scrollContainer = scrollContainerRef.current;
+    const conversationChanged = previousConversationIdRef.current !== activeConversationId;
+
+    previousConversationIdRef.current = activeConversationId;
+
+    if (conversationChanged) {
+      isPinnedToBottomRef.current = true;
+    }
+
+    if (!scrollContainer || !isPinnedToBottomRef.current) {
+      return;
+    }
+
+    scrollContainer.scrollTop = scrollContainer.scrollHeight;
+  }, [scrollDependency]);
+
+  function handleScroll(event: UIEvent<HTMLDivElement>) {
+    const scrollContainer = event.currentTarget;
+    const distanceFromBottom = scrollContainer.scrollHeight - scrollContainer.scrollTop - scrollContainer.clientHeight;
+
+    isPinnedToBottomRef.current = distanceFromBottom <= 32;
+  }
 
   if (isLoadingWorkspace) {
     return (
@@ -43,11 +72,14 @@ export function MessageTimeline() {
   }
 
   return (
-    <div className="flex flex-1 flex-col overflow-y-auto py-4">
+    <div
+      ref={scrollContainerRef}
+      className="flex flex-1 flex-col overflow-y-auto py-4"
+      onScroll={handleScroll}
+    >
       <div className="mx-auto flex w-full max-w-[720px] flex-col gap-6">
         {conversationMessages.map((message, index) => {
           const isStreaming = isSendingMessage && message.role === "assistant" && index === conversationMessages.length - 1 && message.content === "";
-          const isLastAssistantStreaming = isSendingMessage && message.role === "assistant" && index === conversationMessages.length - 1 && message.content !== "";
 
           if (message.role === "user") {
             return (
@@ -64,21 +96,17 @@ export function MessageTimeline() {
           return (
             <div key={message.id} className="flex w-full flex-col gap-3">
               {isStreaming ? (
-                <div className="flex items-center gap-2 text-[13px] text-[var(--lc-text-secondary)]">
-                  <span className="flex items-center gap-1">
-                    <span className="size-1.5 animate-pulse rounded-full bg-[var(--lc-text-secondary)]" />
-                    <span className="size-1.5 animate-pulse rounded-full bg-[var(--lc-text-secondary)] [animation-delay:120ms]" />
-                    <span className="size-1.5 animate-pulse rounded-full bg-[var(--lc-text-secondary)] [animation-delay:240ms]" />
-                  </span>
-                  {i18nMessages.home.streamingLabel}
+                <div
+                  className="flex min-h-[1.6em] items-center"
+                  aria-label={i18nMessages.home.streamingStatus}
+                  role="status"
+                >
+                  <span className="size-2.5 animate-pulse rounded-full bg-[var(--lc-text-primary)]" />
                 </div>
               ) : (
                 <>
                   <p className="whitespace-pre-wrap text-[15px] leading-[1.6] text-[var(--lc-text-primary)]">
                     {message.content}
-                    {isLastAssistantStreaming && (
-                      <span className="inline-block animate-pulse text-[var(--lc-text-primary)]">{"\u258A"}</span>
-                    )}
                   </p>
                   <div className="flex gap-1">
                     <CopyButton text={message.content} />
