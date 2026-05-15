@@ -40,6 +40,12 @@ export function Composer() {
   }
 
   const canSend = draft.trim() !== "" && selectedModelId && !isSendingMessage && !isLoadingWorkspace;
+  const actionButtonClass =
+    "flex size-9 shrink-0 items-center justify-center rounded-full transition-colors outline-none focus-visible:ring-2 focus-visible:ring-[var(--lc-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--lc-bg-tertiary)]";
+  const enabledActionButtonClass =
+    "bg-[#111111] text-white hover:bg-[#2A2A2A] dark:bg-white dark:text-[#111111] dark:hover:bg-[#E5E5E5]";
+  const disabledActionButtonClass =
+    "bg-[#D4D4D8] text-[#8A8A8A] dark:bg-[#4A4A4A] dark:text-[#9B9B9B]";
 
   return (
     <div className="w-full px-0 pb-6">
@@ -90,26 +96,24 @@ export function Composer() {
           {isSendingMessage ? (
             <button
               type="button"
-              className="flex size-9 shrink-0 items-center justify-center rounded-full bg-[var(--lc-text-primary)] text-white transition-colors"
+              className={cn(actionButtonClass, enabledActionButtonClass)}
               onClick={stopMessage}
             >
-              <div className="size-3 rounded-[2px] bg-white" />
+              <div className="size-3 rounded-[2px] bg-current" />
             </button>
           ) : (
             <button
               type="button"
               className={cn(
-                "flex size-9 shrink-0 items-center justify-center rounded-full transition-colors disabled:opacity-60",
-                canSend
-                  ? "bg-[var(--lc-text-primary)] text-white"
-                  : "bg-[var(--lc-border)] text-[var(--lc-text-primary)]"
+                actionButtonClass,
+                canSend ? enabledActionButtonClass : disabledActionButtonClass
               )}
               disabled={!canSend}
               onClick={() => {
                 void sendMessage();
               }}
             >
-              <ArrowUp className="size-4" />
+              <ArrowUp className="size-5" />
             </button>
           )}
         </div>
