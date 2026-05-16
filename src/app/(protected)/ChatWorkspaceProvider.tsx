@@ -45,6 +45,7 @@ type ChatWorkspaceContextValue = {
   stopMessage(): void;
   retryMessage(): Promise<void>;
   clearChatError(): void;
+  deleteConversation(conversationId: string): Promise<void>;
   selectModel(modelId: string): Promise<void>;
 };
 
@@ -436,6 +437,41 @@ export function ChatWorkspaceProvider({ userId, children }: { userId: string; ch
     setChatError(null);
   }
 
+  async function deleteConversation(conversationId: string) {
+    if (isSendingMessage) {
+      return;
+    }
+
+    const nextConversations = conversations.filter((conversation) => conversation.id !== conversationId);
+    const nextActiveConversationId =
+      activeConversationId === conversationId ? nextConversations[0]?.id ?? null : activeConversationId;
+
+    await conversationStore.deleteConversation(conversationId);
+
+    if (retryStateRef.current?.conversation.id === conversationId) {
+      retryStateRef.current = null;
+    }
+
+    setChatError(null);
+    setConversations(nextConversations);
+
+    if (activeConversationId !== conversationId) {
+      return;
+    }
+
+    setActiveConversationId(nextActiveConversationId);
+
+    try {
+      await Promise.all([
+        persistActiveConversation(nextActiveConversationId),
+        loadConversationState(nextActiveConversationId)
+      ]);
+    } catch {
+      setMessages([]);
+      setDraft("");
+    }
+  }
+
   async function continueAssistantResponse({
     assistantMessageId,
     conversation,
@@ -557,6 +593,7 @@ export function ChatWorkspaceProvider({ userId, children }: { userId: string; ch
         stopMessage,
         retryMessage,
         clearChatError,
+        deleteConversation,
         selectModel
       }}
     >

@@ -25,8 +25,15 @@ export type AppMessages = {
     workspaceMenu: string;
     open: string;
     close: string;
+    cancel: string;
     collapseSidebar: string;
     expandSidebar: string;
+    conversationActions: string;
+    deleteConversation: string;
+    deleteConversationTitle: string;
+    deleteConversationBodyStart: string;
+    deleteConversationBodyEnd: string;
+    deleteConversationDescription: string;
     languageLabel: string;
     languageDescription: string;
     modelLabel: string;
@@ -115,8 +122,15 @@ export const messagesByLocale: Record<AppLocale, AppMessages> = {
       workspaceMenu: "Workspace menu",
       open: "Open",
       close: "Close",
+      cancel: "Cancel",
       collapseSidebar: "Collapse sidebar",
       expandSidebar: "Expand sidebar",
+      conversationActions: "Conversation actions",
+      deleteConversation: "Delete",
+      deleteConversationTitle: "Delete chat?",
+      deleteConversationBodyStart: "This will delete ",
+      deleteConversationBodyEnd: ".",
+      deleteConversationDescription: "This action cannot be undone.",
       languageLabel: "Language",
       languageDescription: "Switch the authenticated workspace language instantly.",
       modelLabel: "Model",
@@ -203,8 +217,15 @@ export const messagesByLocale: Record<AppLocale, AppMessages> = {
       workspaceMenu: "工作区菜单",
       open: "打开",
       close: "关闭",
+      cancel: "取消",
       collapseSidebar: "收起侧边栏",
       expandSidebar: "展开侧边栏",
+      conversationActions: "会话操作",
+      deleteConversation: "删除",
+      deleteConversationTitle: "删除聊天？",
+      deleteConversationBodyStart: "这会删除",
+      deleteConversationBodyEnd: "。",
+      deleteConversationDescription: "此操作无法撤销。",
       languageLabel: "语言",
       languageDescription: "即时切换已登录工作区语言。",
       modelLabel: "模型",

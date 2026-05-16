@@ -1,8 +1,27 @@
 "use client";
 
+import { useState } from "react";
+import { MoreHorizontal, Trash2 } from "lucide-react";
+
 import { useChatWorkspace } from "@/app/(protected)/ChatWorkspaceProvider";
 import { useI18n } from "@/lib/i18n/provider";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import type { ChatConversationRecord } from "@/lib/chat/local-store";
 import type { ButtonHTMLAttributes, ReactNode, SVGProps } from "react";
@@ -20,8 +39,14 @@ const sidebarItemLabelClass = "min-w-0 truncate transition-[opacity,max-width] d
 const sidebarListStatusClass = "px-2.5 py-2 text-[13px] text-[var(--lc-text-tertiary)]";
 const sidebarListGroupLabelClass =
   "px-2.5 pt-1 text-[11px] font-medium uppercase tracking-[0.5px] text-[var(--lc-text-tertiary)]";
+const sidebarConversationRowClass =
+  "group flex h-9 w-full items-center overflow-hidden rounded-lg text-[13px] transition-colors disabled:opacity-60";
 const sidebarConversationButtonClass =
-  "flex h-9 w-full items-center rounded-lg px-2.5 text-left text-[13px] transition-colors disabled:opacity-60";
+  "flex h-full min-w-0 flex-1 items-center px-2.5 text-left transition-[padding] disabled:opacity-60";
+const sidebarConversationMenuButtonClass =
+  "flex h-9 w-0 shrink-0 items-center justify-center overflow-hidden rounded-lg text-[var(--lc-text-secondary)] opacity-0 transition-[width,opacity,color] duration-200 ease-out hover:text-[var(--lc-text-primary)] focus-visible:w-9 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--lc-accent)] group-hover:w-9 group-hover:opacity-100";
+const sidebarScrollAreaClass =
+  "[&_[data-slot=scroll-area-scrollbar]]:opacity-0 [&_[data-slot=scroll-area-scrollbar]]:transition-opacity hover:[&_[data-slot=scroll-area-scrollbar]]:opacity-100 focus-within:[&_[data-slot=scroll-area-scrollbar]]:opacity-100";
 
 type SidebarProps = {
   className?: string;
@@ -38,6 +63,7 @@ export function Sidebar({ className, collapsed = false, onCollapsedChange }: Sid
     isSendingMessage,
     createNewConversation,
     selectConversation,
+    deleteConversation,
   } = useChatWorkspace();
 
   const grouped = groupConversationsByDate(conversations, {
@@ -89,6 +115,7 @@ export function Sidebar({ className, collapsed = false, onCollapsedChange }: Sid
         className={cn(
           "flex-1 min-h-0 transition-opacity",
           sidebarMotionClass,
+          sidebarScrollAreaClass,
           collapsed ? "pointer-events-none opacity-0" : "opacity-100"
         )}
       >
@@ -105,28 +132,152 @@ export function Sidebar({ className, collapsed = false, onCollapsedChange }: Sid
             <div key={group.label} className={cn("flex flex-col gap-1", group !== grouped[0] && "mt-3")}>
               <span className={sidebarListGroupLabelClass}>{group.label}</span>
               {group.items.map((conversation) => (
-                <button
+                <SidebarConversationItem
                   key={conversation.id}
-                  type="button"
-                  className={cn(
-                    sidebarConversationButtonClass,
-                    conversation.id === activeConversationId
-                      ? "bg-[var(--lc-bg-tertiary)] font-medium text-[var(--lc-text-primary)]"
-                      : "text-[var(--lc-text-primary)] hover:bg-[var(--lc-bg-tertiary)]"
-                  )}
-                  disabled={isSendingMessage}
-                  onClick={() => {
-                    void selectConversation(conversation.id);
-                  }}
-                >
-                  <span className="truncate">{conversation.title}</span>
-                </button>
+                  conversation={conversation}
+                  isActive={conversation.id === activeConversationId}
+                  isDisabled={isSendingMessage}
+                  onSelect={selectConversation}
+                  onDelete={deleteConversation}
+                />
               ))}
             </div>
           ))}
         </div>
       </ScrollArea>
     </div>
+  );
+}
+
+type SidebarConversationItemProps = {
+  conversation: ChatConversationRecord;
+  isActive: boolean;
+  isDisabled: boolean;
+  onSelect: (conversationId: string) => Promise<void>;
+  onDelete: (conversationId: string) => Promise<void>;
+};
+
+function SidebarConversationItem({
+  conversation,
+  isActive,
+  isDisabled,
+  onSelect,
+  onDelete,
+}: SidebarConversationItemProps) {
+  const { messages } = useI18n();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  async function handleDelete() {
+    if (isDeleting || isDisabled) {
+      return;
+    }
+
+    setIsDeleting(true);
+
+    try {
+      await onDelete(conversation.id);
+      setConfirmOpen(false);
+    } finally {
+      setIsDeleting(false);
+    }
+  }
+
+  return (
+    <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+      <div
+        className={cn(
+          sidebarConversationRowClass,
+          isActive
+            ? "bg-[var(--lc-bg-tertiary)] font-medium text-[var(--lc-text-primary)]"
+            : "text-[var(--lc-text-primary)] hover:bg-[var(--lc-bg-tertiary)]"
+        )}
+      >
+        <button
+          type="button"
+          className={sidebarConversationButtonClass}
+          disabled={isDisabled}
+          onClick={() => {
+            void onSelect(conversation.id);
+          }}
+        >
+          <span className="min-w-0 truncate">{conversation.title}</span>
+        </button>
+
+        <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
+          <DropdownMenuTrigger
+            className={cn(
+              sidebarConversationMenuButtonClass,
+              menuOpen && "w-9 opacity-100"
+            )}
+            disabled={isDisabled}
+            aria-label={messages.shell.conversationActions}
+            title={messages.shell.conversationActions}
+          >
+            <MoreHorizontal className="size-5" />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent
+            align="end"
+            side="bottom"
+            sideOffset={4}
+            className="w-[136px] rounded-lg border border-[var(--lc-border)] bg-[var(--lc-bg-primary)] p-1 shadow-lg"
+          >
+            <DropdownMenuItem
+              variant="destructive"
+              className="flex items-center gap-2 rounded-[4px] px-3 py-2 text-[14px] text-[var(--lc-danger)] focus:bg-[var(--lc-danger)]/10 focus:text-[var(--lc-danger)]"
+              onClick={() => {
+                setMenuOpen(false);
+                setConfirmOpen(true);
+              }}
+            >
+              <Trash2 className="size-4" />
+              {messages.shell.deleteConversation}
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+
+      <DialogContent className="max-w-[calc(100%-2rem)] gap-0 overflow-hidden rounded-[20px] border border-white/10 bg-[var(--lc-bg-primary)] p-0 shadow-2xl sm:max-w-[448px]" showCloseButton={false}>
+        <DialogHeader className="gap-4 px-4 pt-4 pb-3 text-left">
+          <DialogTitle className="text-[20px] font-medium leading-6 tracking-[-0.01em] text-[var(--lc-text-primary)]">
+            {messages.shell.deleteConversationTitle}
+          </DialogTitle>
+          <DialogDescription className="space-y-1.5 text-[15px] leading-6 text-[var(--lc-text-secondary)]">
+            <span className="block text-[var(--lc-text-primary)]">
+              {messages.shell.deleteConversationBodyStart}
+              <strong className="font-semibold">“{conversation.title}”</strong>
+              {messages.shell.deleteConversationBodyEnd}
+            </span>
+            <span className="block">{messages.shell.deleteConversationDescription}</span>
+          </DialogDescription>
+        </DialogHeader>
+
+        <DialogFooter className="mx-0 mb-0 gap-3 rounded-none border-t border-[var(--lc-border)] bg-transparent px-4 py-3 sm:justify-end">
+          <DialogClose
+            render={
+              <Button
+                variant="outline"
+                className="h-11 rounded-xl border-[var(--lc-border)] px-6 text-[15px] font-semibold"
+                disabled={isDeleting}
+              />
+            }
+          >
+            {messages.shell.cancel}
+          </DialogClose>
+          <Button
+            type="button"
+            className="h-11 rounded-xl bg-[var(--lc-danger)] px-6 text-[15px] font-semibold text-white hover:bg-[var(--lc-danger)]/90 focus-visible:border-[var(--lc-danger)]/40 focus-visible:ring-[var(--lc-danger)]/20"
+            disabled={isDeleting || isDisabled}
+            onClick={() => {
+              void handleDelete();
+            }}
+          >
+            {messages.shell.deleteConversation}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
