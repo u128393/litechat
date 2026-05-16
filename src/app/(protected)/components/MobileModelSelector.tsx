@@ -40,8 +40,9 @@ export function MobileModelSelector() {
           side="bottom"
           className="rounded-t-[16px] flex flex-col gap-0 border-t border-[var(--lc-border)] bg-[var(--lc-bg-primary)] p-0 shadow-xl"
           showCloseButton={false}
+          closeLabel={messages.common.close}
         >
-          <SheetTitle className="sr-only">Select Model</SheetTitle>
+          <SheetTitle className="sr-only">{messages.home.selectModel}</SheetTitle>
 
           {/* Drag handle */}
           <div className="flex flex-col items-center pb-2 pt-3">

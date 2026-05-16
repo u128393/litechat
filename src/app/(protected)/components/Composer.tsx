@@ -124,7 +124,7 @@ export function Composer() {
 
         {/* Hint text */}
         <p className="hidden px-1 text-[11px] text-[var(--lc-text-tertiary)] md:block">
-          Enter to send, Shift+Enter for new line
+          {messages.home.composerKeyboardHint}
         </p>
       </div>
     </div>

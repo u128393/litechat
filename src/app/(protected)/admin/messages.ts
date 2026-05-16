@@ -13,6 +13,8 @@ export type AdminMessages = {
   listEnabledStatus: string;
   listDisabledStatus: string;
   listSortOrderPrefix: string;
+  defaultValue: string;
+  webSearchShortLabel: string;
   providers: {
     badge: string;
     title: string;
@@ -81,6 +83,8 @@ export const adminMessagesByLocale: Record<AppLocale, AdminMessages> = {
     listEnabledStatus: "enabled",
     listDisabledStatus: "disabled",
     listSortOrderPrefix: "sort",
+    defaultValue: "Default",
+    webSearchShortLabel: "Web",
     providers: {
       badge: "Providers",
       title: "Provider management",
@@ -147,6 +151,8 @@ export const adminMessagesByLocale: Record<AppLocale, AdminMessages> = {
     listEnabledStatus: "已启用",
     listDisabledStatus: "已禁用",
     listSortOrderPrefix: "排序",
+    defaultValue: "默认",
+    webSearchShortLabel: "联网",
     providers: {
       badge: "提供商",
       title: "提供商管理",

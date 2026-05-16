@@ -121,7 +121,7 @@ export default function PasswordSettingsPage() {
               autoComplete="new-password"
               minLength={8}
               required
-              placeholder="Enter new password"
+              placeholder={messages.password.newPasswordPlaceholder}
               className="w-full rounded-lg border border-[var(--lc-border)] bg-[var(--lc-bg-primary)] px-3 py-2.5 text-sm text-[var(--lc-text-primary)] outline-none transition placeholder:text-[var(--lc-text-tertiary)] focus:border-[var(--lc-accent)]"
             />
           </div>
@@ -137,7 +137,7 @@ export default function PasswordSettingsPage() {
               autoComplete="new-password"
               minLength={8}
               required
-              placeholder="Confirm new password"
+              placeholder={messages.password.confirmPasswordPlaceholder}
               className="w-full rounded-lg border border-[var(--lc-border)] bg-[var(--lc-bg-primary)] px-3 py-2.5 text-sm text-[var(--lc-text-primary)] outline-none transition placeholder:text-[var(--lc-text-tertiary)] focus:border-[var(--lc-accent)]"
             />
           </div>

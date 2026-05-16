@@ -90,7 +90,7 @@ export function UserMenu({ currentUser, collapsed = false }: UserMenuProps) {
           }}
         >
           {theme === "dark" ? <Sun className="size-4" /> : <Moon className="size-4" />}
-          {theme === "dark" ? "Light" : "Dark"}
+          {theme === "dark" ? messages.shell.themeLight : messages.shell.themeDark}
         </DropdownMenuItem>
 
         {/* Language */}

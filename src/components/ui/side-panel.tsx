@@ -91,7 +91,14 @@ function SidePanelContent({
   )
 }
 
-function SidePanelHeader({ className, children, ...props }: React.ComponentProps<"div">) {
+function SidePanelHeader({
+  className,
+  children,
+  closeLabel = "Close",
+  ...props
+}: React.ComponentProps<"div"> & {
+  closeLabel?: string
+}) {
   return (
     <div
       data-slot="side-panel-header"
@@ -104,7 +111,7 @@ function SidePanelHeader({ className, children, ...props }: React.ComponentProps
         className="flex size-8 items-center justify-center rounded-md text-[var(--lc-text-secondary)] transition-colors hover:bg-[var(--lc-bg-secondary)] hover:text-[var(--lc-text-primary)]"
       >
         <X className="size-[18px]" />
-        <span className="sr-only">Close</span>
+        <span className="sr-only">{closeLabel}</span>
       </DialogPrimitive.Close>
     </div>
   )

@@ -5,6 +5,12 @@ import {
 import { type AppLocale } from "@/lib/i18n/locales";
 
 export type AppMessages = {
+  common: {
+    back: string;
+    cancel: string;
+    close: string;
+    dismiss: string;
+  };
   shell: {
     brand: string;
     description: string;
@@ -42,6 +48,17 @@ export type AppMessages = {
     languageStatus: string;
     passwordSettings: string;
     passwordManage: string;
+    themeLight: string;
+    themeDark: string;
+    navigation: string;
+  };
+  login: {
+    tagline: string;
+    emailLabel: string;
+    passwordLabel: string;
+    invalidCredentials: string;
+    passwordChanged: string;
+    submit: string;
   };
   password: {
     badge: string;
@@ -60,6 +77,8 @@ export type AppMessages = {
     unknownError: string;
     signInAgain: string;
     forgotPasswordOutOfScope: string;
+    newPasswordPlaceholder: string;
+    confirmPasswordPlaceholder: string;
   };
   home: {
     title: string;
@@ -96,12 +115,19 @@ export type AppMessages = {
     errorInterrupted: string;
     errorUnknown: string;
     selectModel: string;
+    composerKeyboardHint: string;
   };
   admin: AdminMessages;
 };
 
 export const messagesByLocale: Record<AppLocale, AppMessages> = {
   en: {
+    common: {
+      back: "Back",
+      cancel: "Cancel",
+      close: "Close",
+      dismiss: "Dismiss"
+    },
     shell: {
       brand: "LiteChat",
       description: "Shared app shell for chat and future admin tools.",
@@ -139,6 +165,17 @@ export const messagesByLocale: Record<AppLocale, AppMessages> = {
       languageStatus: "Language preference saved locally",
       passwordSettings: "Password",
       passwordManage: "Update",
+      themeLight: "Light",
+      themeDark: "Dark",
+      navigation: "Navigation",
+    },
+    login: {
+      tagline: "Your team's AI assistant",
+      emailLabel: "Email",
+      passwordLabel: "Password",
+      invalidCredentials: "Invalid email or password.",
+      passwordChanged: "Password updated. Sign in again with your new password.",
+      submit: "Sign in",
     },
     password: {
       badge: "Account security",
@@ -157,6 +194,8 @@ export const messagesByLocale: Record<AppLocale, AppMessages> = {
       unknownError: "Could not update the password. Try again.",
       signInAgain: "All active sessions are cleared after a password change.",
       forgotPasswordOutOfScope: "Forgot-password email recovery is not included in this app yet.",
+      newPasswordPlaceholder: "Enter new password",
+      confirmPasswordPlaceholder: "Confirm new password",
     },
     home: {
       title: "New conversation",
@@ -192,11 +231,18 @@ export const messagesByLocale: Record<AppLocale, AppMessages> = {
       errorUpstream: "The model provider could not complete the request. Retry in a moment.",
       errorInterrupted: "The response stream was interrupted before completion. Retry to continue.",
       errorUnknown: "Something went wrong while sending the message. Retry to continue.",
-      selectModel: "Select Model"
+      selectModel: "Select Model",
+      composerKeyboardHint: "Enter to send, Shift+Enter for new line"
     },
     admin: adminMessagesByLocale.en
   },
   "zh-CN": {
+    common: {
+      back: "返回",
+      cancel: "取消",
+      close: "关闭",
+      dismiss: "关闭提示"
+    },
     shell: {
       brand: "LiteChat",
       description: "面向聊天与后续管理工具的共享应用外壳。",
@@ -234,6 +280,17 @@ export const messagesByLocale: Record<AppLocale, AppMessages> = {
       languageStatus: "语言偏好已保存在本地",
       passwordSettings: "密码",
       passwordManage: "修改",
+      themeLight: "浅色模式",
+      themeDark: "深色模式",
+      navigation: "导航",
+    },
+    login: {
+      tagline: "你的团队 AI 助手",
+      emailLabel: "邮箱",
+      passwordLabel: "密码",
+      invalidCredentials: "邮箱或密码不正确。",
+      passwordChanged: "密码已更新。请使用新密码重新登录。",
+      submit: "登录",
     },
     password: {
       badge: "账户安全",
@@ -252,6 +309,8 @@ export const messagesByLocale: Record<AppLocale, AppMessages> = {
       unknownError: "密码更新失败，请重试。",
       signInAgain: "修改密码后会清除所有活跃会话。",
       forgotPasswordOutOfScope: "当前应用暂不提供忘记密码邮件找回。",
+      newPasswordPlaceholder: "输入新密码",
+      confirmPasswordPlaceholder: "确认新密码",
     },
     home: {
       title: "新会话",
@@ -287,7 +346,8 @@ export const messagesByLocale: Record<AppLocale, AppMessages> = {
       errorUpstream: "模型提供商暂时无法完成请求，请稍后重试。",
       errorInterrupted: "回复流在完成前中断了。请重试继续。",
       errorUnknown: "发送消息时发生异常。请重试后继续。",
-      selectModel: "选择模型"
+      selectModel: "选择模型",
+      composerKeyboardHint: "按 Enter 发送，按 Shift+Enter 换行"
     },
     admin: adminMessagesByLocale["zh-CN"]
   }

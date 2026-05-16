@@ -312,7 +312,7 @@ export function AdminManagementClient({ initialProviderConfigs, initialModelConf
           type="button"
           onClick={() => router.push("/")}
           className="flex size-8 items-center justify-center rounded-lg text-[var(--lc-text-secondary)] transition-colors hover:bg-[var(--lc-bg-secondary)] hover:text-[var(--lc-text-primary)]"
-          aria-label="Back"
+          aria-label={messages.common.back}
         >
           <ArrowLeft className="size-[18px]" />
         </button>
@@ -323,10 +323,18 @@ export function AdminManagementClient({ initialProviderConfigs, initialModelConf
         <div className="mx-auto flex max-w-[800px] flex-col gap-8">
 
           {providerFeedback && (
-            <FeedbackBanner feedback={providerFeedback} onDismiss={() => setProviderFeedback(null)} />
+            <FeedbackBanner
+              feedback={providerFeedback}
+              dismissLabel={messages.common.dismiss}
+              onDismiss={() => setProviderFeedback(null)}
+            />
           )}
           {modelFeedback && (
-            <FeedbackBanner feedback={modelFeedback} onDismiss={() => setModelFeedback(null)} />
+            <FeedbackBanner
+              feedback={modelFeedback}
+              dismissLabel={messages.common.dismiss}
+              onDismiss={() => setModelFeedback(null)}
+            />
           )}
 
           <section>
@@ -371,7 +379,7 @@ export function AdminManagementClient({ initialProviderConfigs, initialModelConf
                       <TypeBadge type={getProviderTypeName(providerConfig.providerType)} />
                     </span>
                     <span className="flex-1 text-sm text-[var(--lc-text-secondary)]">
-                      {providerConfig.baseUrl ?? "Default"}
+                      {providerConfig.baseUrl ?? adminMessages.defaultValue}
                     </span>
                     <span className="flex w-20 justify-end" onClick={(e) => e.stopPropagation()}>
                       <SwitchToggle
@@ -412,7 +420,7 @@ export function AdminManagementClient({ initialProviderConfigs, initialModelConf
                 <span className="w-[150px] text-xs font-medium text-[var(--lc-text-secondary)]">{adminMessages.models.displayNameLabel}</span>
                 <span className="w-[180px] text-xs font-medium text-[var(--lc-text-secondary)]">{adminMessages.models.modelIdLabel}</span>
                 <span className="flex-1 text-xs font-medium text-[var(--lc-text-secondary)]">{adminMessages.models.providerLabel}</span>
-                <span className="w-[50px] text-center text-xs font-medium text-[var(--lc-text-secondary)]">Web</span>
+                <span className="w-[50px] text-center text-xs font-medium text-[var(--lc-text-secondary)]">{adminMessages.webSearchShortLabel}</span>
                 <span className="w-[50px] text-center text-xs font-medium text-[var(--lc-text-secondary)]">{adminMessages.models.sortOrderLabel}</span>
                 <span className="w-20 text-right text-xs font-medium text-[var(--lc-text-secondary)]">{adminMessages.models.enabledLabel}</span>
               </div>
@@ -473,7 +481,7 @@ export function AdminManagementClient({ initialProviderConfigs, initialModelConf
 
       <SidePanel open={providerDialogOpen} onOpenChange={(open) => setProviderDialogOpen(open)}>
         <SidePanelContent>
-          <SidePanelHeader>
+          <SidePanelHeader closeLabel={messages.common.close}>
             <SidePanelTitle>
               {editingProvider ? adminMessages.providers.editModeLabel : adminMessages.providers.createModeLabel}
             </SidePanelTitle>
@@ -549,7 +557,7 @@ export function AdminManagementClient({ initialProviderConfigs, initialModelConf
                 onClick={() => setProviderDialogOpen(false)}
                 disabled={providerPending}
               >
-                Cancel
+                {messages.common.cancel}
               </Button>
               <Button type="submit" disabled={providerPending}>
                 {providerPending
@@ -567,7 +575,7 @@ export function AdminManagementClient({ initialProviderConfigs, initialModelConf
 
       <SidePanel open={modelDialogOpen} onOpenChange={(open) => setModelDialogOpen(open)}>
         <SidePanelContent>
-          <SidePanelHeader>
+          <SidePanelHeader closeLabel={messages.common.close}>
             <SidePanelTitle>
               {editingModel ? adminMessages.models.editModeLabel : adminMessages.models.createModeLabel}
             </SidePanelTitle>
@@ -661,7 +669,7 @@ export function AdminManagementClient({ initialProviderConfigs, initialModelConf
                 onClick={() => setModelDialogOpen(false)}
                 disabled={modelPending}
               >
-                Cancel
+                {messages.common.cancel}
               </Button>
               <Button type="submit" disabled={providerConfigs.length === 0 || modelPending}>
                 {modelPending
@@ -711,9 +719,11 @@ function TypeBadge({ type }: { type: string }) {
 
 function FeedbackBanner({
   feedback,
+  dismissLabel,
   onDismiss,
 }: {
   feedback: { type: "success" | "error"; message: string };
+  dismissLabel: string;
   onDismiss: () => void;
 }) {
   return (
@@ -729,7 +739,7 @@ function FeedbackBanner({
         type="button"
         onClick={onDismiss}
         className="ml-2 text-current opacity-60 transition-opacity hover:opacity-100"
-        aria-label="Dismiss"
+        aria-label={dismissLabel}
       >
         &times;
       </button>

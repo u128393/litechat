@@ -1,7 +1,10 @@
 import { redirect } from "next/navigation";
+import { headers } from "next/headers";
 
 import { getCurrentUser } from "@/server/auth";
 import { getSafeRedirectPath } from "@/server/auth/guards";
+import { getMessages } from "@/lib/i18n/messages";
+import { appLocaleRequestHeaderName, resolveRequestLocale } from "@/lib/i18n/locales";
 
 type LoginPageProps = {
   searchParams: Promise<{
@@ -14,6 +17,12 @@ type LoginPageProps = {
 export default async function LoginPage({ searchParams }: LoginPageProps) {
   const currentUser = await getCurrentUser();
   const params = await searchParams;
+  const requestHeaders = await headers();
+  const locale = resolveRequestLocale({
+    headerLocale: requestHeaders.get(appLocaleRequestHeaderName),
+    acceptLanguage: requestHeaders.get("accept-language")
+  });
+  const messages = getMessages(locale);
   const nextPath = getSafeRedirectPath(params.next);
 
   if (currentUser) {
@@ -32,7 +41,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
             LiteChat
           </span>
           <span className="text-sm font-normal text-[var(--lc-text-secondary)]">
-            Your team&apos;s AI assistant
+            {messages.login.tagline}
           </span>
         </div>
 
@@ -49,7 +58,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
               htmlFor="email"
               className="text-sm font-medium text-[var(--lc-text-primary)]"
             >
-              Email
+              {messages.login.emailLabel}
             </label>
             <input
               id="email"
@@ -68,7 +77,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
               htmlFor="password"
               className="text-sm font-medium text-[var(--lc-text-primary)]"
             >
-              Password
+              {messages.login.passwordLabel}
             </label>
             <input
               id="password"
@@ -84,13 +93,13 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
           {/* Messages */}
           {showInvalidCredentials ? (
             <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-red-700">
-              Invalid email or password.
+              {messages.login.invalidCredentials}
             </p>
           ) : null}
 
           {showPasswordChanged ? (
             <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-sm text-emerald-700">
-              Password updated. Sign in again with your new password.
+              {messages.login.passwordChanged}
             </p>
           ) : null}
 
@@ -102,7 +111,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
             type="submit"
             className="h-10 w-full rounded-lg bg-[var(--lc-accent)] text-center text-sm font-medium text-white"
           >
-            Sign in
+            {messages.login.submit}
           </button>
         </form>
       </div>
