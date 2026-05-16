@@ -34,7 +34,7 @@ export function ProtectedShell({ currentUser, initialSidebarCollapsed, children 
       <aside
         className={cn(
           "hidden shrink-0 flex-col border-r border-[var(--lc-border)] bg-[var(--lc-bg-secondary)] transition-[width] duration-200 ease-out md:flex",
-          sidebarCollapsed ? "w-[48px]" : "w-[280px]"
+          sidebarCollapsed ? "w-[48px]" : "w-[260px]"
         )}
       >
         <Sidebar
