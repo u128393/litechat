@@ -38,13 +38,14 @@ const sidebarItemClass =
 const sidebarItemLabelClass = "min-w-0 truncate transition-[opacity,max-width] duration-200 ease-out";
 const sidebarListStatusClass = "px-2.5 py-2 text-[13px] text-[var(--lc-text-tertiary)]";
 const sidebarListGroupLabelClass =
-  "px-2.5 pt-1 text-[11px] font-medium uppercase tracking-[0.5px] text-[var(--lc-text-tertiary)]";
+  "mb-1 px-2.5 pt-1 text-[11px] font-medium uppercase tracking-[0.5px] text-[var(--lc-text-tertiary)]";
 const sidebarConversationRowClass =
-  "group flex h-9 w-full items-center overflow-hidden rounded-lg text-[13px] transition-colors disabled:opacity-60";
+  "group relative flex h-9 w-full items-center overflow-hidden text-[13px] disabled:opacity-60";
+const sidebarConversationBackgroundClass = "pointer-events-none absolute inset-x-0 inset-y-[0.5px] rounded-lg";
 const sidebarConversationButtonClass =
-  "flex h-full min-w-0 flex-1 items-center px-2.5 text-left transition-[padding] disabled:opacity-60";
+  "relative z-10 flex h-full min-w-0 flex-1 items-center px-2.5 text-left transition-[padding] disabled:opacity-60";
 const sidebarConversationMenuButtonClass =
-  "flex h-9 w-0 shrink-0 items-center justify-center overflow-hidden rounded-lg text-[var(--lc-text-secondary)] opacity-0 transition-[width,opacity,color] duration-200 ease-out hover:text-[var(--lc-text-primary)] focus-visible:w-9 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--lc-accent)] group-hover:w-9 group-hover:opacity-100";
+  "relative z-10 flex h-9 w-0 shrink-0 items-center justify-center overflow-hidden rounded-lg text-[var(--lc-text-secondary)] opacity-0 hover:text-[var(--lc-text-primary)] focus-visible:w-9 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--lc-accent)] group-hover:w-9 group-hover:opacity-100";
 const sidebarScrollAreaClass =
   "[&_[data-slot=scroll-area-scrollbar]]:opacity-0 [&_[data-slot=scroll-area-scrollbar]]:transition-opacity [&_[data-slot=scroll-area-scrollbar]]:duration-300 [&_[data-slot=scroll-area-scrollbar]]:delay-300 [&_[data-slot=scroll-area-scrollbar]]:ease-out [&_[data-slot=scroll-area-scrollbar][data-scrolling]]:opacity-100 [&_[data-slot=scroll-area-scrollbar][data-scrolling]]:duration-150 [&_[data-slot=scroll-area-scrollbar][data-scrolling]]:delay-0 focus-within:[&_[data-slot=scroll-area-scrollbar]]:opacity-100 focus-within:[&_[data-slot=scroll-area-scrollbar]]:delay-0";
 
@@ -129,7 +130,7 @@ export function Sidebar({ className, collapsed = false, onCollapsedChange }: Sid
           ) : null}
 
           {grouped.map((group) => (
-            <div key={group.label} className={cn("flex flex-col gap-1", group !== grouped[0] && "mt-3")}>
+            <div key={group.label} className={cn("flex flex-col", group !== grouped[0] && "mt-1")}>
               <span className={sidebarListGroupLabelClass}>{group.label}</span>
               {group.items.map((conversation) => (
                 <SidebarConversationItem
@@ -190,10 +191,20 @@ function SidebarConversationItem({
         className={cn(
           sidebarConversationRowClass,
           isActive
-            ? "bg-[var(--lc-bg-tertiary)] font-medium text-[var(--lc-text-primary)]"
-            : "text-[var(--lc-text-primary)] hover:bg-[var(--lc-bg-tertiary)]"
+            ? "font-medium text-[var(--lc-text-primary)]"
+            : "text-[var(--lc-text-primary)]"
         )}
       >
+        <span
+          aria-hidden="true"
+          className={cn(
+            sidebarConversationBackgroundClass,
+            isActive
+              ? "bg-[var(--lc-bg-tertiary)]"
+              : "bg-black/[0.035] opacity-0 group-hover:opacity-100 dark:bg-white/[0.055]"
+          )}
+        />
+
         <button
           type="button"
           className={sidebarConversationButtonClass}
