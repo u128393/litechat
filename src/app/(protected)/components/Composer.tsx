@@ -53,7 +53,7 @@ export function Composer() {
 
   return (
     <div className="w-full px-0 pb-6">
-      <div className="mx-auto flex w-full max-w-[720px] flex-col gap-2">
+      <div className="mx-auto flex w-full max-w-[768px] flex-col gap-2">
         {/* Error banner */}
         {chatError ? (
           <div className="flex items-center gap-2 rounded-lg border border-[#FECACA] bg-[#FEF2F2] px-3 py-2.5 text-[13px] text-[#991B1B] dark:border-[#7F1D1D] dark:bg-[#450A0A] dark:text-[#FCA5A5]">

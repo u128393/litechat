@@ -77,7 +77,7 @@ export function MessageTimeline() {
       className="flex flex-1 flex-col overflow-y-auto py-4"
       onScroll={handleScroll}
     >
-      <div className="mx-auto flex w-full max-w-[720px] flex-col gap-6">
+      <div className="mx-auto flex w-full max-w-[768px] flex-col gap-6">
         {conversationMessages.map((message, index) => {
           const isStreaming = isSendingMessage && message.role === "assistant" && index === conversationMessages.length - 1 && message.content === "";
 
