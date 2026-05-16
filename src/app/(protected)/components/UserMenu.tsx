@@ -133,7 +133,8 @@ export function UserMenu({ currentUser, collapsed = false }: UserMenuProps) {
 
         {/* Sign out */}
         <DropdownMenuItem
-          className="flex items-center gap-2 rounded-[4px] px-3 py-2 text-[14px] text-[var(--lc-danger)]"
+          variant="destructive"
+          className="flex items-center gap-2 rounded-[4px] px-3 py-2 text-[14px] text-[var(--lc-danger)] focus:bg-[var(--lc-danger)]/10 focus:text-[var(--lc-danger)]"
           onClick={() => {
             handleLogout();
           }}
