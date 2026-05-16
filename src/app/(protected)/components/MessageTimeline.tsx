@@ -74,7 +74,7 @@ export function MessageTimeline() {
   return (
     <div
       ref={scrollContainerRef}
-      className="flex flex-1 flex-col overflow-y-auto py-4"
+      className="flex flex-1 flex-col overflow-y-auto pt-4 pb-32"
       onScroll={handleScroll}
     >
       <div className="mx-auto flex w-full max-w-[768px] flex-col gap-6">

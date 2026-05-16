@@ -52,8 +52,9 @@ export function Composer() {
     "bg-[#D4D4D8] text-[#8A8A8A] dark:bg-[#4A4A4A] dark:text-[#9B9B9B]";
 
   return (
-    <div className="w-full px-0 pb-6">
-      <div className="mx-auto flex w-full max-w-[768px] flex-col gap-2">
+    <div className="pointer-events-none relative w-full px-0 pb-6">
+      <div className="absolute inset-x-0 top-[26px] bottom-0 bg-[var(--lc-bg-primary)]" />
+      <div className="pointer-events-auto relative mx-auto flex w-full max-w-[768px] flex-col gap-2">
         {/* Error banner */}
         {chatError ? (
           <div className="flex items-center gap-2 rounded-lg border border-[#FECACA] bg-[#FEF2F2] px-3 py-2.5 text-[13px] text-[#991B1B] dark:border-[#7F1D1D] dark:bg-[#450A0A] dark:text-[#FCA5A5]">
@@ -83,12 +84,12 @@ export function Composer() {
         ) : null}
 
         {/* Textarea box */}
-        <div className="flex items-end gap-2 rounded-[20px] bg-[var(--lc-bg-tertiary)] px-4 py-3">
+        <div className="flex items-end gap-2 rounded-[20px] bg-[var(--lc-bg-tertiary)] px-3 py-2">
           <textarea
             ref={textareaRef}
             rows={1}
             placeholder={messages.home.composerPlaceholder}
-            className="min-h-9 flex-1 resize-none border-0 bg-transparent py-2 text-[15px] leading-5 text-[var(--lc-text-primary)] outline-none placeholder:text-[var(--lc-text-tertiary)]"
+            className="ml-2 min-h-9 flex-1 resize-none border-0 bg-transparent py-2 text-[15px] leading-5 text-[var(--lc-text-primary)] outline-none placeholder:text-[var(--lc-text-tertiary)]"
             disabled={isLoadingWorkspace}
             onChange={(event) => {
               void updateDraft(event.target.value);
