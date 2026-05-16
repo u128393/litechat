@@ -46,7 +46,7 @@ const sidebarConversationButtonClass =
 const sidebarConversationMenuButtonClass =
   "flex h-9 w-0 shrink-0 items-center justify-center overflow-hidden rounded-lg text-[var(--lc-text-secondary)] opacity-0 transition-[width,opacity,color] duration-200 ease-out hover:text-[var(--lc-text-primary)] focus-visible:w-9 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--lc-accent)] group-hover:w-9 group-hover:opacity-100";
 const sidebarScrollAreaClass =
-  "[&_[data-slot=scroll-area-scrollbar]]:opacity-0 [&_[data-slot=scroll-area-scrollbar]]:transition-opacity hover:[&_[data-slot=scroll-area-scrollbar]]:opacity-100 focus-within:[&_[data-slot=scroll-area-scrollbar]]:opacity-100";
+  "[&_[data-slot=scroll-area-scrollbar]]:opacity-0 [&_[data-slot=scroll-area-scrollbar]]:transition-opacity [&_[data-slot=scroll-area-scrollbar]]:duration-300 [&_[data-slot=scroll-area-scrollbar]]:delay-300 [&_[data-slot=scroll-area-scrollbar]]:ease-out [&_[data-slot=scroll-area-scrollbar][data-scrolling]]:opacity-100 [&_[data-slot=scroll-area-scrollbar][data-scrolling]]:duration-150 [&_[data-slot=scroll-area-scrollbar][data-scrolling]]:delay-0 focus-within:[&_[data-slot=scroll-area-scrollbar]]:opacity-100 focus-within:[&_[data-slot=scroll-area-scrollbar]]:delay-0";
 
 type SidebarProps = {
   className?: string;
