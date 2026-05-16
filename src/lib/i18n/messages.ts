@@ -13,6 +13,10 @@ export type AppMessages = {
     conversationsMeta: string;
     conversationsLoading: string;
     conversationsEmpty: string;
+    conversationGroupToday: string;
+    conversationGroupYesterday: string;
+    conversationGroupPrevious7Days: string;
+    conversationGroupOlder: string;
     menu: string;
     adminArea: string;
     adminManage: string;
@@ -99,6 +103,10 @@ export const messagesByLocale: Record<AppLocale, AppMessages> = {
       conversationsMeta: "Local",
       conversationsLoading: "Loading local conversations...",
       conversationsEmpty: "No local conversations yet.",
+      conversationGroupToday: "Today",
+      conversationGroupYesterday: "Yesterday",
+      conversationGroupPrevious7Days: "Previous 7 Days",
+      conversationGroupOlder: "Older",
       menu: "Menu",
       adminArea: "Admin area",
       adminManage: "Manage",
@@ -183,6 +191,10 @@ export const messagesByLocale: Record<AppLocale, AppMessages> = {
       conversationsMeta: "本地",
       conversationsLoading: "正在加载本地会话...",
       conversationsEmpty: "还没有本地会话。",
+      conversationGroupToday: "今天",
+      conversationGroupYesterday: "昨天",
+      conversationGroupPrevious7Days: "过去 7 天",
+      conversationGroupOlder: "更早",
       menu: "菜单",
       adminArea: "管理区域",
       adminManage: "管理",

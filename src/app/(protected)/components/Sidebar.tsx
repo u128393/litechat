@@ -40,7 +40,12 @@ export function Sidebar({ className, collapsed = false, onCollapsedChange }: Sid
     selectConversation,
   } = useChatWorkspace();
 
-  const grouped = groupConversationsByDate(conversations);
+  const grouped = groupConversationsByDate(conversations, {
+    today: messages.shell.conversationGroupToday,
+    yesterday: messages.shell.conversationGroupYesterday,
+    previousSevenDays: messages.shell.conversationGroupPrevious7Days,
+    older: messages.shell.conversationGroupOlder
+  });
 
   return (
     <div className={cn("flex h-full flex-col overflow-hidden bg-[var(--lc-bg-secondary)]", className)}>
@@ -171,7 +176,17 @@ type ConversationGroup = {
   items: ChatConversationRecord[];
 };
 
-function groupConversationsByDate(conversations: ChatConversationRecord[]): ConversationGroup[] {
+type ConversationGroupLabels = {
+  today: string;
+  yesterday: string;
+  previousSevenDays: string;
+  older: string;
+};
+
+function groupConversationsByDate(
+  conversations: ChatConversationRecord[],
+  labels: ConversationGroupLabels
+): ConversationGroup[] {
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const yesterday = new Date(today.getTime() - 86400000);
@@ -198,16 +213,16 @@ function groupConversationsByDate(conversations: ChatConversationRecord[]): Conv
   const groups: ConversationGroup[] = [];
 
   if (todayItems.length > 0) {
-    groups.push({ label: "Today", items: todayItems });
+    groups.push({ label: labels.today, items: todayItems });
   }
   if (yesterdayItems.length > 0) {
-    groups.push({ label: "Yesterday", items: yesterdayItems });
+    groups.push({ label: labels.yesterday, items: yesterdayItems });
   }
   if (previousSevenDaysItems.length > 0) {
-    groups.push({ label: "Previous 7 Days", items: previousSevenDaysItems });
+    groups.push({ label: labels.previousSevenDays, items: previousSevenDaysItems });
   }
   if (olderItems.length > 0) {
-    groups.push({ label: "Older", items: olderItems });
+    groups.push({ label: labels.older, items: olderItems });
   }
 
   return groups;
