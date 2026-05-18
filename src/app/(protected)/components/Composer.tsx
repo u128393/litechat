@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useEffect, type KeyboardEvent } from "react";
+import { useRef, useEffect, useLayoutEffect, type KeyboardEvent } from "react";
 
 import { useChatWorkspace } from "@/app/(protected)/ChatWorkspaceProvider";
 import { useI18n } from "@/lib/i18n/provider";
@@ -14,6 +14,7 @@ export function Composer() {
     selectedModelId,
     isSendingMessage,
     chatError,
+    composerFocusRequestToken,
     updateDraft,
     sendMessage,
     stopMessage,
@@ -30,6 +31,20 @@ export function Composer() {
     textarea.style.height = "auto";
     textarea.style.height = `${Math.min(textarea.scrollHeight, 200)}px`;
   }, [draft]);
+
+  useLayoutEffect(() => {
+    if (composerFocusRequestToken === 0) {
+      return;
+    }
+
+    textareaRef.current?.focus({ preventScroll: true });
+
+    const animationFrame = window.requestAnimationFrame(() => {
+      textareaRef.current?.focus({ preventScroll: true });
+    });
+
+    return () => window.cancelAnimationFrame(animationFrame);
+  }, [composerFocusRequestToken]);
 
   function handleKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
     if (event.nativeEvent.isComposing || event.keyCode === 229) {

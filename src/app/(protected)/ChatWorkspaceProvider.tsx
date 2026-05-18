@@ -67,6 +67,7 @@ type ChatWorkspaceContextValue = {
   isSendingMessage: boolean;
   chatError: ChatFailureState | null;
   activeConversationRevealRequest: ConversationRevealRequest | null;
+  composerFocusRequestToken: number;
   createNewConversation(): Promise<void>;
   selectConversation(conversationId: string, options?: { source?: SelectConversationSource }): Promise<void>;
   updateDraft(nextDraft: string): Promise<void>;
@@ -118,6 +119,11 @@ export function ChatWorkspaceProvider({ userId, children }: { userId: string; ch
   const [isSendingMessage, setIsSendingMessage] = useState(false);
   const [chatError, setChatError] = useState<ChatFailureState | null>(null);
   const [activeConversationRevealRequest, setActiveConversationRevealRequest] = useState<ConversationRevealRequest | null>(null);
+  const [composerFocusRequestToken, setComposerFocusRequestToken] = useState(1);
+
+  function requestComposerFocus() {
+    setComposerFocusRequestToken((currentToken) => currentToken + 1);
+  }
 
   useEffect(() => {
     let active = true;
@@ -359,6 +365,7 @@ export function ChatWorkspaceProvider({ userId, children }: { userId: string; ch
     setActiveConversationId(null);
     setMessages([]);
     setDraft("");
+    requestComposerFocus();
     router.push("/");
   }
 
@@ -369,6 +376,7 @@ export function ChatWorkspaceProvider({ userId, children }: { userId: string; ch
 
     setChatError(null);
     pendingConversationSelectionSourceRef.current = options?.source ?? "sidebar";
+    requestComposerFocus();
     router.push(`/c/${conversationId}`);
   }
 
@@ -932,6 +940,7 @@ export function ChatWorkspaceProvider({ userId, children }: { userId: string; ch
         isSendingMessage,
         chatError,
         activeConversationRevealRequest,
+        composerFocusRequestToken,
         createNewConversation,
         selectConversation,
         updateDraft,

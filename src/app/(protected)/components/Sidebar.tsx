@@ -54,9 +54,10 @@ type SidebarProps = {
   collapsed?: boolean;
   onCollapsedChange?: (collapsed: boolean) => void;
   onSearchOpen?: () => void;
+  onNavigate?: () => void;
 };
 
-export function Sidebar({ className, collapsed = false, onCollapsedChange, onSearchOpen }: SidebarProps) {
+export function Sidebar({ className, collapsed = false, onCollapsedChange, onSearchOpen, onNavigate }: SidebarProps) {
   const { messages } = useI18n();
   const {
     conversations,
@@ -212,6 +213,7 @@ export function Sidebar({ className, collapsed = false, onCollapsedChange, onSea
           aria-label={messages.shell.newChat}
           title={collapsed ? messages.shell.newChat : undefined}
           onClick={() => {
+            onNavigate?.();
             void createNewConversation();
           }}
           icon={<NewChatIcon className="size-5 shrink-0" />}
@@ -253,6 +255,7 @@ export function Sidebar({ className, collapsed = false, onCollapsedChange, onSea
                   isDisabled={isSendingMessage}
                   onSelect={selectConversation}
                   onDelete={deleteConversation}
+                  onNavigate={onNavigate}
                 />
               ))}
             </div>
@@ -269,6 +272,7 @@ type SidebarConversationItemProps = {
   isDisabled: boolean;
   onSelect: (conversationId: string, options?: { source?: "sidebar" | "search" }) => Promise<void>;
   onDelete: (conversationId: string) => Promise<void>;
+  onNavigate?: () => void;
 };
 
 function SidebarConversationItem({
@@ -277,6 +281,7 @@ function SidebarConversationItem({
   isDisabled,
   onSelect,
   onDelete,
+  onNavigate,
 }: SidebarConversationItemProps) {
   const { messages } = useI18n();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -324,6 +329,7 @@ function SidebarConversationItem({
           className={sidebarConversationButtonClass}
           disabled={isDisabled}
           onClick={() => {
+            onNavigate?.();
             void onSelect(conversation.id, { source: "sidebar" });
           }}
         >

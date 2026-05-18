@@ -25,7 +25,7 @@ export function MobileDrawer({ currentUser, open, onOpenChange, onSearchOpen }: 
         closeLabel={messages.common.close}
       >
         <SheetTitle className="sr-only">{messages.shell.navigation}</SheetTitle>
-        <Sidebar onSearchOpen={onSearchOpen} />
+        <Sidebar onSearchOpen={onSearchOpen} onNavigate={() => onOpenChange(false)} />
         <div className="p-3">
           <UserMenu currentUser={currentUser} />
         </div>
