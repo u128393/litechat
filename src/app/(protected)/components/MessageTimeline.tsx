@@ -15,7 +15,6 @@ export function MessageTimeline() {
   const {
     activeConversationId,
     messages: conversationMessages,
-    isLoadingWorkspace,
     isSendingMessage,
     retryMessage,
   } = useChatWorkspace();
@@ -46,16 +45,6 @@ export function MessageTimeline() {
     isPinnedToBottomRef.current = distanceFromBottom <= 32;
   }
 
-  if (isLoadingWorkspace) {
-    return (
-      <div className="flex flex-1 items-center justify-center">
-        <div className="text-[13px] text-[var(--lc-text-tertiary)]">
-          {i18nMessages.home.loading}
-        </div>
-      </div>
-    );
-  }
-
   if (conversationMessages.length === 0) {
     return (
       <div className="flex flex-1 items-center justify-center">
@@ -64,7 +53,7 @@ export function MessageTimeline() {
             LiteChat
           </h1>
           <p className="text-[15px] text-[var(--lc-text-secondary)]">
-            {activeConversationId ? i18nMessages.home.emptyState : i18nMessages.home.noConversation}
+            {i18nMessages.chat.emptyState}
           </p>
         </div>
       </div>
@@ -98,7 +87,7 @@ export function MessageTimeline() {
               {isStreaming ? (
                 <div
                   className="flex min-h-[1.6em] items-center"
-                  aria-label={i18nMessages.home.streamingStatus}
+                  aria-label={i18nMessages.chat.streamingStatus}
                   role="status"
                 >
                   <span className="size-2.5 animate-pulse rounded-full bg-[var(--lc-text-primary)]" />

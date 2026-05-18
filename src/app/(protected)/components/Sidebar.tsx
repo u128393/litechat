@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useLayoutEffect, useRef, useState, type UIEvent } from "react";
 import { MoreHorizontal, Search, Trash2 } from "lucide-react";
 
 import { useChatWorkspace } from "@/app/(protected)/ChatWorkspaceProvider";
@@ -62,12 +62,24 @@ export function Sidebar({ className, collapsed = false, onCollapsedChange }: Sid
   const {
     conversations,
     activeConversationId,
-    isLoadingWorkspace,
+    hasLoadedConversations,
+    activeConversationRevealRequest,
+    hasOlderConversations,
+    hasNewerConversations,
+    isLoadingOlderConversations,
+    isLoadingNewerConversations,
     isSendingMessage,
     createNewConversation,
     selectConversation,
     deleteConversation,
+    loadOlderConversations,
+    loadNewerConversations,
   } = useChatWorkspace();
+  const scrollViewportRef = useRef<HTMLDivElement>(null);
+  const previousScrollHeightRef = useRef<number | null>(null);
+  const loadOlderConversationsRef = useRef(loadOlderConversations);
+  const loadNewerConversationsRef = useRef(loadNewerConversations);
+  const consumedRevealTokenRef = useRef<number | null>(null);
 
   const grouped = groupConversationsByDate(conversations, {
     today: messages.shell.conversationGroupToday,
@@ -75,6 +87,100 @@ export function Sidebar({ className, collapsed = false, onCollapsedChange }: Sid
     previousSevenDays: messages.shell.conversationGroupPrevious7Days,
     older: messages.shell.conversationGroupOlder
   });
+
+  loadOlderConversationsRef.current = loadOlderConversations;
+  loadNewerConversationsRef.current = loadNewerConversations;
+
+  useLayoutEffect(() => {
+    const viewport = scrollViewportRef.current;
+    const previousScrollHeight = previousScrollHeightRef.current;
+
+    if (!viewport || previousScrollHeight === null || isLoadingNewerConversations) {
+      return;
+    }
+
+    viewport.scrollTop += viewport.scrollHeight - previousScrollHeight;
+    previousScrollHeightRef.current = null;
+  }, [conversations.length, isLoadingNewerConversations]);
+
+  useLayoutEffect(() => {
+    const viewport = scrollViewportRef.current;
+    const revealRequest = activeConversationRevealRequest;
+
+    if (
+      !viewport ||
+      collapsed ||
+      !hasLoadedConversations ||
+      !revealRequest ||
+      consumedRevealTokenRef.current === revealRequest.token
+    ) {
+      return;
+    }
+
+    const row = viewport.querySelector<HTMLElement>(
+      `[data-conversation-id="${CSS.escape(revealRequest.conversationId)}"]`
+    );
+
+    if (!row) {
+      return;
+    }
+
+    consumedRevealTokenRef.current = revealRequest.token;
+
+    if (isElementFullyVisible(row, viewport)) {
+      return;
+    }
+
+    row.scrollIntoView({ block: "center" });
+  }, [
+    activeConversationRevealRequest,
+    collapsed,
+    conversations.length,
+    hasLoadedConversations
+  ]);
+
+  useLayoutEffect(() => {
+    const viewport = scrollViewportRef.current;
+
+    if (!viewport || collapsed || isLoadingOlderConversations || isLoadingNewerConversations) {
+      return;
+    }
+
+    if (viewport.scrollHeight > viewport.clientHeight + 1) {
+      return;
+    }
+
+    if (hasOlderConversations) {
+      void loadOlderConversationsRef.current();
+      return;
+    }
+
+    if (hasNewerConversations) {
+      previousScrollHeightRef.current = viewport.scrollHeight;
+      void loadNewerConversationsRef.current();
+    }
+  }, [
+    collapsed,
+    conversations.length,
+    hasOlderConversations,
+    hasNewerConversations,
+    isLoadingOlderConversations,
+    isLoadingNewerConversations
+  ]);
+
+  function handleHistoryScroll(event: UIEvent<HTMLDivElement>) {
+    const viewport = event.currentTarget;
+    const distanceFromBottom = viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight;
+
+    if (viewport.scrollTop <= 48 && hasNewerConversations && !isLoadingNewerConversations) {
+      previousScrollHeightRef.current = viewport.scrollHeight;
+      void loadNewerConversations();
+    }
+
+    if (distanceFromBottom <= 96 && hasOlderConversations && !isLoadingOlderConversations) {
+      void loadOlderConversations();
+    }
+  }
 
   return (
     <div className={cn("flex h-full flex-col overflow-hidden bg-[var(--lc-bg-secondary)]", className)}>
@@ -125,6 +231,8 @@ export function Sidebar({ className, collapsed = false, onCollapsedChange }: Sid
       <ChatSearchDialog open={searchOpen} onOpenChange={setSearchOpen} />
 
       <ScrollArea
+        viewportRef={scrollViewportRef}
+        viewportProps={{ onScroll: handleHistoryScroll }}
         className={cn(
           "flex-1 min-h-0 transition-opacity",
           sidebarMotionClass,
@@ -133,11 +241,7 @@ export function Sidebar({ className, collapsed = false, onCollapsedChange }: Sid
         )}
       >
         <div className={cn("flex flex-col gap-1 pt-2 pb-3", sidebarSectionXClass)}>
-          {isLoadingWorkspace ? (
-            <div className={sidebarListStatusClass}>{messages.shell.conversationsLoading}</div>
-          ) : null}
-
-          {!isLoadingWorkspace && conversations.length === 0 ? (
+          {hasLoadedConversations && conversations.length === 0 ? (
             <div className={sidebarListStatusClass}>{messages.shell.conversationsEmpty}</div>
           ) : null}
 
@@ -166,7 +270,7 @@ type SidebarConversationItemProps = {
   conversation: ChatConversationRecord;
   isActive: boolean;
   isDisabled: boolean;
-  onSelect: (conversationId: string) => Promise<void>;
+  onSelect: (conversationId: string, options?: { source?: "sidebar" | "search" }) => Promise<void>;
   onDelete: (conversationId: string) => Promise<void>;
 };
 
@@ -200,6 +304,7 @@ function SidebarConversationItem({
   return (
     <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
       <div
+        data-conversation-id={conversation.id}
         className={cn(
           sidebarConversationRowClass,
           isActive
@@ -222,7 +327,7 @@ function SidebarConversationItem({
           className={sidebarConversationButtonClass}
           disabled={isDisabled}
           onClick={() => {
-            void onSelect(conversation.id);
+            void onSelect(conversation.id, { source: "sidebar" });
           }}
         >
           <span className="min-w-0 truncate">{conversation.title}</span>
@@ -302,6 +407,13 @@ function SidebarConversationItem({
       </DialogContent>
     </Dialog>
   );
+}
+
+function isElementFullyVisible(element: HTMLElement, container: HTMLElement) {
+  const elementRect = element.getBoundingClientRect();
+  const containerRect = container.getBoundingClientRect();
+
+  return elementRect.top >= containerRect.top && elementRect.bottom <= containerRect.bottom;
 }
 
 type SidebarItemProps = ButtonHTMLAttributes<HTMLButtonElement> & {

@@ -1,18 +1,21 @@
 "use client";
 
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
 
 import { useI18n } from "@/lib/i18n/provider";
 import {
   createBrowserConversationStore,
+  type ChatConversationPageCursor,
   type ChatConversationRecord,
-  type ChatMessageRecord,
-  type ChatDraftRecord
+  type ChatMessageRecord
 } from "@/lib/chat/local-store";
 import { createBrowserPreferencesStore } from "@/lib/preferences";
 import type { UserSelectableModel } from "@/server/model-configs/service";
 
-const activeConversationUiStateKey = "activeConversationId";
+const conversationPageSize = 25;
+const conversationWindowNewerSize = 12;
+const conversationWindowOlderSize = 12;
 
 type ChatFailureState = {
   code: string;
@@ -39,6 +42,13 @@ type SearchConversationsOptions = {
   onResult: (result: ChatSearchResult) => void;
 };
 
+type SelectConversationSource = "sidebar" | "search";
+
+type ConversationRevealRequest = {
+  conversationId: string;
+  token: number;
+};
+
 const searchConversationPageSize = 25;
 
 type ChatWorkspaceContextValue = {
@@ -48,12 +58,17 @@ type ChatWorkspaceContextValue = {
   draft: string;
   models: UserSelectableModel[];
   selectedModelId: string | null;
-  isLoadingWorkspace: boolean;
+  hasLoadedConversations: boolean;
+  hasOlderConversations: boolean;
+  hasNewerConversations: boolean;
+  isLoadingOlderConversations: boolean;
+  isLoadingNewerConversations: boolean;
   isLoadingModels: boolean;
   isSendingMessage: boolean;
   chatError: ChatFailureState | null;
+  activeConversationRevealRequest: ConversationRevealRequest | null;
   createNewConversation(): Promise<void>;
-  selectConversation(conversationId: string): Promise<void>;
+  selectConversation(conversationId: string, options?: { source?: SelectConversationSource }): Promise<void>;
   updateDraft(nextDraft: string): Promise<void>;
   sendMessage(): Promise<void>;
   stopMessage(): void;
@@ -61,6 +76,8 @@ type ChatWorkspaceContextValue = {
   clearChatError(): void;
   deleteConversation(conversationId: string): Promise<void>;
   selectModel(modelId: string): Promise<void>;
+  loadOlderConversations(): Promise<void>;
+  loadNewerConversations(): Promise<void>;
   listRecentConversations(limit: number): Promise<ChatConversationRecord[]>;
   searchConversations(options: SearchConversationsOptions): Promise<void>;
 };
@@ -69,11 +86,20 @@ const ChatWorkspaceContext = createContext<ChatWorkspaceContextValue | null>(nul
 
 export function ChatWorkspaceProvider({ userId, children }: { userId: string; children: React.ReactNode }) {
   const { messages: i18nMessages } = useI18n();
+  const pathname = usePathname();
+  const router = useRouter();
   const conversationStore = useMemo(() => createBrowserConversationStore(userId), [userId]);
   const preferencesStore = useMemo(() => createBrowserPreferencesStore(userId), [userId]);
   const pendingConversationPromiseRef = useRef<Promise<ChatConversationRecord> | null>(null);
   const activeAbortControllerRef = useRef<AbortController | null>(null);
   const retryStateRef = useRef<ChatRetryState | null>(null);
+  const olderConversationCursorRef = useRef<ChatConversationPageCursor | null>(null);
+  const newerConversationCursorRef = useRef<ChatConversationPageCursor | null>(null);
+  const skippedRouteConversationLoadRef = useRef<string | null>(null);
+  const pendingConversationSelectionSourceRef = useRef<SelectConversationSource | null>(null);
+  const isLoadingOlderConversationsRef = useRef(false);
+  const isLoadingNewerConversationsRef = useRef(false);
+  const routeConversationId = useMemo(() => getConversationIdFromPathname(pathname), [pathname]);
 
   const [conversations, setConversations] = useState<ChatConversationRecord[]>([]);
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
@@ -81,50 +107,127 @@ export function ChatWorkspaceProvider({ userId, children }: { userId: string; ch
   const [draft, setDraft] = useState("");
   const [models, setModels] = useState<UserSelectableModel[]>([]);
   const [selectedModelId, setSelectedModelId] = useState<string | null>(null);
-  const [isLoadingWorkspace, setIsLoadingWorkspace] = useState(true);
+  const [hasLoadedConversations, setHasLoadedConversations] = useState(false);
+  const [hasOlderConversations, setHasOlderConversations] = useState(false);
+  const [hasNewerConversations, setHasNewerConversations] = useState(false);
+  const [isLoadingOlderConversations, setIsLoadingOlderConversations] = useState(false);
+  const [isLoadingNewerConversations, setIsLoadingNewerConversations] = useState(false);
   const [isLoadingModels, setIsLoadingModels] = useState(true);
   const [isSendingMessage, setIsSendingMessage] = useState(false);
   const [chatError, setChatError] = useState<ChatFailureState | null>(null);
+  const [activeConversationRevealRequest, setActiveConversationRevealRequest] = useState<ConversationRevealRequest | null>(null);
 
   useEffect(() => {
     let active = true;
 
     async function loadWorkspace() {
       try {
-        const [storedConversations, storedActiveConversation] = await Promise.all([
-          conversationStore.listConversations(),
-          conversationStore.getUiState<string>(activeConversationUiStateKey)
-        ]);
+        const targetConversationId = routeConversationId;
+        const selectionSource = pendingConversationSelectionSourceRef.current;
+        pendingConversationSelectionSourceRef.current = null;
+
+        if (!targetConversationId) {
+          const page = await conversationStore.listOlderConversationsPage({ limit: conversationPageSize });
+
+          if (!active) {
+            return;
+          }
+
+          olderConversationCursorRef.current = page.nextCursor;
+          newerConversationCursorRef.current = null;
+          setConversations(page.items);
+          setHasOlderConversations(Boolean(page.nextCursor));
+          setHasNewerConversations(false);
+          setActiveConversationId(null);
+          setMessages([]);
+          setDraft("");
+          setChatError(null);
+          setHasLoadedConversations(true);
+          retryStateRef.current = null;
+          return;
+        }
+
+        if (skippedRouteConversationLoadRef.current === targetConversationId) {
+          skippedRouteConversationLoadRef.current = null;
+          setHasLoadedConversations(true);
+          return;
+        }
+
+        if (
+          selectionSource === "sidebar" &&
+          conversations.some((conversation) => conversation.id === targetConversationId)
+        ) {
+          const [storedMessages, storedDraft] = await Promise.all([
+            conversationStore.listMessages(targetConversationId),
+            conversationStore.getDraft(targetConversationId)
+          ]);
+
+          if (!active) {
+            return;
+          }
+
+          setActiveConversationId(targetConversationId);
+          setMessages(storedMessages);
+          setDraft(storedDraft?.text ?? "");
+          setChatError(null);
+          setHasLoadedConversations(true);
+          return;
+        }
+
+        const window = await conversationStore.listConversationWindow({
+          conversationId: targetConversationId,
+          newerLimit: conversationWindowNewerSize,
+          olderLimit: conversationWindowOlderSize
+        });
 
         if (!active) {
           return;
         }
 
-        const nextActiveConversationId = resolveActiveConversationId(
-          storedConversations,
-          typeof storedActiveConversation?.value === "string" ? storedActiveConversation.value : null
-        );
-
-        setConversations(storedConversations);
-        setActiveConversationId(nextActiveConversationId);
-
-        if (!nextActiveConversationId) {
+        if (!window) {
+          olderConversationCursorRef.current = null;
+          newerConversationCursorRef.current = null;
+          setConversations([]);
+          setHasOlderConversations(false);
+          setHasNewerConversations(false);
+          setActiveConversationId(null);
           setMessages([]);
           setDraft("");
+          setHasLoadedConversations(true);
+          router.replace("/");
           return;
         }
 
         const [storedMessages, storedDraft] = await Promise.all([
-          conversationStore.listMessages(nextActiveConversationId),
-          conversationStore.getDraft(nextActiveConversationId)
+          conversationStore.listMessages(targetConversationId),
+          conversationStore.getDraft(targetConversationId)
         ]);
+
+        const expandedWindow = await expandConversationWindowToMinimum({
+          items: window.items,
+          newerCursor: window.newerCursor,
+          olderCursor: window.olderCursor,
+          minimumCount: conversationPageSize
+        });
 
         if (!active) {
           return;
         }
 
+        olderConversationCursorRef.current = expandedWindow.olderCursor;
+        newerConversationCursorRef.current = expandedWindow.newerCursor;
+        setConversations(expandedWindow.items);
+        setHasOlderConversations(Boolean(expandedWindow.olderCursor));
+        setHasNewerConversations(Boolean(expandedWindow.newerCursor));
+        setActiveConversationId(targetConversationId);
         setMessages(storedMessages);
         setDraft(storedDraft?.text ?? "");
+        setChatError(null);
+        setHasLoadedConversations(true);
+        setActiveConversationRevealRequest({
+          conversationId: targetConversationId,
+          token: Date.now()
+        });
       } catch {
         if (!active) {
           return;
@@ -134,10 +237,11 @@ export function ChatWorkspaceProvider({ userId, children }: { userId: string; ch
         setActiveConversationId(null);
         setMessages([]);
         setDraft("");
-      } finally {
-        if (active) {
-          setIsLoadingWorkspace(false);
-        }
+        setHasOlderConversations(false);
+        setHasNewerConversations(false);
+        olderConversationCursorRef.current = null;
+        newerConversationCursorRef.current = null;
+        setHasLoadedConversations(true);
       }
     }
 
@@ -146,7 +250,7 @@ export function ChatWorkspaceProvider({ userId, children }: { userId: string; ch
     return () => {
       active = false;
     };
-  }, [conversationStore]);
+  }, [conversationStore, routeConversationId, router]);
 
   useEffect(() => {
     let active = true;
@@ -213,57 +317,39 @@ export function ChatWorkspaceProvider({ userId, children }: { userId: string; ch
     setDraft(storedDraft?.text ?? "");
   }
 
-  async function persistActiveConversation(conversationId: string | null) {
-    if (!conversationId) {
-      await conversationStore.deleteUiState(activeConversationUiStateKey);
-      return;
-    }
-
-    await conversationStore.saveUiState({
-      key: activeConversationUiStateKey,
-      value: conversationId,
-      updatedAt: new Date().toISOString()
-    });
-  }
-
-  async function createConversationRecord(initialDraft?: string) {
+  async function createConversationRecord(initialDraft: string) {
     const now = new Date().toISOString();
     const conversation: ChatConversationRecord = {
       id: crypto.randomUUID(),
-      title: buildConversationTitle(initialDraft, i18nMessages.home.title),
+      title: buildConversationTitle(initialDraft, i18nMessages.chat.title),
       createdAt: now,
       updatedAt: now
     };
 
     await conversationStore.saveConversation(conversation);
-    await persistActiveConversation(conversation.id);
-
-    if (initialDraft !== undefined && initialDraft !== "") {
-      const nextDraft: ChatDraftRecord = {
-        conversationId: conversation.id,
-        text: initialDraft,
-        updatedAt: now
-      };
-
-      await conversationStore.saveDraft(nextDraft);
-    }
 
     setConversations((currentConversations) => sortConversations([conversation, ...currentConversations]));
+    newerConversationCursorRef.current = null;
+    setHasNewerConversations(false);
     setActiveConversationId(conversation.id);
     setMessages([]);
-    setDraft(initialDraft ?? "");
 
     return conversation;
   }
 
-  async function ensureConversation(initialDraft?: string) {
+  async function ensureConversation(initialDraft: string) {
     if (activeConversationId) {
-      return conversations.find((conversation) => conversation.id === activeConversationId) ?? {
-        id: activeConversationId,
-        title: i18nMessages.home.title,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      };
+      const loadedConversation = conversations.find((conversation) => conversation.id === activeConversationId);
+
+      if (loadedConversation) {
+        return loadedConversation;
+      }
+
+      const storedConversation = await conversationStore.getConversation(activeConversationId);
+
+      if (storedConversation) {
+        return storedConversation;
+      }
     }
 
     if (!pendingConversationPromiseRef.current) {
@@ -281,33 +367,27 @@ export function ChatWorkspaceProvider({ userId, children }: { userId: string; ch
     }
 
     setChatError(null);
-    await createConversationRecord();
+    retryStateRef.current = null;
+    setActiveConversationId(null);
+    setMessages([]);
+    setDraft("");
+    router.push("/");
   }
 
-  async function selectConversation(conversationId: string) {
+  async function selectConversation(conversationId: string, options?: { source?: SelectConversationSource }) {
     if (isSendingMessage) {
       return;
     }
 
     setChatError(null);
-    setActiveConversationId(conversationId);
-
-    try {
-      await Promise.all([persistActiveConversation(conversationId), loadConversationState(conversationId)]);
-    } catch {
-      setMessages([]);
-      setDraft("");
-    }
+    pendingConversationSelectionSourceRef.current = options?.source ?? "sidebar";
+    router.push(`/c/${conversationId}`);
   }
 
   async function updateDraft(nextDraft: string) {
     setDraft(nextDraft);
 
-    let conversationId = activeConversationId;
-
-    if (!conversationId && nextDraft.trim() !== "") {
-      conversationId = (await ensureConversation(nextDraft)).id;
-    }
+    const conversationId = activeConversationId;
 
     if (!conversationId) {
       return;
@@ -357,7 +437,7 @@ export function ChatWorkspaceProvider({ userId, children }: { userId: string; ch
     if (!selectedModelId) {
       setChatError({
         code: "model_missing",
-        message: i18nMessages.home.errorModelMissing,
+        message: i18nMessages.chat.errorModelMissing,
         canRetry: false
       });
       return;
@@ -375,7 +455,7 @@ export function ChatWorkspaceProvider({ userId, children }: { userId: string; ch
     };
     const updatedConversation: ChatConversationRecord = {
       ...conversation,
-      title: messages.length === 0 ? buildConversationTitle(trimmedDraft, i18nMessages.home.title) : conversation.title,
+      title: messages.length === 0 ? buildConversationTitle(trimmedDraft, i18nMessages.chat.title) : conversation.title,
       updatedAt: now
     };
     const assistantMessageId = crypto.randomUUID();
@@ -396,9 +476,13 @@ export function ChatWorkspaceProvider({ userId, children }: { userId: string; ch
       await Promise.all([
         conversationStore.saveConversation(updatedConversation),
         conversationStore.saveMessage(message),
-        conversationStore.deleteDraft(conversation.id),
-        persistActiveConversation(conversation.id)
+        conversationStore.deleteDraft(conversation.id)
       ]);
+
+      if (!activeConversationId) {
+        skippedRouteConversationLoadRef.current = conversation.id;
+        router.replace(`/c/${conversation.id}`);
+      }
 
       await continueAssistantResponse({
         assistantMessageId,
@@ -410,7 +494,7 @@ export function ChatWorkspaceProvider({ userId, children }: { userId: string; ch
     } catch {
       setChatError({
         code: "unknown",
-        message: i18nMessages.home.errorUnknown,
+        message: i18nMessages.chat.errorUnknown,
         canRetry: true
       });
       return;
@@ -428,11 +512,15 @@ export function ChatWorkspaceProvider({ userId, children }: { userId: string; ch
 
     const retryState = retryStateRef.current;
 
-    setActiveConversationId(retryState.conversation.id);
     setChatError(null);
 
     try {
-      await Promise.all([persistActiveConversation(retryState.conversation.id), loadConversationState(retryState.conversation.id)]);
+      if (activeConversationId !== retryState.conversation.id) {
+        router.push(`/c/${retryState.conversation.id}`);
+        return;
+      }
+
+      await loadConversationState(retryState.conversation.id);
       await continueAssistantResponse({
         assistantMessageId: crypto.randomUUID(),
         conversation: retryState.conversation,
@@ -443,7 +531,7 @@ export function ChatWorkspaceProvider({ userId, children }: { userId: string; ch
     } catch {
       setChatError({
         code: "unknown",
-        message: i18nMessages.home.errorUnknown,
+        message: i18nMessages.chat.errorUnknown,
         canRetry: true
       });
     }
@@ -477,14 +565,10 @@ export function ChatWorkspaceProvider({ userId, children }: { userId: string; ch
 
     setActiveConversationId(nextActiveConversationId);
 
-    try {
-      await Promise.all([
-        persistActiveConversation(nextActiveConversationId),
-        loadConversationState(nextActiveConversationId)
-      ]);
-    } catch {
-      setMessages([]);
-      setDraft("");
+    if (nextActiveConversationId) {
+      router.replace(`/c/${nextActiveConversationId}`);
+    } else {
+      router.replace("/");
     }
   }
 
@@ -522,7 +606,7 @@ export function ChatWorkspaceProvider({ userId, children }: { userId: string; ch
           setMessages
         });
       } catch (error) {
-        setChatError(resolveChatFailure(error, i18nMessages.home));
+        setChatError(resolveChatFailure(error, i18nMessages.chat));
         return;
       }
 
@@ -538,7 +622,7 @@ export function ChatWorkspaceProvider({ userId, children }: { userId: string; ch
       if (streamResult.status === "aborted") {
         setChatError({
           code: "aborted",
-          message: i18nMessages.home.stopped,
+          message: i18nMessages.chat.stopped,
           canRetry: true
         });
         return;
@@ -547,13 +631,13 @@ export function ChatWorkspaceProvider({ userId, children }: { userId: string; ch
       if (streamResult.status === "empty") {
         setChatError({
           code: "empty",
-          message: i18nMessages.home.errorInterrupted,
+          message: i18nMessages.chat.errorInterrupted,
           canRetry: true
         });
         return;
       }
 
-      setChatError(resolveChatFailure(streamResult.error, i18nMessages.home));
+      setChatError(resolveChatFailure(streamResult.error, i18nMessages.chat));
     } finally {
       if (activeAbortControllerRef.current === abortController) {
         activeAbortControllerRef.current = null;
@@ -589,8 +673,110 @@ export function ChatWorkspaceProvider({ userId, children }: { userId: string; ch
     await preferencesStore.setLastSelectedModelConfigId(nextModelId);
   }
 
+  async function expandConversationWindowToMinimum({
+    items,
+    newerCursor,
+    olderCursor,
+    minimumCount
+  }: {
+    items: ChatConversationRecord[];
+    newerCursor: ChatConversationPageCursor | null;
+    olderCursor: ChatConversationPageCursor | null;
+    minimumCount: number;
+  }) {
+    let expandedItems = items;
+    let nextNewerCursor = newerCursor;
+    let nextOlderCursor = olderCursor;
+
+    if (expandedItems.length < minimumCount && nextOlderCursor) {
+      const page = await conversationStore.listOlderConversationsPage({
+        limit: minimumCount - expandedItems.length,
+        cursor: nextOlderCursor
+      });
+
+      expandedItems = mergeConversations(expandedItems, page.items);
+      nextOlderCursor = page.nextCursor;
+    }
+
+    if (expandedItems.length < minimumCount && nextNewerCursor) {
+      const page = await conversationStore.listNewerConversationsPage({
+        limit: minimumCount - expandedItems.length,
+        cursor: nextNewerCursor
+      });
+
+      expandedItems = mergeConversations(page.items, expandedItems);
+      nextNewerCursor = page.nextCursor;
+    }
+
+    return {
+      items: expandedItems,
+      newerCursor: nextNewerCursor,
+      olderCursor: nextOlderCursor
+    };
+  }
+
+  async function loadOlderConversations() {
+    if (!hasOlderConversations || isLoadingOlderConversationsRef.current) {
+      return;
+    }
+
+    const cursor = olderConversationCursorRef.current;
+
+    if (!cursor) {
+      setHasOlderConversations(false);
+      return;
+    }
+
+    isLoadingOlderConversationsRef.current = true;
+    setIsLoadingOlderConversations(true);
+
+    try {
+      const page = await conversationStore.listOlderConversationsPage({
+        limit: conversationPageSize,
+        cursor
+      });
+
+      olderConversationCursorRef.current = page.nextCursor;
+      setHasOlderConversations(Boolean(page.nextCursor));
+      setConversations((currentConversations) => mergeConversations(currentConversations, page.items));
+    } finally {
+      isLoadingOlderConversationsRef.current = false;
+      setIsLoadingOlderConversations(false);
+    }
+  }
+
+  async function loadNewerConversations() {
+    if (!hasNewerConversations || isLoadingNewerConversationsRef.current) {
+      return;
+    }
+
+    const cursor = newerConversationCursorRef.current;
+
+    if (!cursor) {
+      setHasNewerConversations(false);
+      return;
+    }
+
+    isLoadingNewerConversationsRef.current = true;
+    setIsLoadingNewerConversations(true);
+
+    try {
+      const page = await conversationStore.listNewerConversationsPage({
+        limit: conversationPageSize,
+        cursor
+      });
+
+      newerConversationCursorRef.current = page.nextCursor;
+      setHasNewerConversations(Boolean(page.nextCursor));
+      setConversations((currentConversations) => mergeConversations(page.items, currentConversations));
+    } finally {
+      isLoadingNewerConversationsRef.current = false;
+      setIsLoadingNewerConversations(false);
+    }
+  }
+
   async function listRecentConversations(limit: number) {
-    const page = await conversationStore.listConversationsPage({ limit });
+    const page = await conversationStore.listOlderConversationsPage({ limit });
     return page.items;
   }
 
@@ -608,7 +794,7 @@ export function ChatWorkspaceProvider({ userId, children }: { userId: string; ch
         return;
       }
 
-      const page = await conversationStore.listConversationsPage({
+      const page = await conversationStore.listOlderConversationsPage({
         limit: searchConversationPageSize,
         cursor
       });
@@ -671,10 +857,15 @@ export function ChatWorkspaceProvider({ userId, children }: { userId: string; ch
         draft,
         models,
         selectedModelId,
-        isLoadingWorkspace,
+        hasLoadedConversations,
+        hasOlderConversations,
+        hasNewerConversations,
+        isLoadingOlderConversations,
+        isLoadingNewerConversations,
         isLoadingModels,
         isSendingMessage,
         chatError,
+        activeConversationRevealRequest,
         createNewConversation,
         selectConversation,
         updateDraft,
@@ -684,6 +875,8 @@ export function ChatWorkspaceProvider({ userId, children }: { userId: string; ch
         clearChatError,
         deleteConversation,
         selectModel,
+        loadOlderConversations,
+        loadNewerConversations,
         listRecentConversations,
         searchConversations
       }}
@@ -703,12 +896,9 @@ export function useChatWorkspace() {
   return contextValue;
 }
 
-function resolveActiveConversationId(conversations: ChatConversationRecord[], storedConversationId: string | null) {
-  if (storedConversationId && conversations.some((conversation) => conversation.id === storedConversationId)) {
-    return storedConversationId;
-  }
-
-  return conversations[0]?.id ?? null;
+function getConversationIdFromPathname(pathname: string) {
+  const match = /^\/c\/([^/]+)$/.exec(pathname);
+  return match?.[1] ?? null;
 }
 
 function resolveSelectedModelId(models: UserSelectableModel[], storedModelId: string | null) {
@@ -886,31 +1076,31 @@ function finalizeAssistantMessage(initialAssistantMessage: ChatMessageRecord, co
   } satisfies ChatMessageRecord;
 }
 
-function resolveChatFailure(error: unknown, homeMessages: ReturnType<typeof useI18n>["messages"]["home"]): ChatFailureState {
+function resolveChatFailure(error: unknown, chatMessages: ReturnType<typeof useI18n>["messages"]["chat"]): ChatFailureState {
   if (error instanceof ChatRequestError) {
     switch (error.code) {
       case "invalid_request":
-        return { code: error.code, message: homeMessages.errorValidation, canRetry: true };
+        return { code: error.code, message: chatMessages.errorValidation, canRetry: true };
       case "model_config_not_found":
       case "provider_config_not_found":
       case "model_not_available":
       case "provider_not_available":
       case "unsupported_provider":
-        return { code: error.code, message: homeMessages.errorModelUnavailable, canRetry: false };
+        return { code: error.code, message: chatMessages.errorModelUnavailable, canRetry: false };
       case "upstream_request_failed":
       case "upstream_response_invalid":
       case "upstream_stream_failed":
-        return { code: error.code, message: homeMessages.errorUpstream, canRetry: true };
+        return { code: error.code, message: chatMessages.errorUpstream, canRetry: true };
       default:
-        return { code: error.code, message: error.message || homeMessages.errorUnknown, canRetry: true };
+        return { code: error.code, message: error.message || chatMessages.errorUnknown, canRetry: true };
     }
   }
 
   if (isAbortError(error)) {
-    return { code: "aborted", message: homeMessages.stopped, canRetry: true };
+    return { code: "aborted", message: chatMessages.stopped, canRetry: true };
   }
 
-  return { code: "unknown", message: homeMessages.errorInterrupted, canRetry: true };
+  return { code: "unknown", message: chatMessages.errorInterrupted, canRetry: true };
 }
 
 function isAbortError(error: unknown) {
@@ -929,6 +1119,19 @@ class ChatRequestError extends Error {
 
 function sortConversations(conversations: ChatConversationRecord[]) {
   return [...conversations].sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
+}
+
+function mergeConversations(
+  leftConversations: ChatConversationRecord[],
+  rightConversations: ChatConversationRecord[]
+) {
+  const conversationsById = new Map<string, ChatConversationRecord>();
+
+  for (const conversation of [...leftConversations, ...rightConversations]) {
+    conversationsById.set(conversation.id, conversation);
+  }
+
+  return sortConversations([...conversationsById.values()]);
 }
 
 function upsertConversation(conversations: ChatConversationRecord[], updatedConversation: ChatConversationRecord) {

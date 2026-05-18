@@ -229,7 +229,7 @@ export function ChatSearchDialog({ open, onOpenChange }: ChatSearchDialogProps) 
       return;
     }
 
-    await selectConversation(item.conversation.id);
+    await selectConversation(item.conversation.id, { source: "search" });
   }
 
   function handleKeyDown(event: KeyboardEvent<HTMLInputElement>) {

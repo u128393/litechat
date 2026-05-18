@@ -42,7 +42,7 @@ export function MobileModelSelector() {
           showCloseButton={false}
           closeLabel={messages.common.close}
         >
-          <SheetTitle className="sr-only">{messages.home.selectModel}</SheetTitle>
+          <SheetTitle className="sr-only">{messages.chat.selectModel}</SheetTitle>
 
           {/* Drag handle */}
           <div className="flex flex-col items-center pb-2 pt-3">
@@ -52,7 +52,7 @@ export function MobileModelSelector() {
           {/* Title */}
           <div className="px-5 pb-3 pt-2">
             <span className="text-[16px] font-semibold text-[var(--lc-text-primary)]">
-              {messages.home.selectModel}
+              {messages.chat.selectModel}
             </span>
           </div>
 

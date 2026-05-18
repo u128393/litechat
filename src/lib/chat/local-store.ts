@@ -39,6 +39,12 @@ export type ChatConversationPage = {
   nextCursor: ChatConversationPageCursor | null;
 };
 
+export type ChatConversationWindow = {
+  items: ChatConversationRecord[];
+  newerCursor: ChatConversationPageCursor | null;
+  olderCursor: ChatConversationPageCursor | null;
+};
+
 export type ChatMessageRole = "user" | "assistant" | "system" | "tool";
 
 export type ChatMessageRecord = {
@@ -123,6 +129,19 @@ export type BrowserConversationStore = {
     limit: number;
     cursor?: ChatConversationPageCursor | null;
   }): Promise<ChatConversationPage>;
+  listOlderConversationsPage(options: {
+    limit: number;
+    cursor?: ChatConversationPageCursor | null;
+  }): Promise<ChatConversationPage>;
+  listNewerConversationsPage(options: {
+    limit: number;
+    cursor: ChatConversationPageCursor;
+  }): Promise<ChatConversationPage>;
+  listConversationWindow(options: {
+    conversationId: string;
+    newerLimit: number;
+    olderLimit: number;
+  }): Promise<ChatConversationWindow | null>;
   getConversation(conversationId: string): Promise<ChatConversationRecord | null>;
   saveConversation(conversation: ChatConversationRecord): Promise<ChatConversationRecord>;
   deleteConversation(conversationId: string): Promise<void>;
@@ -151,18 +170,33 @@ export function createBrowserConversationStore(userId: string): BrowserConversat
       return records.map(toConversationRecord).sort(sortByUpdatedAtDesc);
     },
     async listConversationsPage({ limit, cursor }) {
-      const records = await getConversationPageByUpdatedAt(userId, Math.max(Math.floor(limit), 0), cursor);
-      const items = records.map(toConversationRecord);
-      const lastItem = items.at(-1);
+      return getOlderConversationPage(userId, limit, cursor);
+    },
+    async listOlderConversationsPage({ limit, cursor }) {
+      return getOlderConversationPage(userId, limit, cursor);
+    },
+    async listNewerConversationsPage({ limit, cursor }) {
+      return getNewerConversationPage(userId, limit, cursor);
+    },
+    async listConversationWindow({ conversationId, newerLimit, olderLimit }) {
+      const record = await getRecord<ScopedConversationRecord>(CONVERSATIONS_STORE, scopedKey(userId, conversationId));
+
+      if (!record) {
+        return null;
+      }
+
+      const conversation = toConversationRecord(record);
+      const cursor = toConversationCursor(conversation);
+      const [newerPage, olderPage] = await Promise.all([
+        getNewerConversationPage(userId, newerLimit, cursor),
+        getOlderConversationPage(userId, olderLimit, cursor)
+      ]);
+      const items = sortByUpdatedAtDescRecords([...newerPage.items, conversation, ...olderPage.items]);
 
       return {
         items,
-        nextCursor: lastItem && items.length === limit
-          ? {
-              updatedAt: lastItem.updatedAt,
-              id: lastItem.id
-            }
-          : null
+        newerCursor: newerPage.nextCursor && items[0] ? toConversationCursor(items[0]) : null,
+        olderCursor: olderPage.nextCursor && items.at(-1) ? toConversationCursor(items.at(-1) as ChatConversationRecord) : null
       };
     },
     async getConversation(conversationId) {
@@ -389,6 +423,48 @@ async function getConversationPageByUpdatedAt(
   });
 }
 
+async function getOlderConversationPage(
+  userId: string,
+  limit: number,
+  cursor: ChatConversationPageCursor | null | undefined
+): Promise<ChatConversationPage> {
+  const normalizedLimit = Math.max(Math.floor(limit), 0);
+  const records = await getConversationPageByUpdatedAt(userId, normalizedLimit, cursor);
+  const items = records.map(toConversationRecord);
+  const lastItem = items.at(-1);
+
+  return {
+    items,
+    nextCursor: lastItem && items.length === normalizedLimit ? toConversationCursor(lastItem) : null
+  };
+}
+
+async function getNewerConversationPage(
+  userId: string,
+  limit: number,
+  cursor: ChatConversationPageCursor
+): Promise<ChatConversationPage> {
+  const normalizedLimit = Math.max(Math.floor(limit), 0);
+
+  if (normalizedLimit <= 0) {
+    return { items: [], nextCursor: null };
+  }
+
+  const records = await runTransaction([CONVERSATIONS_STORE], "readonly", async (transaction) => {
+    const index = transaction.objectStore(CONVERSATIONS_STORE).index(USER_UPDATED_AT_ID_INDEX);
+    const range = IDBKeyRange.bound([userId, cursor.updatedAt, cursor.id], [userId, []], true, false);
+
+    return requestCursorPage<ScopedConversationRecord>(index, range, "next", normalizedLimit);
+  });
+  const items = records.map(toConversationRecord).sort(sortByUpdatedAtDesc);
+  const firstItem = items[0];
+
+  return {
+    items,
+    nextCursor: firstItem && items.length === normalizedLimit ? toConversationCursor(firstItem) : null
+  };
+}
+
 function requestCursorPage<TRecord>(
   index: IDBIndex,
   range: IDBKeyRange,
@@ -603,6 +679,17 @@ function toPreferenceRecord(record: ScopedPreferenceRecord): ChatPreferenceRecor
 
 function sortByUpdatedAtDesc(left: { updatedAt: string }, right: { updatedAt: string }) {
   return right.updatedAt.localeCompare(left.updatedAt);
+}
+
+function sortByUpdatedAtDescRecords(conversations: ChatConversationRecord[]) {
+  return [...conversations].sort(sortByUpdatedAtDesc);
+}
+
+function toConversationCursor(conversation: ChatConversationRecord): ChatConversationPageCursor {
+  return {
+    updatedAt: conversation.updatedAt,
+    id: conversation.id
+  };
 }
 
 function sortByCreatedAtAsc(left: { createdAt: string }, right: { createdAt: string }) {

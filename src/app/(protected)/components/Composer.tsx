@@ -12,7 +12,6 @@ export function Composer() {
   const {
     draft,
     selectedModelId,
-    isLoadingWorkspace,
     isSendingMessage,
     chatError,
     updateDraft,
@@ -43,7 +42,7 @@ export function Composer() {
     }
   }
 
-  const canSend = draft.trim() !== "" && selectedModelId && !isSendingMessage && !isLoadingWorkspace;
+  const canSend = draft.trim() !== "" && selectedModelId && !isSendingMessage;
   const actionButtonClass =
     "flex size-9 shrink-0 items-center justify-center rounded-full transition-colors outline-none focus-visible:ring-2 focus-visible:ring-[var(--lc-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--lc-bg-tertiary)]";
   const enabledActionButtonClass =
@@ -69,7 +68,7 @@ export function Composer() {
                   void retryMessage();
                 }}
               >
-                {messages.home.retry}
+                {messages.chat.retry}
               </button>
             ) : (
               <button
@@ -77,7 +76,7 @@ export function Composer() {
                 className="shrink-0 rounded-md px-2 py-0.5 text-[13px] font-medium text-[#991B1B] transition-colors hover:bg-[#FEE2E2] dark:text-[#FCA5A5] dark:hover:bg-[#7F1D1D]"
                 onClick={clearChatError}
               >
-                {messages.home.clearError}
+                {messages.chat.clearError}
               </button>
             )}
           </div>
@@ -88,9 +87,8 @@ export function Composer() {
           <textarea
             ref={textareaRef}
             rows={1}
-            placeholder={messages.home.composerPlaceholder}
+            placeholder={messages.chat.composerPlaceholder}
             className="ml-2 min-h-9 flex-1 resize-none border-0 bg-transparent py-2 text-[15px] leading-5 text-[var(--lc-text-primary)] outline-none placeholder:text-[var(--lc-text-tertiary)]"
-            disabled={isLoadingWorkspace}
             onChange={(event) => {
               void updateDraft(event.target.value);
             }}
@@ -125,7 +123,7 @@ export function Composer() {
 
         {/* Hint text */}
         <p className="hidden px-1 text-[11px] text-[var(--lc-text-tertiary)] md:block">
-          {messages.home.composerKeyboardHint}
+          {messages.chat.composerKeyboardHint}
         </p>
       </div>
     </div>

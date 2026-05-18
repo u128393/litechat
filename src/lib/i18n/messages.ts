@@ -85,14 +85,11 @@ export type AppMessages = {
     newPasswordPlaceholder: string;
     confirmPasswordPlaceholder: string;
   };
-  home: {
+  chat: {
     title: string;
     description: string;
     timelineLabel: string;
-    loading: string;
-    loadingHint: string;
     emptyState: string;
-    noConversation: string;
     heroTitle: string;
     heroDescription: string;
     heroTipModel: string;
@@ -207,14 +204,11 @@ export const messagesByLocale: Record<AppLocale, AppMessages> = {
       newPasswordPlaceholder: "Enter new password",
       confirmPasswordPlaceholder: "Confirm new password",
     },
-    home: {
+    chat: {
       title: "New conversation",
       description: "Local conversations stay in this browser while responses stream from your selected model.",
       timelineLabel: "Timeline",
-      loading: "Loading your workspace...",
-      loadingHint: "Restoring local conversations, drafts, and model choices.",
       emptyState: "Ready to chat",
-      noConversation: "No conversation selected",
       heroTitle: "Start a conversation with your shared workspace.",
       heroDescription: "Pick an enabled model, keep drafts locally, and continue from recoverable streaming replies.",
       heroTipModel: "Choose a model before sending your first message.",
@@ -327,14 +321,11 @@ export const messagesByLocale: Record<AppLocale, AppMessages> = {
       newPasswordPlaceholder: "输入新密码",
       confirmPasswordPlaceholder: "确认新密码",
     },
-    home: {
+    chat: {
       title: "新会话",
       description: "本地会话会保存在当前浏览器中，同时从所选模型接收流式回复。",
       timelineLabel: "时间线",
-      loading: "正在加载你的工作区...",
-      loadingHint: "正在恢复本地会话、草稿和模型选择。",
       emptyState: "准备开始聊天",
-      noConversation: "尚未选择会话",
       heroTitle: "在共享工作区中开始一段对话。",
       heroDescription: "选择一个已启用模型，在本地保留草稿，并在可恢复的流式回复中继续交流。",
       heroTipModel: "发送第一条消息前先选择一个模型。",

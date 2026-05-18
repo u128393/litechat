@@ -1,5 +1,5 @@
 import { ChatPage } from "@/app/(protected)/components/ChatPage";
 
-export default function HomePage() {
+export default function ConversationPage() {
   return <ChatPage />;
 }

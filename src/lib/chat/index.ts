@@ -9,6 +9,7 @@ export type {
   ChatConversationPage,
   ChatConversationPageCursor,
   ChatConversationRecord,
+  ChatConversationWindow,
   ChatDraftRecord,
   ChatMessageRecord,
   ChatMessageRole,
