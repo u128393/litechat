@@ -14,6 +14,7 @@ import {
   DialogContent,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import type { ChatConversationRecord } from "@/lib/chat/local-store";
 
 type ChatSearchDialogProps = {
@@ -40,6 +41,8 @@ const searchRowClass =
   "flex min-h-12 w-full items-center gap-3 rounded-[14px] px-3 text-left text-[var(--lc-text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--lc-accent)]";
 const searchGroupLabelClass =
   "px-3 pb-1 pt-2 text-[12px] font-medium text-[var(--lc-text-secondary)]";
+const searchScrollAreaClass =
+  "[&_[data-slot=scroll-area-scrollbar]]:opacity-0 [&_[data-slot=scroll-area-scrollbar]]:transition-opacity [&_[data-slot=scroll-area-scrollbar]]:duration-300 [&_[data-slot=scroll-area-scrollbar]]:delay-300 [&_[data-slot=scroll-area-scrollbar]]:ease-out [&_[data-slot=scroll-area-scrollbar][data-scrolling]]:opacity-100 [&_[data-slot=scroll-area-scrollbar][data-scrolling]]:duration-150 [&_[data-slot=scroll-area-scrollbar][data-scrolling]]:delay-0 [&[data-keyboard-scrolling]_[data-slot=scroll-area-scrollbar]]:opacity-100 [&[data-keyboard-scrolling]_[data-slot=scroll-area-scrollbar]]:duration-150 [&[data-keyboard-scrolling]_[data-slot=scroll-area-scrollbar]]:delay-0 focus-within:[&_[data-slot=scroll-area-scrollbar]]:opacity-100 focus-within:[&_[data-slot=scroll-area-scrollbar]]:delay-0";
 const selectedRowClass = "bg-[var(--lc-bg-tertiary)]";
 const mutedRowClass = "";
 
@@ -58,6 +61,7 @@ export function ChatSearchDialog({ open, onOpenChange }: ChatSearchDialogProps) 
   const initialPointerItemIdRef = useRef<string | null>(null);
   const hoverResumePositionRef = useRef<{ x: number; y: number } | null>(null);
   const lastPointerPositionRef = useRef<{ x: number; y: number } | null>(null);
+  const keyboardScrollTimerRef = useRef<number | null>(null);
   const [query, setQuery] = useState("");
   const [recentConversations, setRecentConversations] = useState<ChatConversationRecord[]>([]);
   const [recentConversationsLoaded, setRecentConversationsLoaded] = useState(false);
@@ -65,6 +69,7 @@ export function ChatSearchDialog({ open, onOpenChange }: ChatSearchDialogProps) 
   const [isSearching, setIsSearching] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
+  const [isKeyboardScrolling, setIsKeyboardScrolling] = useState(false);
   const [searchingDots, setSearchingDots] = useState(3);
   const trimmedQuery = query.trim();
   const isQuerying = trimmedQuery !== "";
@@ -121,6 +126,7 @@ export function ChatSearchDialog({ open, onOpenChange }: ChatSearchDialogProps) 
       initialPointerItemIdRef.current = null;
       hoverResumePositionRef.current = null;
       lastPointerPositionRef.current = null;
+      clearKeyboardScrollIndicator();
       return;
     }
 
@@ -264,8 +270,12 @@ export function ChatSearchDialog({ open, onOpenChange }: ChatSearchDialogProps) 
       return;
     }
 
-    scrollItemIntoView(activeIndex);
+    if (scrollItemIntoView(activeIndex)) {
+      showKeyboardScrollIndicator();
+    }
   }, [activeIndex, activeItem?.id, listItems.length, open]);
+
+  useEffect(() => clearKeyboardScrollIndicator, []);
 
   function closeDialog() {
     abortControllerRef.current?.abort();
@@ -292,16 +302,37 @@ export function ChatSearchDialog({ open, onOpenChange }: ChatSearchDialogProps) 
     const item = listItems[index];
 
     if (!container || !item) {
-      return;
+      return false;
     }
 
     const activeRow = getSearchItemRow(container, item.id);
 
     if (!activeRow) {
-      return;
+      return false;
     }
 
-    scrollElementIntoView(activeRow, container);
+    return scrollElementIntoView(activeRow, container);
+  }
+
+  function showKeyboardScrollIndicator() {
+    if (keyboardScrollTimerRef.current !== null) {
+      window.clearTimeout(keyboardScrollTimerRef.current);
+    }
+
+    setIsKeyboardScrolling(true);
+    keyboardScrollTimerRef.current = window.setTimeout(() => {
+      keyboardScrollTimerRef.current = null;
+      setIsKeyboardScrolling(false);
+    }, 700);
+  }
+
+  function clearKeyboardScrollIndicator() {
+    if (keyboardScrollTimerRef.current !== null) {
+      window.clearTimeout(keyboardScrollTimerRef.current);
+      keyboardScrollTimerRef.current = null;
+    }
+
+    setIsKeyboardScrolling(false);
   }
 
   function suspendPointerHoverUntilPointerMoves() {
@@ -323,7 +354,10 @@ export function ChatSearchDialog({ open, onOpenChange }: ChatSearchDialogProps) 
       return;
     }
 
-    scrollItemIntoView(nextIndex);
+    if (scrollItemIntoView(nextIndex)) {
+      showKeyboardScrollIndicator();
+    }
+
     suspendPointerHoverUntilPointerMoves();
     setActiveIndex(nextIndex);
   }
@@ -425,32 +459,59 @@ export function ChatSearchDialog({ open, onOpenChange }: ChatSearchDialogProps) 
           </button>
         </div>
 
-        <div
-          ref={resultsRef}
-          id="chat-search-results"
-          role="listbox"
-          aria-label={messages.shell.searchResults}
-          className="min-h-0 flex-1 overflow-y-auto px-2 py-2 sm:h-[376px] sm:flex-none"
-        >
-          {!isQuerying ? (
-            <div className="flex flex-col gap-1">
-              <SearchItemRow
-                item={{ type: "new", id: "new" }}
-                selected={activeIndex === 0}
-                onPointerHover={(event) => handlePointerHover("new", 0, event)}
-                onPointerLeave={() => handlePointerLeave("new")}
-                onClick={() => {
-                  void activateItem({ type: "new", id: "new" });
-                }}
-              />
-              {groupedDefaultItems.map((group) => (
-                <div key={group.label} className="flex flex-col gap-1">
-                  <div className={searchGroupLabelClass}>{group.label}</div>
-                  {group.items.map(({ item, index }) => (
+        <div className="min-h-0 flex-1 py-2 sm:h-[376px] sm:flex-none">
+          <ScrollArea
+            viewportRef={resultsRef}
+            viewportProps={{
+              id: "chat-search-results",
+              role: "listbox",
+              "aria-label": messages.shell.searchResults,
+            }}
+            className={cn("h-full min-h-0", searchScrollAreaClass)}
+            data-keyboard-scrolling={isKeyboardScrolling ? "" : undefined}
+          >
+            <div className="px-2">
+              {!isQuerying ? (
+                <div className="flex flex-col gap-1">
+                  <SearchItemRow
+                    item={{ type: "new", id: "new" }}
+                    selected={activeIndex === 0}
+                    onPointerHover={(event) => handlePointerHover("new", 0, event)}
+                    onPointerLeave={() => handlePointerLeave("new")}
+                    onClick={() => {
+                      void activateItem({ type: "new", id: "new" });
+                    }}
+                  />
+                  {groupedDefaultItems.map((group) => (
+                    <div key={group.label} className="flex flex-col gap-1">
+                      <div className={searchGroupLabelClass}>{group.label}</div>
+                      {group.items.map(({ item, index }) => (
+                        <SearchItemRow
+                          key={item.id}
+                          item={item}
+                          selected={index === activeIndex}
+                          onPointerHover={(event) => handlePointerHover(item.id, index, event)}
+                          onPointerLeave={() => handlePointerLeave(item.id)}
+                          onClick={() => {
+                            void activateItem(item);
+                          }}
+                        />
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+
+              {isQuerying ? (
+                <div className="flex flex-col gap-1">
+                  {searchItems.map((item, index) => (
                     <SearchItemRow
                       key={item.id}
                       item={item}
+                      query={trimmedQuery}
                       selected={index === activeIndex}
+                      resultMode
+                      showDate={index === activeIndex}
                       onPointerHover={(event) => handlePointerHover(item.id, index, event)}
                       onPointerLeave={() => handlePointerLeave(item.id)}
                       onClick={() => {
@@ -458,43 +519,23 @@ export function ChatSearchDialog({ open, onOpenChange }: ChatSearchDialogProps) 
                       }}
                     />
                   ))}
-                </div>
-              ))}
-            </div>
-          ) : null}
 
-          {isQuerying ? (
-            <div className="flex flex-col gap-1">
-              {searchItems.map((item, index) => (
-                <SearchItemRow
-                  key={item.id}
-                  item={item}
-                  query={trimmedQuery}
-                  selected={index === activeIndex}
-                  resultMode
-                  showDate={index === activeIndex}
-                  onPointerHover={(event) => handlePointerHover(item.id, index, event)}
-                  onPointerLeave={() => handlePointerLeave(item.id)}
-                  onClick={() => {
-                    void activateItem(item);
-                  }}
-                />
-              ))}
+                  {isSearching ? (
+                    <div className="px-3 py-4 text-[14px] text-[var(--lc-text-secondary)]">
+                      {messages.shell.searching}
+                      {".".repeat(searchingDots)}
+                    </div>
+                  ) : null}
 
-              {isSearching ? (
-                <div className="px-3 py-4 text-[14px] text-[var(--lc-text-secondary)]">
-                  {messages.shell.searching}
-                  {".".repeat(searchingDots)}
-                </div>
-              ) : null}
-
-              {!isSearching && hasSearched && searchItems.length === 0 ? (
-                <div className="px-3 py-10 text-center text-[14px] text-[var(--lc-text-secondary)]">
-                  {messages.shell.searchNoResults}
+                  {!isSearching && hasSearched && searchItems.length === 0 ? (
+                    <div className="px-3 py-10 text-center text-[14px] text-[var(--lc-text-secondary)]">
+                      {messages.shell.searchNoResults}
+                    </div>
+                  ) : null}
                 </div>
               ) : null}
             </div>
-          ) : null}
+          </ScrollArea>
         </div>
       </DialogContent>
     </Dialog>
@@ -664,12 +705,15 @@ function scrollElementIntoView(element: HTMLElement, container: HTMLElement) {
 
   if (elementRect.top < containerRect.top) {
     container.scrollTop -= containerRect.top - elementRect.top;
-    return;
+    return true;
   }
 
   if (elementRect.bottom > containerRect.bottom) {
     container.scrollTop += elementRect.bottom - containerRect.bottom;
+    return true;
   }
+
+  return false;
 }
 
 function NewChatIcon(props: React.SVGProps<SVGSVGElement>) {
