@@ -27,6 +27,20 @@ type ChatRetryState = {
   modelConfigId: string;
 };
 
+export type ChatSearchResult = {
+  conversation: ChatConversationRecord;
+  matchedText: string | null;
+  matchedAt: string;
+};
+
+type SearchConversationsOptions = {
+  query: string;
+  signal: AbortSignal;
+  onResult: (result: ChatSearchResult) => void;
+};
+
+const searchConversationPageSize = 25;
+
 type ChatWorkspaceContextValue = {
   conversations: ChatConversationRecord[];
   activeConversationId: string | null;
@@ -47,6 +61,8 @@ type ChatWorkspaceContextValue = {
   clearChatError(): void;
   deleteConversation(conversationId: string): Promise<void>;
   selectModel(modelId: string): Promise<void>;
+  listRecentConversations(limit: number): Promise<ChatConversationRecord[]>;
+  searchConversations(options: SearchConversationsOptions): Promise<void>;
 };
 
 const ChatWorkspaceContext = createContext<ChatWorkspaceContextValue | null>(null);
@@ -573,6 +589,79 @@ export function ChatWorkspaceProvider({ userId, children }: { userId: string; ch
     await preferencesStore.setLastSelectedModelConfigId(nextModelId);
   }
 
+  async function listRecentConversations(limit: number) {
+    const page = await conversationStore.listConversationsPage({ limit });
+    return page.items;
+  }
+
+  async function searchConversations({ query, signal, onResult }: SearchConversationsOptions) {
+    const normalizedQuery = normalizeSearchQuery(query);
+
+    if (!normalizedQuery) {
+      return;
+    }
+
+    let cursor = null;
+
+    do {
+      if (signal.aborted) {
+        return;
+      }
+
+      const page = await conversationStore.listConversationsPage({
+        limit: searchConversationPageSize,
+        cursor
+      });
+
+      if (signal.aborted) {
+        return;
+      }
+
+      for (const conversation of page.items) {
+        if (signal.aborted) {
+          return;
+        }
+
+        if (normalizeSearchQuery(conversation.title).includes(normalizedQuery)) {
+          onResult({
+            conversation,
+            matchedText: null,
+            matchedAt: conversation.updatedAt
+          });
+          continue;
+        }
+
+        let conversationMessages: ChatMessageRecord[];
+
+        try {
+          conversationMessages = await conversationStore.listMessages(conversation.id);
+        } catch {
+          continue;
+        }
+
+        if (signal.aborted) {
+          return;
+        }
+
+        const matchedMessage = conversationMessages.find((message) =>
+          normalizeSearchQuery(message.content).includes(normalizedQuery)
+        );
+
+        if (!matchedMessage) {
+          continue;
+        }
+
+        onResult({
+          conversation,
+          matchedText: matchedMessage.content,
+          matchedAt: matchedMessage.updatedAt
+        });
+      }
+
+      cursor = page.nextCursor;
+    } while (cursor);
+  }
+
   return (
     <ChatWorkspaceContext.Provider
       value={{
@@ -594,7 +683,9 @@ export function ChatWorkspaceProvider({ userId, children }: { userId: string; ch
         retryMessage,
         clearChatError,
         deleteConversation,
-        selectModel
+        selectModel,
+        listRecentConversations,
+        searchConversations
       }}
     >
       {children}
@@ -636,6 +727,10 @@ function buildConversationTitle(text: string | undefined, fallbackTitle: string)
   }
 
   return normalized.slice(0, 60);
+}
+
+function normalizeSearchQuery(text: string) {
+  return text.toLocaleLowerCase().replace(/\s+/g, " ").trim();
 }
 
 async function streamAssistantMessage({

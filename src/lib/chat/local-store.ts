@@ -1,5 +1,5 @@
 const DATABASE_NAME = "litechat-browser-store";
-const DATABASE_VERSION = 1;
+const DATABASE_VERSION = 2;
 
 const CONVERSATIONS_STORE = "conversations";
 const MESSAGES_STORE = "messages";
@@ -9,6 +9,7 @@ const PREFERENCES_STORE = "preferences";
 
 const USER_ID_INDEX = "byUserId";
 const USER_CONVERSATION_INDEX = "byUserConversation";
+const USER_UPDATED_AT_ID_INDEX = "byUserUpdatedAtId";
 
 type StoreName =
   | typeof CONVERSATIONS_STORE
@@ -26,6 +27,16 @@ export type ChatConversationRecord = {
   title: string;
   createdAt: string;
   updatedAt: string;
+};
+
+export type ChatConversationPageCursor = {
+  updatedAt: string;
+  id: string;
+};
+
+export type ChatConversationPage = {
+  items: ChatConversationRecord[];
+  nextCursor: ChatConversationPageCursor | null;
 };
 
 export type ChatMessageRole = "user" | "assistant" | "system" | "tool";
@@ -108,6 +119,10 @@ export class BrowserConversationStoreError extends Error {
 
 export type BrowserConversationStore = {
   listConversations(): Promise<ChatConversationRecord[]>;
+  listConversationsPage(options: {
+    limit: number;
+    cursor?: ChatConversationPageCursor | null;
+  }): Promise<ChatConversationPage>;
   getConversation(conversationId: string): Promise<ChatConversationRecord | null>;
   saveConversation(conversation: ChatConversationRecord): Promise<ChatConversationRecord>;
   deleteConversation(conversationId: string): Promise<void>;
@@ -134,6 +149,21 @@ export function createBrowserConversationStore(userId: string): BrowserConversat
     async listConversations() {
       const records = await getByUserId<ScopedConversationRecord>(CONVERSATIONS_STORE, userId);
       return records.map(toConversationRecord).sort(sortByUpdatedAtDesc);
+    },
+    async listConversationsPage({ limit, cursor }) {
+      const records = await getConversationPageByUpdatedAt(userId, Math.max(Math.floor(limit), 0), cursor);
+      const items = records.map(toConversationRecord);
+      const lastItem = items.at(-1);
+
+      return {
+        items,
+        nextCursor: lastItem && items.length === limit
+          ? {
+              updatedAt: lastItem.updatedAt,
+              id: lastItem.id
+            }
+          : null
+      };
     },
     async getConversation(conversationId) {
       const record = await getRecord<ScopedConversationRecord>(CONVERSATIONS_STORE, scopedKey(userId, conversationId));
@@ -278,6 +308,7 @@ async function openDatabase() {
 
         const conversationsStore = createObjectStore(database, upgradeTransaction, CONVERSATIONS_STORE, ["userId", "id"]);
         createIndex(conversationsStore, USER_ID_INDEX, "userId");
+        createIndex(conversationsStore, USER_UPDATED_AT_ID_INDEX, ["userId", "updatedAt", "id"]);
 
         const messagesStore = createObjectStore(database, upgradeTransaction, MESSAGES_STORE, ["userId", "id"]);
         createIndex(messagesStore, USER_ID_INDEX, "userId");
@@ -336,6 +367,53 @@ async function getByUserConversation<TRecord extends ScopedRecord>(
   return runTransaction([storeName], "readonly", async (transaction) => {
     const index = transaction.objectStore(storeName).index(USER_CONVERSATION_INDEX);
     return requestToPromise(index.getAll(scopedKey(userId, conversationId))) as Promise<TRecord[]>;
+  });
+}
+
+async function getConversationPageByUpdatedAt(
+  userId: string,
+  limit: number,
+  cursor: ChatConversationPageCursor | null | undefined
+): Promise<ScopedConversationRecord[]> {
+  if (limit <= 0) {
+    return [];
+  }
+
+  return runTransaction([CONVERSATIONS_STORE], "readonly", async (transaction) => {
+    const index = transaction.objectStore(CONVERSATIONS_STORE).index(USER_UPDATED_AT_ID_INDEX);
+    const range = cursor
+      ? IDBKeyRange.bound([userId], [userId, cursor.updatedAt, cursor.id], false, true)
+      : IDBKeyRange.bound([userId], [userId, []], false, false);
+
+    return requestCursorPage<ScopedConversationRecord>(index, range, "prev", limit);
+  });
+}
+
+function requestCursorPage<TRecord>(
+  index: IDBIndex,
+  range: IDBKeyRange,
+  direction: IDBCursorDirection,
+  limit: number
+): Promise<TRecord[]> {
+  return new Promise((resolve, reject) => {
+    const records: TRecord[] = [];
+    const request = index.openCursor(range, direction);
+
+    request.onsuccess = () => {
+      const cursor = request.result;
+
+      if (!cursor || records.length >= limit) {
+        resolve(records);
+        return;
+      }
+
+      records.push(cursor.value as TRecord);
+      cursor.continue();
+    };
+
+    request.onerror = () => {
+      reject(new BrowserConversationStoreError("request_failed", "Failed to page conversations from chat storage.", request.error));
+    };
   });
 }
 

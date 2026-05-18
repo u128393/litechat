@@ -15,6 +15,11 @@ export type AppMessages = {
     brand: string;
     description: string;
     newChat: string;
+    searchChat: string;
+    searchChatPlaceholder: string;
+    searchResults: string;
+    searching: string;
+    searchNoResults: string;
     conversationsLabel: string;
     conversationsMeta: string;
     conversationsLoading: string;
@@ -132,6 +137,11 @@ export const messagesByLocale: Record<AppLocale, AppMessages> = {
       brand: "LiteChat",
       description: "Shared app shell for chat and future admin tools.",
       newChat: "New chat",
+      searchChat: "Search chats",
+      searchChatPlaceholder: "Search chats...",
+      searchResults: "Search results",
+      searching: "Searching",
+      searchNoResults: "No matching chats found.",
       conversationsLabel: "Conversations",
       conversationsMeta: "Local",
       conversationsLoading: "Loading local conversations...",
@@ -247,6 +257,11 @@ export const messagesByLocale: Record<AppLocale, AppMessages> = {
       brand: "LiteChat",
       description: "面向聊天与后续管理工具的共享应用外壳。",
       newChat: "新聊天",
+      searchChat: "搜索聊天",
+      searchChatPlaceholder: "搜索聊天...",
+      searchResults: "搜索结果",
+      searching: "正在搜索",
+      searchNoResults: "没有找到匹配的聊天。",
       conversationsLabel: "会话",
       conversationsMeta: "本地",
       conversationsLoading: "正在加载本地会话...",

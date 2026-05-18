@@ -6,6 +6,8 @@ export {
 export type {
   BrowserConversationStore,
   BrowserConversationStoreErrorCode,
+  ChatConversationPage,
+  ChatConversationPageCursor,
   ChatConversationRecord,
   ChatDraftRecord,
   ChatMessageRecord,
