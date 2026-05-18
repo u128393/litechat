@@ -10,10 +10,14 @@ import { useI18n } from "@/lib/i18n/provider";
 import { Copy, Check, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+const bottomPinThreshold = 32;
+const scrollDirectionTolerance = 1;
+
 export function MessageTimeline() {
   const { messages: i18nMessages } = useI18n();
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const isPinnedToBottomRef = useRef(true);
+  const previousScrollTopRef = useRef(0);
   const previousConversationIdRef = useRef<string | null>(null);
   const {
     activeConversationId,
@@ -39,13 +43,22 @@ export function MessageTimeline() {
     }
 
     scrollContainer.scrollTop = scrollContainer.scrollHeight;
+    previousScrollTopRef.current = scrollContainer.scrollTop;
   }, [scrollDependency]);
 
   function handleScroll(event: UIEvent<HTMLDivElement>) {
     const scrollContainer = event.currentTarget;
     const distanceFromBottom = scrollContainer.scrollHeight - scrollContainer.scrollTop - scrollContainer.clientHeight;
+    const scrollDelta = scrollContainer.scrollTop - previousScrollTopRef.current;
 
-    isPinnedToBottomRef.current = distanceFromBottom <= 32;
+    previousScrollTopRef.current = scrollContainer.scrollTop;
+
+    if (scrollDelta < -scrollDirectionTolerance) {
+      isPinnedToBottomRef.current = false;
+      return;
+    }
+
+    isPinnedToBottomRef.current = distanceFromBottom <= bottomPinThreshold;
   }
 
   if (conversationMessages.length === 0) {
