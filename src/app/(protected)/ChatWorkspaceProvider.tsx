@@ -76,6 +76,7 @@ type ChatWorkspaceContextValue = {
   clearChatError(): void;
   deleteConversation(conversationId: string): Promise<void>;
   selectModel(modelId: string): Promise<void>;
+  refreshModels(): Promise<void>;
   loadOlderConversations(): Promise<void>;
   loadNewerConversations(): Promise<void>;
   listRecentConversations(limit: number): Promise<ChatConversationRecord[]>;
@@ -253,53 +254,39 @@ export function ChatWorkspaceProvider({ userId, children }: { userId: string; ch
   }, [conversationStore, routeConversationId, router]);
 
   useEffect(() => {
-    let active = true;
-
-    async function loadModels() {
-      try {
-        const [response, savedModelId] = await Promise.all([
-          fetch("/api/models", { credentials: "same-origin" }),
-          preferencesStore.getLastSelectedModelConfigId()
-        ]);
-
-        if (!response.ok) {
-          throw new Error("Unable to load enabled models.");
-        }
-
-        const payload = (await response.json()) as { models?: UserSelectableModel[] };
-        const nextModels = Array.isArray(payload.models) ? payload.models : [];
-        const nextSelectedModelId = resolveSelectedModelId(nextModels, savedModelId);
-
-        if (!active) {
-          return;
-        }
-
-        setModels(nextModels);
-        setSelectedModelId(nextSelectedModelId);
-
-        if (nextSelectedModelId !== savedModelId) {
-          void preferencesStore.setLastSelectedModelConfigId(nextSelectedModelId);
-        }
-      } catch {
-        if (!active) {
-          return;
-        }
-
-        setModels([]);
-        setSelectedModelId(null);
-      } finally {
-        if (active) {
-          setIsLoadingModels(false);
-        }
-      }
-    }
-
-    void loadModels();
-
-    return () => {
-      active = false;
-    };
+    void refreshModels();
   }, [preferencesStore]);
+
+  async function refreshModels() {
+    setIsLoadingModels(true);
+
+    try {
+      const [response, savedModelId] = await Promise.all([
+        fetch("/api/models", { credentials: "same-origin" }),
+        preferencesStore.getLastSelectedModelConfigId()
+      ]);
+
+      if (!response.ok) {
+        throw new Error("Unable to load enabled models.");
+      }
+
+      const payload = (await response.json()) as { models?: UserSelectableModel[] };
+      const nextModels = Array.isArray(payload.models) ? payload.models : [];
+      const nextSelectedModelId = resolveSelectedModelId(nextModels, savedModelId);
+
+      setModels(nextModels);
+      setSelectedModelId(nextSelectedModelId);
+
+      if (nextSelectedModelId !== savedModelId) {
+        void preferencesStore.setLastSelectedModelConfigId(nextSelectedModelId);
+      }
+    } catch {
+      setModels([]);
+      setSelectedModelId(null);
+    } finally {
+      setIsLoadingModels(false);
+    }
+  }
 
   async function loadConversationState(conversationId: string | null) {
     if (!conversationId) {
@@ -875,6 +862,7 @@ export function ChatWorkspaceProvider({ userId, children }: { userId: string; ch
         clearChatError,
         deleteConversation,
         selectModel,
+        refreshModels,
         loadOlderConversations,
         loadNewerConversations,
         listRecentConversations,

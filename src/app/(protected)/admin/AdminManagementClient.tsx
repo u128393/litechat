@@ -11,6 +11,7 @@ import type { ProviderConfig } from "@/server/providers";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useChatWorkspace } from "@/app/(protected)/ChatWorkspaceProvider";
 import {
   Select,
   SelectContent,
@@ -70,6 +71,7 @@ function createDefaultModelForm(providerConfigs: ProviderConfig[]): ModelFormSta
 
 export function AdminManagementClient({ initialProviderConfigs, initialModelConfigs }: AdminManagementClientProps) {
   const router = useRouter();
+  const { refreshModels } = useChatWorkspace();
   const { messages } = useI18n();
   const adminMessages = messages.admin;
   const sortedInitialProviderConfigs = sortProviderConfigs(initialProviderConfigs);
@@ -126,6 +128,7 @@ export function AdminManagementClient({ initialProviderConfigs, initialModelConf
       }
       const nextProviderConfig = payload.providerConfig as ProviderConfig;
       setProviderConfigs(sortProviderConfigs(upsertById(providerConfigs, nextProviderConfig)));
+      await refreshModels();
     } catch {
     } finally {
       setTogglingProviderId(null);
@@ -190,6 +193,7 @@ export function AdminManagementClient({ initialProviderConfigs, initialModelConf
       }
 
       setProviderDialogOpen(false);
+      await refreshModels();
     } catch {
       setProviderPending(false);
       setProviderFeedback({
@@ -231,6 +235,7 @@ export function AdminManagementClient({ initialProviderConfigs, initialModelConf
       }
       const nextModelConfig = payload.modelConfig as ModelConfig;
       setModelConfigs(sortModelConfigs(upsertById(modelConfigs, nextModelConfig)));
+      await refreshModels();
     } catch {
     } finally {
       setTogglingModelId(null);
@@ -285,6 +290,7 @@ export function AdminManagementClient({ initialProviderConfigs, initialModelConf
       });
 
       setModelDialogOpen(false);
+      await refreshModels();
     } catch {
       setModelPending(false);
       setModelFeedback({
