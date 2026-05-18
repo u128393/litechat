@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useRef, useState, type SetStateAction } from "react";
 import { usePathname, useRouter } from "next/navigation";
 
 import { useI18n } from "@/lib/i18n/provider";
@@ -65,6 +65,8 @@ type ChatWorkspaceContextValue = {
   isLoadingNewerConversations: boolean;
   isLoadingModels: boolean;
   isSendingMessage: boolean;
+  hasSendingMessage: boolean;
+  sendingConversationIds: string[];
   chatError: ChatFailureState | null;
   activeConversationRevealRequest: ConversationRevealRequest | null;
   composerFocusRequestToken: number;
@@ -94,8 +96,9 @@ export function ChatWorkspaceProvider({ userId, children }: { userId: string; ch
   const conversationStore = useMemo(() => createBrowserConversationStore(userId), [userId]);
   const preferencesStore = useMemo(() => createBrowserPreferencesStore(userId), [userId]);
   const pendingConversationPromiseRef = useRef<Promise<ChatConversationRecord> | null>(null);
-  const activeAbortControllerRef = useRef<AbortController | null>(null);
-  const retryStateRef = useRef<ChatRetryState | null>(null);
+  const abortControllersRef = useRef<Map<string, AbortController>>(new Map());
+  const retryStatesRef = useRef<Map<string, ChatRetryState>>(new Map());
+  const activeConversationIdRef = useRef<string | null>(null);
   const olderConversationCursorRef = useRef<ChatConversationPageCursor | null>(null);
   const newerConversationCursorRef = useRef<ChatConversationPageCursor | null>(null);
   const skippedRouteConversationLoadRef = useRef<string | null>(null);
@@ -116,13 +119,73 @@ export function ChatWorkspaceProvider({ userId, children }: { userId: string; ch
   const [isLoadingOlderConversations, setIsLoadingOlderConversations] = useState(false);
   const [isLoadingNewerConversations, setIsLoadingNewerConversations] = useState(false);
   const [isLoadingModels, setIsLoadingModels] = useState(true);
-  const [isSendingMessage, setIsSendingMessage] = useState(false);
-  const [chatError, setChatError] = useState<ChatFailureState | null>(null);
+  const [sendingConversationIds, setSendingConversationIds] = useState<string[]>([]);
+  const [chatErrorsByConversationId, setChatErrorsByConversationId] = useState<Record<string, ChatFailureState>>({});
   const [activeConversationRevealRequest, setActiveConversationRevealRequest] = useState<ConversationRevealRequest | null>(null);
   const [composerFocusRequestToken, setComposerFocusRequestToken] = useState(1);
+  const hasSendingMessage = sendingConversationIds.length > 0;
+  const isSendingMessage = activeConversationId !== null && sendingConversationIds.includes(activeConversationId);
+  const chatError = chatErrorsByConversationId[getChatErrorKey(activeConversationId)] ?? null;
+
+  activeConversationIdRef.current = activeConversationId;
 
   function requestComposerFocus() {
     setComposerFocusRequestToken((currentToken) => currentToken + 1);
+  }
+
+  function setActiveConversation(conversationId: string | null) {
+    activeConversationIdRef.current = conversationId;
+    setActiveConversationId(conversationId);
+  }
+
+  function clearChatErrorForConversation(conversationId: string | null) {
+    setChatErrorsByConversationId((currentErrors) => {
+      const errorKey = getChatErrorKey(conversationId);
+
+      if (!currentErrors[errorKey]) {
+        return currentErrors;
+      }
+
+      const nextErrors = { ...currentErrors };
+      delete nextErrors[errorKey];
+      return nextErrors;
+    });
+  }
+
+  function setChatErrorForConversation(conversationId: string | null, failure: ChatFailureState) {
+    setChatErrorsByConversationId((currentErrors) => ({
+      ...currentErrors,
+      [getChatErrorKey(conversationId)]: failure
+    }));
+  }
+
+  function updateActiveConversationMessages(
+    conversationId: string,
+    updater: SetStateAction<ChatMessageRecord[]>
+  ) {
+    setMessages((currentMessages) => {
+      if (activeConversationIdRef.current !== conversationId) {
+        return currentMessages;
+      }
+
+      return typeof updater === "function"
+        ? (updater as (messages: ChatMessageRecord[]) => ChatMessageRecord[])(currentMessages)
+        : updater;
+    });
+  }
+
+  function isConversationSending(conversationId: string | null) {
+    return Boolean(conversationId && abortControllersRef.current.has(conversationId));
+  }
+
+  function addSendingConversation(conversationId: string) {
+    setSendingConversationIds((currentIds) =>
+      currentIds.includes(conversationId) ? currentIds : [...currentIds, conversationId]
+    );
+  }
+
+  function removeSendingConversation(conversationId: string) {
+    setSendingConversationIds((currentIds) => currentIds.filter((currentId) => currentId !== conversationId));
   }
 
   useEffect(() => {
@@ -146,17 +209,17 @@ export function ChatWorkspaceProvider({ userId, children }: { userId: string; ch
           setConversations(page.items);
           setHasOlderConversations(Boolean(page.nextCursor));
           setHasNewerConversations(false);
-          setActiveConversationId(null);
+          setActiveConversation(null);
           setMessages([]);
           setDraft("");
-          setChatError(null);
+          clearChatErrorForConversation(null);
           setHasLoadedConversations(true);
-          retryStateRef.current = null;
           return;
         }
 
         if (skippedRouteConversationLoadRef.current === targetConversationId) {
           skippedRouteConversationLoadRef.current = null;
+          setActiveConversation(targetConversationId);
           setHasLoadedConversations(true);
           return;
         }
@@ -174,10 +237,10 @@ export function ChatWorkspaceProvider({ userId, children }: { userId: string; ch
             return;
           }
 
-          setActiveConversationId(targetConversationId);
+          setActiveConversation(targetConversationId);
           setMessages(storedMessages);
           setDraft(storedDraft?.text ?? "");
-          setChatError(null);
+          clearChatErrorForConversation(targetConversationId);
           setHasLoadedConversations(true);
           return;
         }
@@ -198,7 +261,7 @@ export function ChatWorkspaceProvider({ userId, children }: { userId: string; ch
           setConversations([]);
           setHasOlderConversations(false);
           setHasNewerConversations(false);
-          setActiveConversationId(null);
+          setActiveConversation(null);
           setMessages([]);
           setDraft("");
           setHasLoadedConversations(true);
@@ -227,10 +290,10 @@ export function ChatWorkspaceProvider({ userId, children }: { userId: string; ch
         setConversations(expandedWindow.items);
         setHasOlderConversations(Boolean(expandedWindow.olderCursor));
         setHasNewerConversations(Boolean(expandedWindow.newerCursor));
-        setActiveConversationId(targetConversationId);
+        setActiveConversation(targetConversationId);
         setMessages(storedMessages);
         setDraft(storedDraft?.text ?? "");
-        setChatError(null);
+        clearChatErrorForConversation(targetConversationId);
         setHasLoadedConversations(true);
         setActiveConversationRevealRequest({
           conversationId: targetConversationId,
@@ -242,7 +305,7 @@ export function ChatWorkspaceProvider({ userId, children }: { userId: string; ch
         }
 
         setConversations([]);
-        setActiveConversationId(null);
+        setActiveConversation(null);
         setMessages([]);
         setDraft("");
         setHasOlderConversations(false);
@@ -297,6 +360,7 @@ export function ChatWorkspaceProvider({ userId, children }: { userId: string; ch
 
   async function loadConversationState(conversationId: string | null) {
     if (!conversationId) {
+      setActiveConversation(null);
       setMessages([]);
       setDraft("");
       return;
@@ -307,6 +371,7 @@ export function ChatWorkspaceProvider({ userId, children }: { userId: string; ch
       conversationStore.getDraft(conversationId)
     ]);
 
+    setActiveConversation(conversationId);
     setMessages(storedMessages);
     setDraft(storedDraft?.text ?? "");
   }
@@ -325,7 +390,7 @@ export function ChatWorkspaceProvider({ userId, children }: { userId: string; ch
     setConversations((currentConversations) => sortConversations([conversation, ...currentConversations]));
     newerConversationCursorRef.current = null;
     setHasNewerConversations(false);
-    setActiveConversationId(conversation.id);
+    setActiveConversation(conversation.id);
     setMessages([]);
 
     return conversation;
@@ -356,13 +421,8 @@ export function ChatWorkspaceProvider({ userId, children }: { userId: string; ch
   }
 
   async function createNewConversation() {
-    if (isSendingMessage) {
-      return;
-    }
-
-    setChatError(null);
-    retryStateRef.current = null;
-    setActiveConversationId(null);
+    clearChatErrorForConversation(null);
+    setActiveConversation(null);
     setMessages([]);
     setDraft("");
     requestComposerFocus();
@@ -370,11 +430,7 @@ export function ChatWorkspaceProvider({ userId, children }: { userId: string; ch
   }
 
   async function selectConversation(conversationId: string, options?: { source?: SelectConversationSource }) {
-    if (isSendingMessage) {
-      return;
-    }
-
-    setChatError(null);
+    clearChatErrorForConversation(conversationId);
     pendingConversationSelectionSourceRef.current = options?.source ?? "sidebar";
     requestComposerFocus();
     router.push(`/c/${conversationId}`);
@@ -426,12 +482,12 @@ export function ChatWorkspaceProvider({ userId, children }: { userId: string; ch
   async function sendMessage() {
     const trimmedDraft = draft.trim();
 
-    if (trimmedDraft === "" || isSendingMessage) {
+    if (trimmedDraft === "" || isConversationSending(activeConversationId)) {
       return;
     }
 
     if (!selectedModelId) {
-      setChatError({
+      setChatErrorForConversation(activeConversationId, {
         code: "model_missing",
         message: i18nMessages.chat.errorModelMissing,
         canRetry: false
@@ -461,12 +517,12 @@ export function ChatWorkspaceProvider({ userId, children }: { userId: string; ch
     setConversations((currentConversations) =>
       sortConversations(upsertConversation(currentConversations, updatedConversation))
     );
-    retryStateRef.current = {
+    retryStatesRef.current.set(conversation.id, {
       conversation,
       updatedConversation,
       messageHistory: [...messages, message],
       modelConfigId: selectedModelId
-    };
+    });
 
     try {
       await Promise.all([
@@ -488,7 +544,7 @@ export function ChatWorkspaceProvider({ userId, children }: { userId: string; ch
         messageHistory: [...messages, message]
       });
     } catch {
-      setChatError({
+      setChatErrorForConversation(conversation.id, {
         code: "unknown",
         message: i18nMessages.chat.errorUnknown,
         canRetry: true
@@ -498,24 +554,27 @@ export function ChatWorkspaceProvider({ userId, children }: { userId: string; ch
   }
 
   function stopMessage() {
-    activeAbortControllerRef.current?.abort();
-  }
-
-  async function retryMessage() {
-    if (isSendingMessage || !retryStateRef.current) {
+    if (!activeConversationId) {
       return;
     }
 
-    const retryState = retryStateRef.current;
+    abortControllersRef.current.get(activeConversationId)?.abort();
+  }
 
-    setChatError(null);
+  async function retryMessage() {
+    if (!activeConversationId || isConversationSending(activeConversationId)) {
+      return;
+    }
+
+    const retryState = retryStatesRef.current.get(activeConversationId);
+
+    if (!retryState) {
+      return;
+    }
+
+    clearChatErrorForConversation(retryState.conversation.id);
 
     try {
-      if (activeConversationId !== retryState.conversation.id) {
-        router.push(`/c/${retryState.conversation.id}`);
-        return;
-      }
-
       await loadConversationState(retryState.conversation.id);
       await continueAssistantResponse({
         assistantMessageId: crypto.randomUUID(),
@@ -525,7 +584,7 @@ export function ChatWorkspaceProvider({ userId, children }: { userId: string; ch
         messageHistory: retryState.messageHistory
       });
     } catch {
-      setChatError({
+      setChatErrorForConversation(retryState.conversation.id, {
         code: "unknown",
         message: i18nMessages.chat.errorUnknown,
         canRetry: true
@@ -534,16 +593,16 @@ export function ChatWorkspaceProvider({ userId, children }: { userId: string; ch
   }
 
   async function regenerateMessage(messageId: string) {
-    if (isSendingMessage) {
-      return;
-    }
-
     if (!activeConversationId) {
       return;
     }
 
+    if (isConversationSending(activeConversationId)) {
+      return;
+    }
+
     if (!selectedModelId) {
-      setChatError({
+      setChatErrorForConversation(activeConversationId, {
         code: "model_missing",
         message: i18nMessages.chat.errorModelMissing,
         canRetry: false
@@ -577,17 +636,17 @@ export function ChatWorkspaceProvider({ userId, children }: { userId: string; ch
       updatedAt: new Date().toISOString()
     };
 
-    setChatError(null);
+    clearChatErrorForConversation(conversation.id);
     setMessages(messageHistory);
     setConversations((currentConversations) =>
       sortConversations(upsertConversation(currentConversations, updatedConversation))
     );
-    retryStateRef.current = {
+    retryStatesRef.current.set(conversation.id, {
       conversation,
       updatedConversation,
       messageHistory,
       modelConfigId: selectedModelId
-    };
+    });
 
     try {
       await Promise.all([
@@ -603,7 +662,7 @@ export function ChatWorkspaceProvider({ userId, children }: { userId: string; ch
         messageHistory
       });
     } catch {
-      setChatError({
+      setChatErrorForConversation(conversation.id, {
         code: "unknown",
         message: i18nMessages.chat.errorUnknown,
         canRetry: true
@@ -612,11 +671,11 @@ export function ChatWorkspaceProvider({ userId, children }: { userId: string; ch
   }
 
   function clearChatError() {
-    setChatError(null);
+    clearChatErrorForConversation(activeConversationId);
   }
 
   async function deleteConversation(conversationId: string) {
-    if (isSendingMessage) {
+    if (isConversationSending(conversationId)) {
       return;
     }
 
@@ -626,18 +685,16 @@ export function ChatWorkspaceProvider({ userId, children }: { userId: string; ch
 
     await conversationStore.deleteConversation(conversationId);
 
-    if (retryStateRef.current?.conversation.id === conversationId) {
-      retryStateRef.current = null;
-    }
+    retryStatesRef.current.delete(conversationId);
 
-    setChatError(null);
+    clearChatErrorForConversation(conversationId);
     setConversations(nextConversations);
 
     if (activeConversationId !== conversationId) {
       return;
     }
 
-    setActiveConversationId(nextActiveConversationId);
+    setActiveConversation(nextActiveConversationId);
 
     if (nextActiveConversationId) {
       router.replace(`/c/${nextActiveConversationId}`);
@@ -659,11 +716,11 @@ export function ChatWorkspaceProvider({ userId, children }: { userId: string; ch
     modelConfigId: string;
     messageHistory: ChatMessageRecord[];
   }) {
-    setChatError(null);
-    setIsSendingMessage(true);
+    clearChatErrorForConversation(conversation.id);
+    addSendingConversation(conversation.id);
 
     const abortController = new AbortController();
-    activeAbortControllerRef.current = abortController;
+    abortControllersRef.current.set(conversation.id, abortController);
 
     try {
       let streamResult:
@@ -677,10 +734,11 @@ export function ChatWorkspaceProvider({ userId, children }: { userId: string; ch
           modelConfigId,
           messageHistory,
           signal: abortController.signal,
-          setMessages
+          setMessages: (updater) => updateActiveConversationMessages(conversation.id, updater),
+          savePartialMessage: (assistantMessage) => persistAssistantMessage(updatedConversation, assistantMessage)
         });
       } catch (error) {
-        setChatError(resolveChatFailure(error, i18nMessages.chat));
+        setChatErrorForConversation(conversation.id, resolveChatFailure(error, i18nMessages.chat));
         return;
       }
 
@@ -689,12 +747,12 @@ export function ChatWorkspaceProvider({ userId, children }: { userId: string; ch
       }
 
       if (streamResult.status === "success") {
-        retryStateRef.current = null;
+        retryStatesRef.current.delete(conversation.id);
         return;
       }
 
       if (streamResult.status === "aborted") {
-        setChatError({
+        setChatErrorForConversation(conversation.id, {
           code: "aborted",
           message: i18nMessages.chat.stopped,
           canRetry: true
@@ -703,7 +761,7 @@ export function ChatWorkspaceProvider({ userId, children }: { userId: string; ch
       }
 
       if (streamResult.status === "empty") {
-        setChatError({
+        setChatErrorForConversation(conversation.id, {
           code: "empty",
           message: i18nMessages.chat.errorInterrupted,
           canRetry: true
@@ -711,13 +769,13 @@ export function ChatWorkspaceProvider({ userId, children }: { userId: string; ch
         return;
       }
 
-      setChatError(resolveChatFailure(streamResult.error, i18nMessages.chat));
+      setChatErrorForConversation(conversation.id, resolveChatFailure(streamResult.error, i18nMessages.chat));
     } finally {
-      if (activeAbortControllerRef.current === abortController) {
-        activeAbortControllerRef.current = null;
+      if (abortControllersRef.current.get(conversation.id) === abortController) {
+        abortControllersRef.current.delete(conversation.id);
       }
 
-      setIsSendingMessage(false);
+      removeSendingConversation(conversation.id);
     }
   }
 
@@ -743,7 +801,7 @@ export function ChatWorkspaceProvider({ userId, children }: { userId: string; ch
   async function selectModel(modelId: string) {
     const nextModelId = models.some((model) => model.id === modelId) ? modelId : null;
     setSelectedModelId(nextModelId);
-    setChatError(null);
+    clearChatErrorForConversation(activeConversationId);
     await preferencesStore.setLastSelectedModelConfigId(nextModelId);
   }
 
@@ -938,6 +996,8 @@ export function ChatWorkspaceProvider({ userId, children }: { userId: string; ch
         isLoadingNewerConversations,
         isLoadingModels,
         isSendingMessage,
+        hasSendingMessage,
+        sendingConversationIds,
         chatError,
         activeConversationRevealRequest,
         composerFocusRequestToken,
@@ -1000,20 +1060,26 @@ function normalizeSearchQuery(text: string) {
   return text.toLocaleLowerCase().replace(/\s+/g, " ").trim();
 }
 
+function getChatErrorKey(conversationId: string | null) {
+  return conversationId ?? "new";
+}
+
 async function streamAssistantMessage({
   assistantMessageId,
   conversationId,
   modelConfigId,
   messageHistory,
   signal,
-  setMessages
+  setMessages,
+  savePartialMessage
 }: {
   assistantMessageId: string;
   conversationId: string;
   modelConfigId: string;
   messageHistory: ChatMessageRecord[];
   signal: AbortSignal;
-  setMessages: React.Dispatch<React.SetStateAction<ChatMessageRecord[]>>;
+  setMessages: (updater: SetStateAction<ChatMessageRecord[]>) => void;
+  savePartialMessage: (assistantMessage: ChatMessageRecord) => Promise<void>;
 }): Promise<
   | { status: "success"; assistantMessage: ChatMessageRecord }
   | { status: "aborted"; assistantMessage: ChatMessageRecord | null }
@@ -1056,6 +1122,18 @@ async function streamAssistantMessage({
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
   let content = "";
+  let lastPersistedContent = "";
+
+  async function persistPartialAssistantMessage() {
+    const assistantMessage = finalizeAssistantMessage(initialAssistantMessage, content);
+
+    if (!assistantMessage || assistantMessage.content === lastPersistedContent) {
+      return;
+    }
+
+    lastPersistedContent = assistantMessage.content;
+    await savePartialMessage(assistantMessage);
+  }
 
   try {
     while (true) {
@@ -1066,17 +1144,24 @@ async function streamAssistantMessage({
       }
 
       content += decoder.decode(value, { stream: true });
+
+      if (content === "") {
+        continue;
+      }
+
+      const updatedAt = new Date().toISOString();
       setMessages((currentMessages) =>
         currentMessages.map((message) =>
           message.id === assistantMessageId
             ? {
                 ...message,
                 content,
-                updatedAt: new Date().toISOString()
+                updatedAt
               }
             : message
         )
       );
+      await persistPartialAssistantMessage();
     }
 
     content += decoder.decode();
@@ -1122,6 +1207,7 @@ async function streamAssistantMessage({
   setMessages((currentMessages) =>
     currentMessages.map((message) => (message.id === assistantMessageId ? assistantMessage : message))
   );
+  await savePartialMessage(assistantMessage);
 
   return { status: "success", assistantMessage };
 }

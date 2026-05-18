@@ -68,7 +68,7 @@ export function Sidebar({ className, collapsed = false, onCollapsedChange, onSea
     hasNewerConversations,
     isLoadingOlderConversations,
     isLoadingNewerConversations,
-    isSendingMessage,
+    sendingConversationIds,
     createNewConversation,
     selectConversation,
     deleteConversation,
@@ -209,7 +209,6 @@ export function Sidebar({ className, collapsed = false, onCollapsedChange, onSea
       <div className={cn("flex flex-col gap-2 pb-3", sidebarSectionXClass)}>
         <SidebarItem
           collapsed={collapsed}
-          disabled={isSendingMessage}
           aria-label={messages.shell.newChat}
           title={collapsed ? messages.shell.newChat : undefined}
           onClick={() => {
@@ -252,7 +251,7 @@ export function Sidebar({ className, collapsed = false, onCollapsedChange, onSea
                   key={conversation.id}
                   conversation={conversation}
                   isActive={conversation.id === activeConversationId}
-                  isDisabled={isSendingMessage}
+                  isGenerating={sendingConversationIds.includes(conversation.id)}
                   onSelect={selectConversation}
                   onDelete={deleteConversation}
                   onNavigate={onNavigate}
@@ -269,7 +268,7 @@ export function Sidebar({ className, collapsed = false, onCollapsedChange, onSea
 type SidebarConversationItemProps = {
   conversation: ChatConversationRecord;
   isActive: boolean;
-  isDisabled: boolean;
+  isGenerating: boolean;
   onSelect: (conversationId: string, options?: { source?: "sidebar" | "search" }) => Promise<void>;
   onDelete: (conversationId: string) => Promise<void>;
   onNavigate?: () => void;
@@ -278,7 +277,7 @@ type SidebarConversationItemProps = {
 function SidebarConversationItem({
   conversation,
   isActive,
-  isDisabled,
+  isGenerating,
   onSelect,
   onDelete,
   onNavigate,
@@ -289,7 +288,7 @@ function SidebarConversationItem({
   const [isDeleting, setIsDeleting] = useState(false);
 
   async function handleDelete() {
-    if (isDeleting || isDisabled) {
+    if (isDeleting || isGenerating) {
       return;
     }
 
@@ -327,13 +326,15 @@ function SidebarConversationItem({
         <button
           type="button"
           className={sidebarConversationButtonClass}
-          disabled={isDisabled}
           onClick={() => {
             onNavigate?.();
             void onSelect(conversation.id, { source: "sidebar" });
           }}
         >
           <span className="min-w-0 truncate">{conversation.title}</span>
+          {isGenerating ? (
+            <span className="ml-2 size-1.5 shrink-0 animate-pulse rounded-full bg-[var(--lc-accent)]" aria-hidden="true" />
+          ) : null}
         </button>
 
         <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
@@ -342,7 +343,7 @@ function SidebarConversationItem({
               sidebarConversationMenuButtonClass,
               menuOpen && "w-9 opacity-100"
             )}
-            disabled={isDisabled}
+            disabled={isGenerating}
             aria-label={messages.shell.conversationActions}
             title={messages.shell.conversationActions}
           >
@@ -399,7 +400,7 @@ function SidebarConversationItem({
           <Button
             type="button"
             className="h-11 rounded-xl bg-[var(--lc-danger)] px-6 text-[15px] font-semibold text-white hover:bg-[var(--lc-danger)]/90 focus-visible:border-[var(--lc-danger)]/40 focus-visible:ring-[var(--lc-danger)]/20"
-            disabled={isDeleting || isDisabled}
+            disabled={isDeleting || isGenerating}
             onClick={() => {
               void handleDelete();
             }}

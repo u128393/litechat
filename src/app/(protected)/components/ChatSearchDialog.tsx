@@ -46,7 +46,6 @@ const mutedRowClass = "hover:bg-[var(--lc-bg-tertiary)]";
 export function ChatSearchDialog({ open, onOpenChange }: ChatSearchDialogProps) {
   const { messages } = useI18n();
   const {
-    isSendingMessage,
     createNewConversation,
     selectConversation,
     listRecentConversations,
@@ -218,7 +217,7 @@ export function ChatSearchDialog({ open, onOpenChange }: ChatSearchDialogProps) 
   }
 
   async function activateItem(item: SearchListItem | undefined) {
-    if (!item || isSendingMessage) {
+    if (!item) {
       return;
     }
 
