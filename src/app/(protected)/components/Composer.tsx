@@ -66,7 +66,7 @@ export function Composer() {
     "bg-[#D4D4D8] text-[#8A8A8A] dark:bg-[#4A4A4A] dark:text-[#9B9B9B]";
 
   return (
-    <div className="pointer-events-none relative w-full px-0 pb-6">
+    <div className="pointer-events-none relative w-full px-4 pb-6">
       <div className="absolute inset-x-0 top-[26px] bottom-0 bg-[var(--lc-bg-primary)]" />
       <div className="pointer-events-auto relative mx-auto flex w-full max-w-[768px] flex-col gap-2">
         {/* Error banner */}
