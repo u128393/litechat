@@ -19,7 +19,7 @@ export function MessageTimeline() {
     activeConversationId,
     messages: conversationMessages,
     isSendingMessage,
-    retryMessage,
+    regenerateMessage,
   } = useChatWorkspace();
   const lastMessage = conversationMessages.at(-1);
   const scrollDependency = `${activeConversationId ?? ""}:${conversationMessages.length}:${lastMessage?.id ?? ""}:${lastMessage?.content.length ?? 0}`;
@@ -112,7 +112,7 @@ export function MessageTimeline() {
                       className="flex size-8 items-center justify-center rounded-[6px] text-[var(--lc-text-tertiary)] transition-colors hover:bg-[var(--lc-bg-tertiary)]"
                       disabled={isSendingMessage}
                       onClick={() => {
-                        void retryMessage();
+                        void regenerateMessage(message.id);
                       }}
                     >
                       <RefreshCw className="size-4" />
