@@ -1,6 +1,9 @@
 "use client";
 
 import { useLayoutEffect, useRef, useState, type UIEvent } from "react";
+import rehypeHighlight from "rehype-highlight";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 import { useChatWorkspace } from "@/app/(protected)/ChatWorkspaceProvider";
 import { useI18n } from "@/lib/i18n/provider";
@@ -94,9 +97,14 @@ export function MessageTimeline() {
                 </div>
               ) : (
                 <>
-                  <p className="whitespace-pre-wrap text-[15px] leading-[1.6] text-[var(--lc-text-primary)]">
-                    {message.content}
-                  </p>
+                  <div className="lc-markdown text-[15px] leading-[1.6] text-[var(--lc-text-primary)]">
+                    <ReactMarkdown
+                      remarkPlugins={[remarkGfm]}
+                      rehypePlugins={[[rehypeHighlight, { ignoreMissing: true }]]}
+                    >
+                      {message.content}
+                    </ReactMarkdown>
+                  </div>
                   <div className="flex gap-1">
                     <CopyButton text={message.content} />
                     <button
