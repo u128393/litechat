@@ -41,7 +41,7 @@ const searchRowClass =
 const searchGroupLabelClass =
   "px-3 pb-1 pt-2 text-[12px] font-medium text-[var(--lc-text-secondary)]";
 const selectedRowClass = "bg-[var(--lc-bg-tertiary)]";
-const mutedRowClass = "hover:bg-[var(--lc-bg-tertiary)]";
+const mutedRowClass = "";
 
 export function ChatSearchDialog({ open, onOpenChange }: ChatSearchDialogProps) {
   const { messages } = useI18n();
@@ -52,9 +52,13 @@ export function ChatSearchDialog({ open, onOpenChange }: ChatSearchDialogProps) 
     searchConversations,
   } = useChatWorkspace();
   const inputRef = useRef<HTMLInputElement>(null);
+  const resultsRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const pointerHoverEnabledRef = useRef(true);
+  const initialPointerItemIdRef = useRef<string | null>(null);
   const [query, setQuery] = useState("");
   const [recentConversations, setRecentConversations] = useState<ChatConversationRecord[]>([]);
+  const [recentConversationsLoaded, setRecentConversationsLoaded] = useState(false);
   const [results, setResults] = useState<ChatSearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
@@ -103,12 +107,18 @@ export function ChatSearchDialog({ open, onOpenChange }: ChatSearchDialogProps) 
       abortControllerRef.current = null;
       setQuery("");
       setRecentConversations([]);
+      setRecentConversationsLoaded(false);
       setResults([]);
       setIsSearching(false);
       setHasSearched(false);
       setActiveIndex(0);
+      pointerHoverEnabledRef.current = true;
+      initialPointerItemIdRef.current = null;
       return;
     }
+
+    pointerHoverEnabledRef.current = false;
+    initialPointerItemIdRef.current = null;
 
     const timer = window.setTimeout(() => inputRef.current?.focus(), 50);
     return () => window.clearTimeout(timer);
@@ -120,16 +130,19 @@ export function ChatSearchDialog({ open, onOpenChange }: ChatSearchDialogProps) 
     }
 
     let active = true;
+    setRecentConversationsLoaded(false);
 
     listRecentConversations(30)
       .then((conversations) => {
         if (active) {
           setRecentConversations(conversations);
+          setRecentConversationsLoaded(true);
         }
       })
       .catch(() => {
         if (active) {
           setRecentConversations([]);
+          setRecentConversationsLoaded(true);
         }
       });
 
@@ -137,6 +150,31 @@ export function ChatSearchDialog({ open, onOpenChange }: ChatSearchDialogProps) 
       active = false;
     };
   }, [listRecentConversations, open]);
+
+  useEffect(() => {
+    if (!open || isQuerying || !recentConversationsLoaded) {
+      return;
+    }
+
+    const frame = window.requestAnimationFrame(() => {
+      const hoveredRow = resultsRef.current?.querySelector<HTMLElement>("button[data-search-item-id]:hover");
+      const hoveredItemId = hoveredRow?.dataset.searchItemId ?? null;
+
+      pointerHoverEnabledRef.current = hoveredItemId === null;
+      initialPointerItemIdRef.current = hoveredItemId;
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [isQuerying, open, recentConversationsLoaded, listItems.length]);
+
+  useEffect(() => {
+    if (!isQuerying) {
+      return;
+    }
+
+    pointerHoverEnabledRef.current = true;
+    initialPointerItemIdRef.current = null;
+  }, [isQuerying]);
 
   useEffect(() => {
     if (!open) {
@@ -231,6 +269,28 @@ export function ChatSearchDialog({ open, onOpenChange }: ChatSearchDialogProps) 
     await selectConversation(item.conversation.id, { source: "search" });
   }
 
+  function handlePointerHover(itemId: string, index: number) {
+    if (!pointerHoverEnabledRef.current) {
+      if (initialPointerItemIdRef.current === null || initialPointerItemIdRef.current === itemId) {
+        return;
+      }
+
+      pointerHoverEnabledRef.current = true;
+      initialPointerItemIdRef.current = null;
+    }
+
+    setActiveIndex(index);
+  }
+
+  function handlePointerLeave(itemId: string) {
+    if (initialPointerItemIdRef.current !== itemId) {
+      return;
+    }
+
+    pointerHoverEnabledRef.current = true;
+    initialPointerItemIdRef.current = null;
+  }
+
   function handleKeyDown(event: KeyboardEvent<HTMLInputElement>) {
     if (event.nativeEvent.isComposing || event.keyCode === 229) {
       return;
@@ -291,6 +351,7 @@ export function ChatSearchDialog({ open, onOpenChange }: ChatSearchDialogProps) 
         </div>
 
         <div
+          ref={resultsRef}
           id="chat-search-results"
           role="listbox"
           aria-label={messages.shell.searchResults}
@@ -301,7 +362,8 @@ export function ChatSearchDialog({ open, onOpenChange }: ChatSearchDialogProps) 
               <SearchItemRow
                 item={{ type: "new", id: "new" }}
                 selected={activeIndex === 0}
-                onMouseEnter={() => setActiveIndex(0)}
+                onPointerHover={() => handlePointerHover("new", 0)}
+                onPointerLeave={() => handlePointerLeave("new")}
                 onClick={() => {
                   void activateItem({ type: "new", id: "new" });
                 }}
@@ -314,7 +376,8 @@ export function ChatSearchDialog({ open, onOpenChange }: ChatSearchDialogProps) 
                       key={item.id}
                       item={item}
                       selected={index === activeIndex}
-                      onMouseEnter={() => setActiveIndex(index)}
+                      onPointerHover={() => handlePointerHover(item.id, index)}
+                      onPointerLeave={() => handlePointerLeave(item.id)}
                       onClick={() => {
                         void activateItem(item);
                       }}
@@ -335,7 +398,8 @@ export function ChatSearchDialog({ open, onOpenChange }: ChatSearchDialogProps) 
                   selected={index === activeIndex}
                   resultMode
                   showDate={index === activeIndex}
-                  onMouseEnter={() => setActiveIndex(index)}
+                  onPointerHover={() => handlePointerHover(item.id, index)}
+                  onPointerLeave={() => handlePointerLeave(item.id)}
                   onClick={() => {
                     void activateItem(item);
                   }}
@@ -368,11 +432,12 @@ type SearchItemRowProps = {
   selected: boolean;
   resultMode?: boolean;
   showDate?: boolean;
-  onMouseEnter: () => void;
+  onPointerHover: () => void;
+  onPointerLeave: () => void;
   onClick: () => void;
 };
 
-function SearchItemRow({ item, query, selected, resultMode = false, showDate = false, onMouseEnter, onClick }: SearchItemRowProps) {
+function SearchItemRow({ item, query, selected, resultMode = false, showDate = false, onPointerHover, onPointerLeave, onClick }: SearchItemRowProps) {
   const { messages } = useI18n();
   const title = item.type === "new" ? messages.shell.newChat : item.conversation.title;
   const snippet = item.type === "conversation" && item.matchedText
@@ -385,8 +450,11 @@ function SearchItemRow({ item, query, selected, resultMode = false, showDate = f
       type="button"
       role="option"
       aria-selected={selected}
+      data-search-item-id={item.id}
       className={cn(searchRowClass, resultMode && "min-h-16", selected ? selectedRowClass : mutedRowClass)}
-      onMouseEnter={onMouseEnter}
+      onPointerEnter={onPointerHover}
+      onPointerMove={onPointerHover}
+      onPointerLeave={onPointerLeave}
       onClick={onClick}
     >
       {item.type === "new" ? <NewChatIcon className="size-5 shrink-0" /> : <ChatIcon className="size-5 shrink-0" />}
