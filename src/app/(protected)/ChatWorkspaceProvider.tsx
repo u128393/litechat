@@ -735,7 +735,7 @@ export function ChatWorkspaceProvider({ userId, children }: { userId: string; ch
           messageHistory,
           signal: abortController.signal,
           setMessages: (updater) => updateActiveConversationMessages(conversation.id, updater),
-          savePartialMessage: (assistantMessage) => persistAssistantMessage(updatedConversation, assistantMessage)
+          savePartialMessage: persistPartialAssistantMessage
         });
       } catch (error) {
         setChatErrorForConversation(conversation.id, resolveChatFailure(error, i18nMessages.chat));
@@ -743,7 +743,7 @@ export function ChatWorkspaceProvider({ userId, children }: { userId: string; ch
       }
 
       if (streamResult.assistantMessage) {
-        await persistAssistantMessage(updatedConversation, streamResult.assistantMessage);
+        await persistFinalAssistantMessage(updatedConversation, streamResult.assistantMessage);
       }
 
       if (streamResult.status === "success") {
@@ -779,7 +779,11 @@ export function ChatWorkspaceProvider({ userId, children }: { userId: string; ch
     }
   }
 
-  async function persistAssistantMessage(updatedConversation: ChatConversationRecord, assistantMessage: ChatMessageRecord) {
+  async function persistPartialAssistantMessage(assistantMessage: ChatMessageRecord) {
+    await conversationStore.saveMessage(assistantMessage);
+  }
+
+  async function persistFinalAssistantMessage(updatedConversation: ChatConversationRecord, assistantMessage: ChatMessageRecord) {
     await Promise.all([
       conversationStore.saveMessage(assistantMessage),
       conversationStore.saveConversation({
