@@ -10,9 +10,10 @@ type MobileDrawerProps = {
   currentUser: Pick<CurrentUser, "userId" | "email" | "role">;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onSearchOpen: () => void;
 };
 
-export function MobileDrawer({ currentUser, open, onOpenChange }: MobileDrawerProps) {
+export function MobileDrawer({ currentUser, open, onOpenChange, onSearchOpen }: MobileDrawerProps) {
   const { messages } = useI18n();
 
   return (
@@ -24,7 +25,7 @@ export function MobileDrawer({ currentUser, open, onOpenChange }: MobileDrawerPr
         closeLabel={messages.common.close}
       >
         <SheetTitle className="sr-only">{messages.shell.navigation}</SheetTitle>
-        <Sidebar />
+        <Sidebar onSearchOpen={onSearchOpen} />
         <div className="p-3">
           <UserMenu currentUser={currentUser} />
         </div>

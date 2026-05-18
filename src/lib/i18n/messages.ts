@@ -56,6 +56,10 @@ export type AppMessages = {
     themeLight: string;
     themeDark: string;
     navigation: string;
+    toggleSidebar: string;
+    showKeyboardShortcuts: string;
+    keyboardShortcutsTitle: string;
+    keyboardShortcutsDescription: string;
   };
   login: {
     tagline: string;
@@ -175,6 +179,10 @@ export const messagesByLocale: Record<AppLocale, AppMessages> = {
       themeLight: "Light",
       themeDark: "Dark",
       navigation: "Navigation",
+      toggleSidebar: "Toggle sidebar",
+      showKeyboardShortcuts: "Show keyboard shortcuts",
+      keyboardShortcutsTitle: "Keyboard shortcuts",
+      keyboardShortcutsDescription: "Use shortcuts to move faster around your workspace.",
     },
     login: {
       tagline: "Your team's AI assistant",
@@ -292,6 +300,10 @@ export const messagesByLocale: Record<AppLocale, AppMessages> = {
       themeLight: "浅色模式",
       themeDark: "深色模式",
       navigation: "导航",
+      toggleSidebar: "切换侧边栏",
+      showKeyboardShortcuts: "显示快捷键列表",
+      keyboardShortcutsTitle: "快捷键",
+      keyboardShortcutsDescription: "使用快捷键快速操作当前工作区。",
     },
     login: {
       tagline: "你的团队 AI 助手",

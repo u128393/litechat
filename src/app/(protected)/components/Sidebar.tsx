@@ -4,7 +4,6 @@ import { useLayoutEffect, useRef, useState, type UIEvent } from "react";
 import { MoreHorizontal, Search, Trash2 } from "lucide-react";
 
 import { useChatWorkspace } from "@/app/(protected)/ChatWorkspaceProvider";
-import { ChatSearchDialog } from "@/app/(protected)/components/ChatSearchDialog";
 import { useI18n } from "@/lib/i18n/provider";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -54,11 +53,11 @@ type SidebarProps = {
   className?: string;
   collapsed?: boolean;
   onCollapsedChange?: (collapsed: boolean) => void;
+  onSearchOpen?: () => void;
 };
 
-export function Sidebar({ className, collapsed = false, onCollapsedChange }: SidebarProps) {
+export function Sidebar({ className, collapsed = false, onCollapsedChange, onSearchOpen }: SidebarProps) {
   const { messages } = useI18n();
-  const [searchOpen, setSearchOpen] = useState(false);
   const {
     conversations,
     activeConversationId,
@@ -222,13 +221,11 @@ export function Sidebar({ className, collapsed = false, onCollapsedChange }: Sid
           collapsed={collapsed}
           aria-label={messages.shell.searchChat}
           title={collapsed ? messages.shell.searchChat : undefined}
-          onClick={() => setSearchOpen(true)}
+          onClick={onSearchOpen}
           icon={<Search className="size-5 shrink-0" />}
           label={messages.shell.searchChat}
         />
       </div>
-
-      <ChatSearchDialog open={searchOpen} onOpenChange={setSearchOpen} />
 
       <ScrollArea
         viewportRef={scrollViewportRef}
