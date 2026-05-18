@@ -1,6 +1,7 @@
 "use client";
 
 import { useLayoutEffect, useRef, useState, type UIEvent } from "react";
+import { usePathname } from "next/navigation";
 import { MoreHorizontal, Search, Trash2 } from "lucide-react";
 
 import { useChatWorkspace } from "@/app/(protected)/ChatWorkspaceProvider";
@@ -59,6 +60,7 @@ type SidebarProps = {
 
 export function Sidebar({ className, collapsed = false, onCollapsedChange, onSearchOpen, onNavigate }: SidebarProps) {
   const { messages } = useI18n();
+  const pathname = usePathname();
   const {
     conversations,
     activeConversationId,
@@ -80,6 +82,7 @@ export function Sidebar({ className, collapsed = false, onCollapsedChange, onSea
   const loadOlderConversationsRef = useRef(loadOlderConversations);
   const loadNewerConversationsRef = useRef(loadNewerConversations);
   const consumedRevealTokenRef = useRef<number | null>(null);
+  const isNewChatActive = pathname === "/";
 
   const grouped = groupConversationsByDate(conversations, {
     today: messages.shell.conversationGroupToday,
@@ -209,8 +212,10 @@ export function Sidebar({ className, collapsed = false, onCollapsedChange, onSea
       <div className={cn("flex flex-col gap-2 pb-3", sidebarSectionXClass)}>
         <SidebarItem
           collapsed={collapsed}
+          aria-current={isNewChatActive ? "page" : undefined}
           aria-label={messages.shell.newChat}
           title={collapsed ? messages.shell.newChat : undefined}
+          className={isNewChatActive ? "bg-[var(--lc-bg-tertiary)]" : undefined}
           onClick={() => {
             onNavigate?.();
             void createNewConversation();
