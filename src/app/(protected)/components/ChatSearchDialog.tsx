@@ -35,7 +35,7 @@ type SearchListItem =
     };
 
 const dialogPanelClass =
-  "h-[440px] max-h-[calc(100dvh-4rem)] w-[min(680px,calc(100vw-1.5rem))] max-w-none gap-0 overflow-hidden rounded-[20px] border border-[var(--lc-border)] bg-[var(--lc-bg-primary)] p-0 shadow-2xl sm:max-w-none";
+  "top-0 left-0 right-0 bottom-0 flex h-dvh max-h-dvh w-screen max-w-none translate-x-0 translate-y-0 flex-col gap-0 overflow-hidden rounded-none border-0 bg-[var(--lc-bg-primary)] p-0 shadow-none sm:top-1/2 sm:left-1/2 sm:right-auto sm:bottom-auto sm:h-[440px] sm:max-h-[calc(100dvh-4rem)] sm:w-[min(680px,calc(100vw-1.5rem))] sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-[20px] sm:border sm:border-[var(--lc-border)] sm:shadow-2xl sm:max-w-none";
 const searchRowClass =
   "flex min-h-12 w-full items-center gap-3 rounded-[14px] px-3 text-left text-[var(--lc-text-primary)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--lc-accent)]";
 const searchGroupLabelClass =
@@ -294,7 +294,7 @@ export function ChatSearchDialog({ open, onOpenChange }: ChatSearchDialogProps) 
           id="chat-search-results"
           role="listbox"
           aria-label={messages.shell.searchResults}
-          className="h-[376px] min-h-0 overflow-y-auto px-2 py-2"
+          className="min-h-0 flex-1 overflow-y-auto px-2 py-2 sm:h-[376px] sm:flex-none"
         >
           {!isQuerying ? (
             <div className="flex flex-col gap-1">
