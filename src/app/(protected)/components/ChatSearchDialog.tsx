@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
 import { X } from "lucide-react";
 
 import {
@@ -37,7 +37,7 @@ type SearchListItem =
 const dialogPanelClass =
   "top-0 left-0 right-0 bottom-0 flex h-dvh max-h-dvh w-screen max-w-none translate-x-0 translate-y-0 flex-col gap-0 overflow-hidden rounded-none border-0 bg-[var(--lc-bg-primary)] p-0 shadow-none sm:top-1/2 sm:left-1/2 sm:right-auto sm:bottom-auto sm:h-[440px] sm:max-h-[calc(100dvh-4rem)] sm:w-[min(680px,calc(100vw-1.5rem))] sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-[20px] sm:border sm:border-[var(--lc-border)] sm:shadow-2xl sm:max-w-none";
 const searchRowClass =
-  "flex min-h-12 w-full items-center gap-3 rounded-[14px] px-3 text-left text-[var(--lc-text-primary)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--lc-accent)]";
+  "flex min-h-12 w-full items-center gap-3 rounded-[14px] px-3 text-left text-[var(--lc-text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--lc-accent)]";
 const searchGroupLabelClass =
   "px-3 pb-1 pt-2 text-[12px] font-medium text-[var(--lc-text-secondary)]";
 const selectedRowClass = "bg-[var(--lc-bg-tertiary)]";
@@ -56,6 +56,8 @@ export function ChatSearchDialog({ open, onOpenChange }: ChatSearchDialogProps) 
   const abortControllerRef = useRef<AbortController | null>(null);
   const pointerHoverEnabledRef = useRef(true);
   const initialPointerItemIdRef = useRef<string | null>(null);
+  const hoverResumePositionRef = useRef<{ x: number; y: number } | null>(null);
+  const lastPointerPositionRef = useRef<{ x: number; y: number } | null>(null);
   const [query, setQuery] = useState("");
   const [recentConversations, setRecentConversations] = useState<ChatConversationRecord[]>([]);
   const [recentConversationsLoaded, setRecentConversationsLoaded] = useState(false);
@@ -87,9 +89,12 @@ export function ChatSearchDialog({ open, onOpenChange }: ChatSearchDialogProps) 
     })),
     [results]
   );
-  const listItems = isQuerying
-    ? searchItems
-    : [{ type: "new", id: "new" } satisfies SearchListItem, ...defaultConversationItems];
+  const listItems = useMemo(
+    () => isQuerying
+      ? searchItems
+      : [{ type: "new", id: "new" } satisfies SearchListItem, ...defaultConversationItems],
+    [defaultConversationItems, isQuerying, searchItems]
+  );
   const groupedDefaultItems = useMemo(
     () => groupConversationItemsByDate(defaultConversationItems, {
       today: messages.shell.conversationGroupToday,
@@ -114,11 +119,14 @@ export function ChatSearchDialog({ open, onOpenChange }: ChatSearchDialogProps) 
       setActiveIndex(0);
       pointerHoverEnabledRef.current = true;
       initialPointerItemIdRef.current = null;
+      hoverResumePositionRef.current = null;
+      lastPointerPositionRef.current = null;
       return;
     }
 
     pointerHoverEnabledRef.current = false;
     initialPointerItemIdRef.current = null;
+    hoverResumePositionRef.current = null;
 
     const timer = window.setTimeout(() => inputRef.current?.focus(), 50);
     return () => window.clearTimeout(timer);
@@ -162,6 +170,7 @@ export function ChatSearchDialog({ open, onOpenChange }: ChatSearchDialogProps) 
 
       pointerHoverEnabledRef.current = hoveredItemId === null;
       initialPointerItemIdRef.current = hoveredItemId;
+      hoverResumePositionRef.current = null;
     });
 
     return () => window.cancelAnimationFrame(frame);
@@ -174,6 +183,7 @@ export function ChatSearchDialog({ open, onOpenChange }: ChatSearchDialogProps) 
 
     pointerHoverEnabledRef.current = true;
     initialPointerItemIdRef.current = null;
+    hoverResumePositionRef.current = null;
   }, [isQuerying]);
 
   useEffect(() => {
@@ -249,6 +259,14 @@ export function ChatSearchDialog({ open, onOpenChange }: ChatSearchDialogProps) 
     }
   }, [activeIndex, listItems.length]);
 
+  useLayoutEffect(() => {
+    if (!open) {
+      return;
+    }
+
+    scrollItemIntoView(activeIndex);
+  }, [activeIndex, activeItem?.id, listItems.length, open]);
+
   function closeDialog() {
     abortControllerRef.current?.abort();
     onOpenChange(false);
@@ -269,26 +287,83 @@ export function ChatSearchDialog({ open, onOpenChange }: ChatSearchDialogProps) 
     await selectConversation(item.conversation.id, { source: "search" });
   }
 
-  function handlePointerHover(itemId: string, index: number) {
+  function scrollItemIntoView(index: number) {
+    const container = resultsRef.current;
+    const item = listItems[index];
+
+    if (!container || !item) {
+      return;
+    }
+
+    const activeRow = getSearchItemRow(container, item.id);
+
+    if (!activeRow) {
+      return;
+    }
+
+    scrollElementIntoView(activeRow, container);
+  }
+
+  function suspendPointerHoverUntilPointerMoves() {
+    const hoveredRow = resultsRef.current?.querySelector<HTMLElement>("button[data-search-item-id]:hover");
+
+    if (!hoveredRow) {
+      return;
+    }
+
+    pointerHoverEnabledRef.current = false;
+    initialPointerItemIdRef.current = hoveredRow.dataset.searchItemId ?? null;
+    hoverResumePositionRef.current = lastPointerPositionRef.current;
+  }
+
+  function moveActiveIndex(delta: number) {
+    const nextIndex = Math.min(Math.max(activeIndex + delta, 0), Math.max(listItems.length - 1, 0));
+
+    if (nextIndex === activeIndex) {
+      return;
+    }
+
+    scrollItemIntoView(nextIndex);
+    suspendPointerHoverUntilPointerMoves();
+    setActiveIndex(nextIndex);
+  }
+
+  function handlePointerHover(itemId: string, index: number, event: PointerEvent<HTMLButtonElement>) {
+    lastPointerPositionRef.current = { x: event.clientX, y: event.clientY };
+
     if (!pointerHoverEnabledRef.current) {
-      if (initialPointerItemIdRef.current === null || initialPointerItemIdRef.current === itemId) {
+      const hoverResumePosition = hoverResumePositionRef.current;
+      const hasPointerMoved = hoverResumePosition
+        ? hoverResumePosition.x !== event.clientX || hoverResumePosition.y !== event.clientY
+        : true;
+
+      if (
+        !hasPointerMoved ||
+        (!hoverResumePosition && (initialPointerItemIdRef.current === null || initialPointerItemIdRef.current === itemId))
+      ) {
         return;
       }
 
       pointerHoverEnabledRef.current = true;
       initialPointerItemIdRef.current = null;
+      hoverResumePositionRef.current = null;
     }
 
     setActiveIndex(index);
   }
 
   function handlePointerLeave(itemId: string) {
+    if (hoverResumePositionRef.current) {
+      return;
+    }
+
     if (initialPointerItemIdRef.current !== itemId) {
       return;
     }
 
     pointerHoverEnabledRef.current = true;
     initialPointerItemIdRef.current = null;
+    hoverResumePositionRef.current = null;
   }
 
   function handleKeyDown(event: KeyboardEvent<HTMLInputElement>) {
@@ -298,13 +373,13 @@ export function ChatSearchDialog({ open, onOpenChange }: ChatSearchDialogProps) 
 
     if (event.key === "ArrowDown") {
       event.preventDefault();
-      setActiveIndex((currentIndex) => Math.min(currentIndex + 1, Math.max(listItems.length - 1, 0)));
+      moveActiveIndex(1);
       return;
     }
 
     if (event.key === "ArrowUp") {
       event.preventDefault();
-      setActiveIndex((currentIndex) => Math.max(currentIndex - 1, 0));
+      moveActiveIndex(-1);
       return;
     }
 
@@ -362,7 +437,7 @@ export function ChatSearchDialog({ open, onOpenChange }: ChatSearchDialogProps) 
               <SearchItemRow
                 item={{ type: "new", id: "new" }}
                 selected={activeIndex === 0}
-                onPointerHover={() => handlePointerHover("new", 0)}
+                onPointerHover={(event) => handlePointerHover("new", 0, event)}
                 onPointerLeave={() => handlePointerLeave("new")}
                 onClick={() => {
                   void activateItem({ type: "new", id: "new" });
@@ -376,7 +451,7 @@ export function ChatSearchDialog({ open, onOpenChange }: ChatSearchDialogProps) 
                       key={item.id}
                       item={item}
                       selected={index === activeIndex}
-                      onPointerHover={() => handlePointerHover(item.id, index)}
+                      onPointerHover={(event) => handlePointerHover(item.id, index, event)}
                       onPointerLeave={() => handlePointerLeave(item.id)}
                       onClick={() => {
                         void activateItem(item);
@@ -398,7 +473,7 @@ export function ChatSearchDialog({ open, onOpenChange }: ChatSearchDialogProps) 
                   selected={index === activeIndex}
                   resultMode
                   showDate={index === activeIndex}
-                  onPointerHover={() => handlePointerHover(item.id, index)}
+                  onPointerHover={(event) => handlePointerHover(item.id, index, event)}
                   onPointerLeave={() => handlePointerLeave(item.id)}
                   onClick={() => {
                     void activateItem(item);
@@ -432,7 +507,7 @@ type SearchItemRowProps = {
   selected: boolean;
   resultMode?: boolean;
   showDate?: boolean;
-  onPointerHover: () => void;
+  onPointerHover: (event: PointerEvent<HTMLButtonElement>) => void;
   onPointerLeave: () => void;
   onClick: () => void;
 };
@@ -577,6 +652,24 @@ function formatExactDate(dateText: string) {
     month: "numeric",
     day: "numeric",
   }).format(date);
+}
+
+function getSearchItemRow(container: HTMLElement, itemId: string) {
+  return container.querySelector<HTMLElement>(`#${CSS.escape(`chat-search-${itemId}`)}`);
+}
+
+function scrollElementIntoView(element: HTMLElement, container: HTMLElement) {
+  const elementRect = element.getBoundingClientRect();
+  const containerRect = container.getBoundingClientRect();
+
+  if (elementRect.top < containerRect.top) {
+    container.scrollTop -= containerRect.top - elementRect.top;
+    return;
+  }
+
+  if (elementRect.bottom > containerRect.bottom) {
+    container.scrollTop += elementRect.bottom - containerRect.bottom;
+  }
 }
 
 function NewChatIcon(props: React.SVGProps<SVGSVGElement>) {
