@@ -30,7 +30,6 @@ export function ProtectedShell({ currentUser, initialSidebarCollapsed, children 
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [shortcutPlatform, setShortcutPlatform] = useState<"mac" | "other">("other");
   const preferencesStore = useMemo(() => createBrowserPreferencesStore(currentUser.userId), [currentUser.userId]);
-  const initials = currentUser.email.slice(0, 2).toUpperCase();
 
   useEffect(() => {
     const platform = navigator.platform.toLowerCase();
@@ -130,9 +129,7 @@ export function ProtectedShell({ currentUser, initialSidebarCollapsed, children 
             <Menu className="size-5" />
           </button>
           <MobileModelSelector />
-          <div className="flex size-7 items-center justify-center rounded-full bg-[var(--lc-accent)] text-[10px] font-semibold text-white">
-            {initials}
-          </div>
+          <div className="size-8" aria-hidden="true" />
         </div>
 
         {children}
