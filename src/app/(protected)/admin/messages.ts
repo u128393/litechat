@@ -106,7 +106,7 @@ export type AdminMessages = {
     providerLabel: string;
     modelIdLabel: string;
     displayNameLabel: string;
-    enabledLabel: string;
+    visibleLabel: string;
     supportsWebSearchLabel: string;
     dragHandleLabel: string;
     successCreate: string;
@@ -215,7 +215,7 @@ export const adminMessagesByLocale: Record<AppLocale, AdminMessages> = {
       title: "Model management",
       description: "Create and update the selectable models backed by configured providers.",
       emptyTitle: "No models configured yet.",
-      emptyDescription: "Create at least one enabled model to make it available in the app.",
+      emptyDescription: "Create at least one visible model to make it available in the app.",
       blockedTitle: "Create a provider first.",
       blockedDescription: "Models require an existing provider configuration.",
       createAction: "Create model",
@@ -232,7 +232,7 @@ export const adminMessagesByLocale: Record<AppLocale, AdminMessages> = {
       providerLabel: "Provider",
       modelIdLabel: "Model ID",
       displayNameLabel: "Display name",
-      enabledLabel: "Enabled",
+      visibleLabel: "Visible",
       supportsWebSearchLabel: "Supports web search",
       dragHandleLabel: "Reorder model",
       successCreate: "Model created.",
@@ -338,7 +338,7 @@ export const adminMessagesByLocale: Record<AppLocale, AdminMessages> = {
       title: "模型管理",
       description: "创建并更新由已配置提供商支持的可选模型。",
       emptyTitle: "尚未配置模型。",
-      emptyDescription: "请至少创建一个启用中的模型，应用内才可选择。",
+      emptyDescription: "请至少创建一个可见模型，应用内才可选择。",
       blockedTitle: "请先创建提供商。",
       blockedDescription: "模型依赖现有提供商配置。",
       createAction: "创建模型",
@@ -355,7 +355,7 @@ export const adminMessagesByLocale: Record<AppLocale, AdminMessages> = {
       providerLabel: "提供商",
       modelIdLabel: "模型 ID",
       displayNameLabel: "显示名称",
-      enabledLabel: "已启用",
+      visibleLabel: "可见",
       supportsWebSearchLabel: "支持网页搜索",
       dragHandleLabel: "调整模型顺序",
       successCreate: "模型已创建。",

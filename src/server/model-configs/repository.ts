@@ -8,7 +8,7 @@ export type ModelConfigRow = {
   providerConfigId: string;
   modelId: string;
   displayName: string;
-  enabled: boolean;
+  visible: boolean;
   supportsWebSearch: boolean;
   sortOrder: number;
   createdAt: string;
@@ -19,7 +19,7 @@ export type CreateModelConfigRow = ModelConfigRow;
 
 export type UpdateModelConfigRow = Partial<Pick<
   ModelConfigRow,
-  "providerConfigId" | "modelId" | "displayName" | "enabled" | "supportsWebSearch" | "sortOrder" | "updatedAt"
+  "providerConfigId" | "modelId" | "displayName" | "visible" | "supportsWebSearch" | "sortOrder" | "updatedAt"
 >>;
 
 export const getModelConfigRepository = defineRepository(({ db, dialect }) => {
@@ -37,14 +37,14 @@ export const getModelConfigRepository = defineRepository(({ db, dialect }) => {
         .orderBy(asc(modelConfigs.sortOrder), asc(modelConfigs.createdAt));
     },
 
-    async listUserSelectableModelConfigs(): Promise<ModelConfigRow[]> {
+    async listUserVisibleModelConfigs(): Promise<ModelConfigRow[]> {
       const rows = await database
         .select({
           id: modelConfigs.id,
           providerConfigId: modelConfigs.providerConfigId,
           modelId: modelConfigs.modelId,
           displayName: modelConfigs.displayName,
-          enabled: modelConfigs.enabled,
+          visible: modelConfigs.visible,
           supportsWebSearch: modelConfigs.supportsWebSearch,
           sortOrder: modelConfigs.sortOrder,
           createdAt: modelConfigs.createdAt,
@@ -52,7 +52,7 @@ export const getModelConfigRepository = defineRepository(({ db, dialect }) => {
         })
         .from(modelConfigs)
         .innerJoin(providerConfigs, eq(modelConfigs.providerConfigId, providerConfigs.id))
-        .where(and(eq(modelConfigs.enabled, true), eq(providerConfigs.enabled, true)))
+        .where(and(eq(modelConfigs.visible, true), eq(providerConfigs.enabled, true)))
         .orderBy(asc(modelConfigs.sortOrder), asc(modelConfigs.displayName), asc(modelConfigs.createdAt));
 
       return rows;

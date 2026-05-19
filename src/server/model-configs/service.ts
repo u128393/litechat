@@ -10,7 +10,7 @@ export type ModelConfig = {
   providerConfigId: string;
   modelId: string;
   displayName: string;
-  enabled: boolean;
+  visible: boolean;
   supportsWebSearch: boolean;
   sortOrder: number;
   createdAt: string;
@@ -28,7 +28,7 @@ export type CreateModelConfigInput = {
   providerConfigId: string;
   modelId: string;
   displayName: string;
-  enabled?: boolean;
+  visible?: boolean;
   supportsWebSearch?: boolean;
   sortOrder?: number;
 };
@@ -37,7 +37,7 @@ export type UpdateModelConfigInput = {
   providerConfigId?: string;
   modelId?: string;
   displayName?: string;
-  enabled?: boolean;
+  visible?: boolean;
   supportsWebSearch?: boolean;
   sortOrder?: number;
 };
@@ -65,7 +65,7 @@ export async function listModelConfigs(database?: DatabaseConnection): Promise<M
 
 export async function listUserSelectableModels(database?: DatabaseConnection): Promise<UserSelectableModel[]> {
   const repository = getModelConfigRepository(database);
-  const modelConfigRows = await repository.listUserSelectableModelConfigs();
+  const modelConfigRows = await repository.listUserVisibleModelConfigs();
 
   return modelConfigRows.map((modelConfig) => ({
     id: modelConfig.id,
@@ -100,7 +100,7 @@ export async function createModelConfig(
     providerConfigId: input.providerConfigId,
     modelId: input.modelId,
     displayName: input.displayName,
-    enabled: input.enabled ?? true,
+    visible: input.visible ?? true,
     supportsWebSearch: input.supportsWebSearch ?? false,
     sortOrder: input.sortOrder ?? nextSortOrder,
     createdAt: now,
@@ -147,8 +147,8 @@ export async function updateModelConfig(
     updates.displayName = input.displayName;
   }
 
-  if (input.enabled !== undefined) {
-    updates.enabled = input.enabled;
+  if (input.visible !== undefined) {
+    updates.visible = input.visible;
   }
 
   if (input.supportsWebSearch !== undefined) {
@@ -222,7 +222,7 @@ function toModelConfig(modelConfig: ModelConfigRow): ModelConfig {
     providerConfigId: modelConfig.providerConfigId,
     modelId: modelConfig.modelId,
     displayName: modelConfig.displayName,
-    enabled: modelConfig.enabled,
+    visible: modelConfig.visible,
     supportsWebSearch: modelConfig.supportsWebSearch,
     sortOrder: modelConfig.sortOrder,
     createdAt: modelConfig.createdAt,

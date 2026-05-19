@@ -84,7 +84,7 @@ type ModelFormState = {
   providerConfigId: string;
   modelId: string;
   displayName: string;
-  enabled: boolean;
+  visible: boolean;
   supportsWebSearch: boolean;
 };
 
@@ -136,7 +136,7 @@ function createDefaultModelForm(
     providerConfigId: providerConfigs[0]?.id ?? "",
     modelId: "",
     displayName: "",
-    enabled: true,
+    visible: true,
     supportsWebSearch: false,
   };
 }
@@ -177,8 +177,7 @@ export function AdminManagementClient({
   const [titleGenerationModelConfigId, setTitleGenerationModelConfigId] = useState(
     initialAppSettings.titleGenerationModelConfigId
   );
-  const enabledModelConfigs = modelConfigs.filter((modelConfig) => modelConfig.enabled);
-  const selectedTitleGenerationModelConfigId = enabledModelConfigs.some(
+  const selectedTitleGenerationModelConfigId = modelConfigs.some(
     (modelConfig) => modelConfig.id === titleGenerationModelConfigId
   )
     ? titleGenerationModelConfigId
@@ -653,7 +652,7 @@ export function AdminManagementClient({
     setModelDialogOpen(true);
   }
 
-  async function toggleModelEnabled(modelConfig: ModelConfig) {
+  async function toggleModelVisible(modelConfig: ModelConfig) {
     setTogglingModelId(modelConfig.id);
     try {
       const response = await fetch(
@@ -661,7 +660,7 @@ export function AdminManagementClient({
         {
           method: "PATCH",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify({ enabled: !modelConfig.enabled }),
+          body: JSON.stringify({ visible: !modelConfig.visible }),
         },
       );
       const payload = await readJsonResponse(response);
@@ -704,7 +703,7 @@ export function AdminManagementClient({
             providerConfigId: modelForm.providerConfigId,
             modelId: modelForm.modelId,
             displayName: modelForm.displayName,
-            enabled: modelForm.enabled,
+            visible: modelForm.visible,
             supportsWebSearch: modelForm.supportsWebSearch,
           }),
         },
@@ -1270,8 +1269,8 @@ export function AdminManagementClient({
                     <span className="w-[50px] text-center text-xs font-medium text-[var(--lc-text-secondary)]">
                       {adminMessages.webSearchShortLabel}
                     </span>
-                    <span className="w-20 text-right text-xs font-medium text-[var(--lc-text-secondary)]">
-                      {adminMessages.models.enabledLabel}
+                    <span className="w-20 text-center text-xs font-medium text-[var(--lc-text-secondary)]">
+                      {adminMessages.models.visibleLabel}
                     </span>
                     <span className="w-10 text-right text-xs font-medium text-[var(--lc-text-secondary)]">
                       {adminMessages.actionsLabel}
@@ -1334,14 +1333,14 @@ export function AdminManagementClient({
                               ) : null}
                             </span>
                             <span
-                              className="flex w-20 justify-end"
+                              className="flex w-20 justify-center"
                               onClick={(e) => e.stopPropagation()}
                             >
                               <SwitchToggle
-                                checked={modelConfig.enabled}
+                                checked={modelConfig.visible}
                                 disabled={togglingModelId === modelConfig.id}
                                 onChange={() =>
-                                  void toggleModelEnabled(modelConfig)
+                                  void toggleModelVisible(modelConfig)
                                 }
                               />
                             </span>
@@ -1419,7 +1418,7 @@ export function AdminManagementClient({
                     </div>
                     <div className="w-full shrink-0 sm:w-[280px]">
                       <Select
-                        items={toTitleGenerationModelItems(enabledModelConfigs, adminMessages.settings.useChatModel)}
+                        items={toTitleGenerationModelItems(modelConfigs, adminMessages.settings.useChatModel)}
                         value={selectedTitleGenerationModelConfigId ?? chatModelTitleGenerationValue}
                         onValueChange={(value) => {
                           void updateTitleGenerationModelConfig(
@@ -1435,7 +1434,7 @@ export function AdminManagementClient({
                           <SelectItem value={chatModelTitleGenerationValue}>
                             {adminMessages.settings.useChatModel}
                           </SelectItem>
-                          {enabledModelConfigs.map((modelConfig) => (
+                          {modelConfigs.map((modelConfig) => (
                             <SelectItem key={modelConfig.id} value={modelConfig.id}>
                               {modelConfig.displayName}
                             </SelectItem>
@@ -1879,16 +1878,6 @@ export function AdminManagementClient({
                 </FormField>
 
                 <div className="flex items-center justify-between">
-                  <Label>{adminMessages.models.enabledLabel}</Label>
-                  <SwitchToggle
-                    checked={modelForm.enabled}
-                    onChange={() =>
-                      setModelForm((f) => ({ ...f, enabled: !f.enabled }))
-                    }
-                  />
-                </div>
-
-                <div className="flex items-center justify-between">
                   <Label>{adminMessages.models.supportsWebSearchLabel}</Label>
                   <SwitchToggle
                     checked={modelForm.supportsWebSearch}
@@ -1897,6 +1886,16 @@ export function AdminManagementClient({
                         ...f,
                         supportsWebSearch: !f.supportsWebSearch,
                       }))
+                    }
+                  />
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <Label>{adminMessages.models.visibleLabel}</Label>
+                  <SwitchToggle
+                    checked={modelForm.visible}
+                    onChange={() =>
+                      setModelForm((f) => ({ ...f, visible: !f.visible }))
                     }
                   />
                 </div>
@@ -2311,17 +2310,17 @@ function ModelDragPreview({
           <Globe className="size-[14px] text-[var(--lc-text-tertiary)]" />
         ) : null}
       </span>
-      <span className="flex w-20 justify-end">
+      <span className="flex w-20 justify-center">
         <span
           className={`relative inline-flex h-[20px] w-[36px] shrink-0 rounded-full border border-transparent ${
-            modelConfig.enabled
+            modelConfig.visible
               ? "bg-[var(--lc-accent)]"
               : "bg-[var(--lc-border)]"
           }`}
         >
           <span
             className={`pointer-events-none block size-[16px] rounded-full bg-white shadow-sm ${
-              modelConfig.enabled ? "translate-x-[18px]" : "translate-x-[2px]"
+              modelConfig.visible ? "translate-x-[18px]" : "translate-x-[2px]"
             } mt-[1px]`}
           />
         </span>
@@ -2413,7 +2412,7 @@ function createModelForm(
     providerConfigId: modelConfig.providerConfigId,
     modelId: modelConfig.modelId,
     displayName: modelConfig.displayName,
-    enabled: modelConfig.enabled,
+    visible: modelConfig.visible,
     supportsWebSearch: modelConfig.supportsWebSearch,
   };
 }

@@ -14,7 +14,7 @@ export async function parseCreateModelConfigRequest(request: Request): Promise<V
   const providerConfigId = readRequiredString(body.providerConfigId, "providerConfigId");
   const modelId = readRequiredString(body.modelId, "modelId");
   const displayName = readRequiredString(body.displayName, "displayName");
-  const enabled = readOptionalBoolean(body.enabled, "enabled");
+  const visible = readOptionalBoolean(body.visible, "visible");
   const supportsWebSearch = readOptionalBoolean(body.supportsWebSearch, "supportsWebSearch");
   const sortOrder = readOptionalInteger(body.sortOrder, "sortOrder");
 
@@ -30,8 +30,8 @@ export async function parseCreateModelConfigRequest(request: Request): Promise<V
     return invalid(displayName.error);
   }
 
-  if (enabled.error) {
-    return invalid(enabled.error);
+  if (visible.error) {
+    return invalid(visible.error);
   }
 
   if (supportsWebSearch.error) {
@@ -48,7 +48,7 @@ export async function parseCreateModelConfigRequest(request: Request): Promise<V
       providerConfigId: providerConfigId.value!,
       modelId: modelId.value!,
       displayName: displayName.value!,
-      enabled: enabled.value ?? true,
+      visible: visible.value ?? true,
       supportsWebSearch: supportsWebSearch.value ?? false,
       sortOrder: sortOrder.value ?? 0
     }
@@ -94,14 +94,14 @@ export async function parseUpdateModelConfigRequest(request: Request): Promise<V
     updates.displayName = displayName.value!;
   }
 
-  if (Object.hasOwn(body, "enabled")) {
-    const enabled = readOptionalBoolean(body.enabled, "enabled");
+  if (Object.hasOwn(body, "visible")) {
+    const visible = readOptionalBoolean(body.visible, "visible");
 
-    if (enabled.error || enabled.value === undefined) {
-      return invalid(enabled.error ?? "enabled must be a boolean.");
+    if (visible.error || visible.value === undefined) {
+      return invalid(visible.error ?? "visible must be a boolean.");
     }
 
-    updates.enabled = enabled.value;
+    updates.visible = visible.value;
   }
 
   if (Object.hasOwn(body, "supportsWebSearch")) {

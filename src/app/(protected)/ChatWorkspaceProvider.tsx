@@ -337,7 +337,7 @@ export function ChatWorkspaceProvider({ userId, children }: { userId: string; ch
       ]);
 
       if (!response.ok) {
-        throw new Error("Unable to load enabled models.");
+        throw new Error("Unable to load available models.");
       }
 
       const payload = (await response.json()) as { models?: UserSelectableModel[] };

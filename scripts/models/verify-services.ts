@@ -46,7 +46,7 @@ async function main() {
         providerConfigId: "missing-provider",
         modelId: "gpt-missing",
         displayName: "Missing Provider",
-        enabled: true
+        visible: true
       },
       database
     );
@@ -56,23 +56,23 @@ async function main() {
       "model config creation should reject missing provider references"
     );
 
-    const enabledModelResult = await createModelConfig(
+    const visibleModelResult = await createModelConfig(
       {
         providerConfigId: enabledProvider.id,
         modelId: "gpt-4.1",
         displayName: "GPT 4.1",
-        enabled: true,
+        visible: true,
         supportsWebSearch: true,
         sortOrder: 5
       },
       database
     );
-    const disabledModelResult = await createModelConfig(
+    const hiddenModelResult = await createModelConfig(
       {
         providerConfigId: enabledProvider.id,
-        modelId: "gpt-disabled",
-        displayName: "Disabled Model",
-        enabled: false,
+        modelId: "gpt-hidden",
+        displayName: "Hidden Model",
+        visible: false,
         supportsWebSearch: false,
         sortOrder: 10
       },
@@ -83,23 +83,23 @@ async function main() {
         providerConfigId: disabledProvider.id,
         modelId: "gpt-provider-off",
         displayName: "Provider Disabled Model",
-        enabled: true,
+        visible: true,
         supportsWebSearch: false,
         sortOrder: 15
       },
       database
     );
 
-    assert(enabledModelResult.success, "valid model config should be created");
-    assert(disabledModelResult.success, "disabled model config should still be persisted");
+    assert(visibleModelResult.success, "valid model config should be created");
+    assert(hiddenModelResult.success, "hidden model config should still be persisted");
     assert(blockedByProviderResult.success, "model config can be tied to an existing disabled provider");
 
     const repository = getModelConfigRepository(database);
-    const storedEnabledModel = await repository.getModelConfigById(enabledModelResult.modelConfig.id);
+    const storedVisibleModel = await repository.getModelConfigById(visibleModelResult.modelConfig.id);
     const listedModels = await listModelConfigs(database);
     const userSelectableModels = await listUserSelectableModels(database);
     const updatedModelResult = await updateModelConfig(
-      enabledModelResult.modelConfig.id,
+      visibleModelResult.modelConfig.id,
       {
         supportsWebSearch: false,
         sortOrder: 1
@@ -107,10 +107,10 @@ async function main() {
       database
     );
 
-    assert(storedEnabledModel?.supportsWebSearch === true, "web search support should persist on create");
+    assert(storedVisibleModel?.supportsWebSearch === true, "web search support should persist on create");
     assert(listedModels.length === 3, "admin model listing should include all stored model configs");
-    assert(userSelectableModels.length === 1, "user model listing should exclude disabled models and disabled providers");
-    assert(userSelectableModels[0]?.id === enabledModelResult.modelConfig.id, "user model listing should include enabled model ids");
+    assert(userSelectableModels.length === 1, "user model listing should exclude hidden models and disabled providers");
+    assert(userSelectableModels[0]?.id === visibleModelResult.modelConfig.id, "user model listing should include visible model ids");
     assert(userSelectableModels[0]?.supportsWebSearch === true, "user model listing should expose web search support");
     assert(updatedModelResult.success, "model config update should succeed");
     assert(updatedModelResult.modelConfig.supportsWebSearch === false, "model config updates should persist web search support");
@@ -120,15 +120,15 @@ async function main() {
       {
         modelConfigIds: [
           blockedByProviderResult.modelConfig.id,
-          enabledModelResult.modelConfig.id,
-          disabledModelResult.modelConfig.id
+          visibleModelResult.modelConfig.id,
+          hiddenModelResult.modelConfig.id
         ]
       },
       database
     );
     const mismatchReorderResult = await reorderModelConfigs(
       {
-        modelConfigIds: [enabledModelResult.modelConfig.id]
+        modelConfigIds: [visibleModelResult.modelConfig.id]
       },
       database
     );
@@ -137,7 +137,7 @@ async function main() {
         providerConfigId: enabledProvider.id,
         modelId: "gpt-default-top",
         displayName: "Default Top Model",
-        enabled: true,
+        visible: true,
         supportsWebSearch: false
       },
       database
@@ -149,13 +149,13 @@ async function main() {
     assert(defaultTopModelResult.success, "model config creation should default to the top of the list");
     assert(reorderedModels[0]?.id === defaultTopModelResult.modelConfig.id, "new model configs should default above existing models");
     assert(reorderedModels[1]?.id === blockedByProviderResult.modelConfig.id, "admin model listing should use reordered sort order");
-    assert(reorderedModels[2]?.id === enabledModelResult.modelConfig.id, "admin model listing should persist middle reordered model");
-    assert(reorderedModels[3]?.id === disabledModelResult.modelConfig.id, "admin model listing should persist last reordered model");
+    assert(reorderedModels[2]?.id === visibleModelResult.modelConfig.id, "admin model listing should persist middle reordered model");
+    assert(reorderedModels[3]?.id === hiddenModelResult.modelConfig.id, "admin model listing should persist last reordered model");
     assert(reorderedUserSelectableModels[0]?.id === defaultTopModelResult.modelConfig.id, "user model listing should expose newly created top model first");
-    assert(reorderedUserSelectableModels[1]?.id === enabledModelResult.modelConfig.id, "user model listing should preserve reordered active model order");
+    assert(reorderedUserSelectableModels[1]?.id === visibleModelResult.modelConfig.id, "user model listing should preserve reordered visible model order");
     assert(!mismatchReorderResult.success && mismatchReorderResult.error === "model_config_order_mismatch", "model config reorder should reject incomplete order lists");
 
-    process.stdout.write(`Verified model config storage, validation, updates, and active filtering using ${sqlitePath}.\n`);
+    process.stdout.write(`Verified model config storage, validation, updates, and visible filtering using ${sqlitePath}.\n`);
   } finally {
     await database.close();
 

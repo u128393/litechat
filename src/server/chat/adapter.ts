@@ -99,6 +99,21 @@ export async function resolveChatModelTarget(
   modelConfigId: string,
   database?: DatabaseConnection
 ): Promise<ChatModelTarget> {
+  return resolveModelTarget(modelConfigId, { allowHidden: false }, database);
+}
+
+export async function resolveTitleGenerationModelTarget(
+  modelConfigId: string,
+  database?: DatabaseConnection
+): Promise<ChatModelTarget> {
+  return resolveModelTarget(modelConfigId, { allowHidden: true }, database);
+}
+
+async function resolveModelTarget(
+  modelConfigId: string,
+  options: { allowHidden: boolean },
+  database?: DatabaseConnection
+): Promise<ChatModelTarget> {
   const modelRepository = getModelConfigRepository(database);
   const modelConfig = await modelRepository.getModelConfigById(modelConfigId);
 
@@ -106,7 +121,7 @@ export async function resolveChatModelTarget(
     throw new ChatAdapterError("model_config_not_found", "The selected model could not be found.");
   }
 
-  if (!modelConfig.enabled) {
+  if (!options.allowHidden && !modelConfig.visible) {
     throw new ChatAdapterError("model_not_available", "The selected model is not available.");
   }
 

@@ -70,14 +70,14 @@ function defineSqliteSchema() {
       .references(() => providerConfigs.id, { onDelete: "cascade" }),
     modelId: sqliteText("model_id").notNull(),
     displayName: sqliteText("display_name").notNull(),
-    enabled: sqliteInteger("enabled", { mode: "boolean" }).notNull(),
+    visible: sqliteInteger("visible", { mode: "boolean" }).notNull(),
     supportsWebSearch: sqliteInteger("supports_web_search", { mode: "boolean" }).notNull(),
     sortOrder: sqliteInteger("sort_order").notNull(),
     createdAt: sqliteText("created_at").notNull(),
     updatedAt: sqliteText("updated_at").notNull()
   }, (table) => ({
     providerConfigIdIdx: sqliteIndex("model_configs_provider_config_id_idx").on(table.providerConfigId),
-    enabledSortIdx: sqliteIndex("model_configs_enabled_sort_order_idx").on(table.enabled, table.sortOrder)
+    visibleSortIdx: sqliteIndex("model_configs_visible_sort_order_idx").on(table.visible, table.sortOrder)
   }));
 
   const userSettings = sqliteTable("user_settings", {
@@ -160,7 +160,7 @@ function definePostgresSchema() {
         .references(() => providerConfigs.id, { onDelete: "cascade" }),
       modelId: pgVarchar("model_id", { length: 191 }).notNull(),
       displayName: pgVarchar("display_name", { length: 191 }).notNull(),
-      enabled: pgBoolean("enabled").notNull(),
+      visible: pgBoolean("visible").notNull(),
       supportsWebSearch: pgBoolean("supports_web_search").notNull(),
       sortOrder: pgInteger("sort_order").notNull(),
       createdAt: pgVarchar("created_at", { length: 64 }).notNull(),
@@ -168,7 +168,7 @@ function definePostgresSchema() {
     },
     (table) => ({
       providerConfigIdIdx: pgIndex("model_configs_provider_config_id_idx").on(table.providerConfigId),
-      enabledSortIdx: pgIndex("model_configs_enabled_sort_order_idx").on(table.enabled, table.sortOrder)
+      visibleSortIdx: pgIndex("model_configs_visible_sort_order_idx").on(table.visible, table.sortOrder)
     })
   );
 
@@ -252,7 +252,7 @@ function defineMysqlSchema() {
         .references(() => providerConfigs.id, { onDelete: "cascade" }),
       modelId: mysqlVarchar("model_id", { length: 191 }).notNull(),
       displayName: mysqlVarchar("display_name", { length: 191 }).notNull(),
-      enabled: mysqlBoolean("enabled").notNull(),
+      visible: mysqlBoolean("visible").notNull(),
       supportsWebSearch: mysqlBoolean("supports_web_search").notNull(),
       sortOrder: mysqlInt("sort_order").notNull(),
       createdAt: mysqlVarchar("created_at", { length: 64 }).notNull(),
@@ -260,7 +260,7 @@ function defineMysqlSchema() {
     },
     (table) => ({
       providerConfigIdIdx: mysqlIndex("model_configs_provider_config_id_idx").on(table.providerConfigId),
-      enabledSortIdx: mysqlIndex("model_configs_enabled_sort_order_idx").on(table.enabled, table.sortOrder)
+      visibleSortIdx: mysqlIndex("model_configs_visible_sort_order_idx").on(table.visible, table.sortOrder)
     })
   );
 

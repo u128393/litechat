@@ -6,6 +6,7 @@ import {
   ChatAdapterError,
   getChatProviderAdapter,
   resolveChatModelTarget,
+  resolveTitleGenerationModelTarget,
   toChatAdapterError,
   type ChatRequestMessage
 } from "@/server/chat";
@@ -57,7 +58,7 @@ async function resolveTitleGenerationModel(fallbackModelConfigId: string) {
 
   if (configuredModelConfigId) {
     try {
-      return await resolveChatModelTarget(configuredModelConfigId);
+      return await resolveTitleGenerationModelTarget(configuredModelConfigId);
     } catch (error) {
       if (!shouldFallbackFromConfiguredModel(error)) {
         throw error;

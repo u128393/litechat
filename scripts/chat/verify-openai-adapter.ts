@@ -41,7 +41,7 @@ async function main() {
         providerConfigId: providerConfig.id,
         modelId: "gpt-4.1-mini",
         displayName: "GPT 4.1 Mini",
-        enabled: true,
+        visible: true,
         supportsWebSearch: true
       },
       database

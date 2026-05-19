@@ -14,7 +14,7 @@ export type UpdateAppSettingsInput = {
 
 export type UpdateAppSettingsResult =
   | { success: true; settings: AppSettings }
-  | { success: false; error: "title_generation_model_config_not_found" | "title_generation_model_not_enabled" };
+  | { success: false; error: "title_generation_model_config_not_found" };
 
 export async function getAppSettings(database?: DatabaseConnection): Promise<AppSettings> {
   const repository = getAppSettingsRepository(database);
@@ -43,9 +43,6 @@ export async function updateAppSettings(
       return { success: false, error: "title_generation_model_config_not_found" };
     }
 
-    if (!modelConfig.enabled) {
-      return { success: false, error: "title_generation_model_not_enabled" };
-    }
   }
 
   const repository = getAppSettingsRepository(database);
