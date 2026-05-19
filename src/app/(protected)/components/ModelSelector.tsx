@@ -8,7 +8,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useChatWorkspace } from "@/app/(protected)/ChatWorkspaceProvider";
 import { useI18n } from "@/lib/i18n/provider";
-import { Check, ChevronDown, Globe } from "lucide-react";
+import { Check, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type ModelSelectorProps = {
@@ -59,8 +59,6 @@ export function ModelSelector({ className }: ModelSelectorProps) {
             <span className="flex-1">{model.displayName}</span>
             {model.id === selectedModelId ? (
               <Check className="size-4 text-[var(--lc-accent)]" />
-            ) : model.supportsWebSearch ? (
-              <Globe className="size-[14px] text-[var(--lc-text-tertiary)]" />
             ) : null}
           </DropdownMenuItem>
         ))}
