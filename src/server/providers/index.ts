@@ -1,5 +1,6 @@
 export {
   createProviderConfig,
+  deleteProviderConfig,
   getProviderConfigWithSecret,
   listEnabledProviderConfigs,
   listProviderConfigs,

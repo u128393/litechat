@@ -115,6 +115,15 @@ export async function updateProviderConfig(
   return providerConfig ? toProviderConfig(providerConfig) : null;
 }
 
+export async function deleteProviderConfig(
+  providerConfigId: string,
+  database?: DatabaseConnection
+): Promise<boolean> {
+  const repository = getProviderConfigRepository(database);
+
+  return repository.deleteProviderConfig(providerConfigId);
+}
+
 export async function getProviderConfigWithSecret(
   providerConfigId: string,
   database?: DatabaseConnection

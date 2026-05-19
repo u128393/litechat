@@ -177,6 +177,15 @@ export async function updateModelConfig(
   };
 }
 
+export async function deleteModelConfig(
+  modelConfigId: string,
+  database?: DatabaseConnection
+): Promise<boolean> {
+  const repository = getModelConfigRepository(database);
+
+  return repository.deleteModelConfig(modelConfigId);
+}
+
 export async function reorderModelConfigs(
   input: ReorderModelConfigsInput,
   database?: DatabaseConnection

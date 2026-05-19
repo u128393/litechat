@@ -17,6 +17,7 @@ export type AdminMessages = {
   listSortOrderPrefix: string;
   defaultValue: string;
   webSearchShortLabel: string;
+  actionsLabel: string;
   users: {
     newAction: string;
     createAction: string;
@@ -58,8 +59,11 @@ export type AdminMessages = {
     emptyDescription: string;
     createAction: string;
     updateAction: string;
+    editAction: string;
+    deleteAction: string;
     creatingAction: string;
     updatingAction: string;
+    deletingAction: string;
     createModeLabel: string;
     editModeLabel: string;
     selectionLabel: string;
@@ -73,6 +77,10 @@ export type AdminMessages = {
     enabledLabel: string;
     successCreate: string;
     successUpdate: string;
+    successDelete: string;
+    deleteTitle: string;
+    deleteConfirmation: string;
+    deleteAssociatedModelsDescription: string;
     errorPrefix: string;
     defaultProviderType: string;
   };
@@ -86,8 +94,11 @@ export type AdminMessages = {
     blockedDescription: string;
     createAction: string;
     updateAction: string;
+    editAction: string;
+    deleteAction: string;
     creatingAction: string;
     updatingAction: string;
+    deletingAction: string;
     createModeLabel: string;
     editModeLabel: string;
     selectionLabel: string;
@@ -100,6 +111,9 @@ export type AdminMessages = {
     dragHandleLabel: string;
     successCreate: string;
     successUpdate: string;
+    successDelete: string;
+    deleteTitle: string;
+    deleteConfirmation: string;
     errorPrefix: string;
   };
 };
@@ -122,6 +136,7 @@ export const adminMessagesByLocale: Record<AppLocale, AdminMessages> = {
     listSortOrderPrefix: "sort",
     defaultValue: "Default",
     webSearchShortLabel: "Web",
+    actionsLabel: "Actions",
     users: {
       newAction: "New user",
       createAction: "Create",
@@ -163,8 +178,11 @@ export const adminMessagesByLocale: Record<AppLocale, AdminMessages> = {
       emptyDescription: "Create a provider before enabling shared models.",
       createAction: "Create provider",
       updateAction: "Save provider",
+      editAction: "Edit",
+      deleteAction: "Delete",
       creatingAction: "Creating...",
       updatingAction: "Saving...",
+      deletingAction: "Deleting...",
       createModeLabel: "New provider",
       editModeLabel: "Editing provider",
       selectionLabel: "Configured providers",
@@ -178,6 +196,11 @@ export const adminMessagesByLocale: Record<AppLocale, AdminMessages> = {
       enabledLabel: "Enabled",
       successCreate: "Provider created.",
       successUpdate: "Provider updated.",
+      successDelete: "Provider deleted.",
+      deleteTitle: "Delete provider?",
+      deleteConfirmation: "This will delete \"{provider}\".",
+      deleteAssociatedModelsDescription:
+        "{count} associated models will also be deleted.",
       errorPrefix: "Provider request failed:",
       defaultProviderType: "OpenAI Responses"
     },
@@ -191,8 +214,11 @@ export const adminMessagesByLocale: Record<AppLocale, AdminMessages> = {
       blockedDescription: "Models require an existing provider configuration.",
       createAction: "Create model",
       updateAction: "Save model",
+      editAction: "Edit",
+      deleteAction: "Delete",
       creatingAction: "Creating...",
       updatingAction: "Saving...",
+      deletingAction: "Deleting...",
       createModeLabel: "New model",
       editModeLabel: "Editing model",
       selectionLabel: "Configured models",
@@ -205,6 +231,9 @@ export const adminMessagesByLocale: Record<AppLocale, AdminMessages> = {
       dragHandleLabel: "Reorder model",
       successCreate: "Model created.",
       successUpdate: "Model updated.",
+      successDelete: "Model deleted.",
+      deleteTitle: "Delete model?",
+      deleteConfirmation: "This will delete \"{modelName} ({provider})\".",
       errorPrefix: "Model request failed:"
     }
   },
@@ -225,6 +254,7 @@ export const adminMessagesByLocale: Record<AppLocale, AdminMessages> = {
     listSortOrderPrefix: "排序",
     defaultValue: "默认",
     webSearchShortLabel: "联网",
+    actionsLabel: "操作",
     users: {
       newAction: "新建用户",
       createAction: "创建",
@@ -266,8 +296,11 @@ export const adminMessagesByLocale: Record<AppLocale, AdminMessages> = {
       emptyDescription: "启用共享模型前，请先创建提供商。",
       createAction: "创建提供商",
       updateAction: "保存提供商",
+      editAction: "编辑",
+      deleteAction: "删除",
       creatingAction: "创建中...",
       updatingAction: "保存中...",
+      deletingAction: "删除中...",
       createModeLabel: "新建提供商",
       editModeLabel: "编辑提供商",
       selectionLabel: "已配置提供商",
@@ -281,6 +314,10 @@ export const adminMessagesByLocale: Record<AppLocale, AdminMessages> = {
       enabledLabel: "已启用",
       successCreate: "提供商已创建。",
       successUpdate: "提供商已更新。",
+      successDelete: "提供商已删除。",
+      deleteTitle: "删除提供商？",
+      deleteConfirmation: "这会删除“{provider}”。",
+      deleteAssociatedModelsDescription: "关联的 {count} 个模型也会被删除。",
       errorPrefix: "提供商请求失败：",
       defaultProviderType: "OpenAI Responses"
     },
@@ -294,8 +331,11 @@ export const adminMessagesByLocale: Record<AppLocale, AdminMessages> = {
       blockedDescription: "模型依赖现有提供商配置。",
       createAction: "创建模型",
       updateAction: "保存模型",
+      editAction: "编辑",
+      deleteAction: "删除",
       creatingAction: "创建中...",
       updatingAction: "保存中...",
+      deletingAction: "删除中...",
       createModeLabel: "新建模型",
       editModeLabel: "编辑模型",
       selectionLabel: "已配置模型",
@@ -308,6 +348,9 @@ export const adminMessagesByLocale: Record<AppLocale, AdminMessages> = {
       dragHandleLabel: "调整模型顺序",
       successCreate: "模型已创建。",
       successUpdate: "模型已更新。",
+      successDelete: "模型已删除。",
+      deleteTitle: "删除模型？",
+      deleteConfirmation: "这会删除“{modelName} ({provider})”。",
       errorPrefix: "模型请求失败："
     }
   }

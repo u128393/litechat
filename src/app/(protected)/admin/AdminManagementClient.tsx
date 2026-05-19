@@ -202,6 +202,11 @@ export function AdminManagementClient({
     type: "success" | "error";
     message: string;
   } | null>(null);
+  const [providerDeleteDialogOpen, setProviderDeleteDialogOpen] =
+    useState(false);
+  const [deletingProvider, setDeletingProvider] =
+    useState<ProviderConfig | null>(null);
+  const [providerDeletePending, setProviderDeletePending] = useState(false);
 
   const [modelDialogOpen, setModelDialogOpen] = useState(false);
   const [editingModel, setEditingModel] = useState<ModelConfig | null>(null);
@@ -213,6 +218,9 @@ export function AdminManagementClient({
     type: "success" | "error";
     message: string;
   } | null>(null);
+  const [modelDeleteDialogOpen, setModelDeleteDialogOpen] = useState(false);
+  const [deletingModel, setDeletingModel] = useState<ModelConfig | null>(null);
+  const [modelDeletePending, setModelDeletePending] = useState(false);
   const [draggingModel, setDraggingModel] = useState<DraggingModelState | null>(
     null,
   );
@@ -435,6 +443,12 @@ export function AdminManagementClient({
     setProviderDialogOpen(true);
   }
 
+  function openDeleteProvider(providerConfig: ProviderConfig) {
+    setDeletingProvider(providerConfig);
+    setProviderFeedback(null);
+    setProviderDeleteDialogOpen(true);
+  }
+
   async function toggleProviderEnabled(providerConfig: ProviderConfig) {
     setTogglingProviderId(providerConfig.id);
     try {
@@ -548,12 +562,70 @@ export function AdminManagementClient({
     setProviderPending(false);
   }
 
+  async function confirmDeleteProvider() {
+    if (!deletingProvider) {
+      return;
+    }
+
+    setProviderDeletePending(true);
+    setProviderFeedback(null);
+
+    try {
+      const response = await fetch(
+        `/api/admin/provider-configs/${deletingProvider.id}`,
+        {
+          method: "DELETE",
+        },
+      );
+      const payload = await readJsonResponse(response);
+
+      if (!response.ok) {
+        setProviderFeedback({
+          type: "error",
+          message: `${adminMessages.providers.errorPrefix} ${readErrorMessage(payload, adminMessages.unexpectedResponse)}`,
+        });
+        return;
+      }
+
+      setProviderConfigs(
+        providerConfigs.filter(
+          (providerConfig) => providerConfig.id !== deletingProvider.id,
+        ),
+      );
+      setModelConfigs(
+        modelConfigs.filter(
+          (modelConfig) =>
+            modelConfig.providerConfigId !== deletingProvider.id,
+        ),
+      );
+      setProviderDeleteDialogOpen(false);
+      setProviderFeedback({
+        type: "success",
+        message: adminMessages.providers.successDelete,
+      });
+      await refreshModels();
+    } catch {
+      setProviderFeedback({
+        type: "error",
+        message: `${adminMessages.providers.errorPrefix} ${adminMessages.unexpectedResponse}`,
+      });
+    } finally {
+      setProviderDeletePending(false);
+    }
+  }
+
   function openAddModel() {
     if (providerConfigs.length === 0) return;
     setEditingModel(null);
     setModelForm(createDefaultModelForm(providerConfigs));
     setModelFeedback(null);
     setModelDialogOpen(true);
+  }
+
+  function openDeleteModel(modelConfig: ModelConfig) {
+    setDeletingModel(modelConfig);
+    setModelFeedback(null);
+    setModelDeleteDialogOpen(true);
   }
 
   function openEditModel(modelConfig: ModelConfig) {
@@ -663,6 +735,50 @@ export function AdminManagementClient({
     }
 
     setModelPending(false);
+  }
+
+  async function confirmDeleteModel() {
+    if (!deletingModel) {
+      return;
+    }
+
+    setModelDeletePending(true);
+    setModelFeedback(null);
+
+    try {
+      const response = await fetch(
+        `/api/admin/model-configs/${deletingModel.id}`,
+        {
+          method: "DELETE",
+        },
+      );
+      const payload = await readJsonResponse(response);
+
+      if (!response.ok) {
+        setModelFeedback({
+          type: "error",
+          message: `${adminMessages.models.errorPrefix} ${readErrorMessage(payload, adminMessages.unexpectedResponse)}`,
+        });
+        return;
+      }
+
+      setModelConfigs(
+        modelConfigs.filter((modelConfig) => modelConfig.id !== deletingModel.id),
+      );
+      setModelDeleteDialogOpen(false);
+      setModelFeedback({
+        type: "success",
+        message: adminMessages.models.successDelete,
+      });
+      await refreshModels();
+    } catch {
+      setModelFeedback({
+        type: "error",
+        message: `${adminMessages.models.errorPrefix} ${adminMessages.unexpectedResponse}`,
+      });
+    } finally {
+      setModelDeletePending(false);
+    }
   }
 
   function handleModelPointerDown(
@@ -832,6 +948,12 @@ export function AdminManagementClient({
     return providerTypeSelectItems[providerType] ?? providerType;
   }
 
+  function getProviderModels(providerConfigId: string): ModelConfig[] {
+    return modelConfigs.filter(
+      (modelConfig) => modelConfig.providerConfigId === providerConfigId,
+    );
+  }
+
   return (
     <div className="flex min-h-0 flex-1 flex-col bg-[var(--lc-bg-primary)]">
       <div className="grid h-14 shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-3 border-b border-[var(--lc-border)] px-4 sm:px-6">
@@ -952,6 +1074,9 @@ export function AdminManagementClient({
                     <span className="w-20 text-right text-xs font-medium text-[var(--lc-text-secondary)]">
                       {adminMessages.providers.enabledLabel}
                     </span>
+                    <span className="w-10 text-right text-xs font-medium text-[var(--lc-text-secondary)]">
+                      {adminMessages.actionsLabel}
+                    </span>
                   </div>
 
                   {providerConfigs.length > 0 ? (
@@ -996,6 +1121,35 @@ export function AdminManagementClient({
                               void toggleProviderEnabled(providerConfig)
                             }
                           />
+                        </span>
+                        <span
+                          className="flex w-10 justify-end"
+                          onClick={(event) => event.stopPropagation()}
+                        >
+                          <DropdownMenu>
+                            <DropdownMenuTrigger
+                              className="flex size-8 items-center justify-center rounded-lg text-[var(--lc-text-secondary)] hover:bg-[var(--lc-bg-secondary)] hover:text-[var(--lc-text-primary)]"
+                              aria-label={adminMessages.actionsLabel}
+                            >
+                              <MoreHorizontal className="size-4" />
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent
+                              align="end"
+                              className="w-40 border border-[var(--lc-border)] bg-[var(--lc-bg-primary)]"
+                            >
+                              <DropdownMenuItem
+                                onClick={() => openEditProvider(providerConfig)}
+                              >
+                                {adminMessages.providers.editAction}
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                variant="destructive"
+                                onClick={() => openDeleteProvider(providerConfig)}
+                              >
+                                {adminMessages.providers.deleteAction}
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </span>
                       </div>
                     ))
@@ -1048,6 +1202,9 @@ export function AdminManagementClient({
                     </span>
                     <span className="w-20 text-right text-xs font-medium text-[var(--lc-text-secondary)]">
                       {adminMessages.models.enabledLabel}
+                    </span>
+                    <span className="w-10 text-right text-xs font-medium text-[var(--lc-text-secondary)]">
+                      {adminMessages.actionsLabel}
                     </span>
                   </div>
 
@@ -1117,6 +1274,35 @@ export function AdminManagementClient({
                                   void toggleModelEnabled(modelConfig)
                                 }
                               />
+                            </span>
+                            <span
+                              className="flex w-10 justify-end"
+                              onClick={(event) => event.stopPropagation()}
+                            >
+                              <DropdownMenu>
+                                <DropdownMenuTrigger
+                                  className="flex size-8 items-center justify-center rounded-lg text-[var(--lc-text-secondary)] hover:bg-[var(--lc-bg-secondary)] hover:text-[var(--lc-text-primary)]"
+                                  aria-label={adminMessages.actionsLabel}
+                                >
+                                  <MoreHorizontal className="size-4" />
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent
+                                  align="end"
+                                  className="w-40 border border-[var(--lc-border)] bg-[var(--lc-bg-primary)]"
+                                >
+                                  <DropdownMenuItem
+                                    onClick={() => openEditModel(modelConfig)}
+                                  >
+                                    {adminMessages.models.editAction}
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem
+                                    variant="destructive"
+                                    onClick={() => openDeleteModel(modelConfig)}
+                                  >
+                                    {adminMessages.models.deleteAction}
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
                             </span>
                           </div>
                         </Fragment>
@@ -1629,6 +1815,122 @@ export function AdminManagementClient({
         </DialogContent>
       </Dialog>
 
+      <Dialog
+        open={providerDeleteDialogOpen}
+        onOpenChange={(open) => {
+          if (!providerDeletePending) {
+            setProviderDeleteDialogOpen(open);
+          }
+        }}
+      >
+        <DialogContent
+          className={`${adminDialogContentClass} sm:max-w-[420px]`}
+          closeLabel={messages.common.close}
+        >
+          <DialogHeader className={adminDialogHeaderClass}>
+            <DialogTitle className={adminDialogTitleClass}>
+              {adminMessages.providers.deleteTitle}
+            </DialogTitle>
+          </DialogHeader>
+          <div
+            className={`${adminDialogBodyClass} text-sm text-[var(--lc-text-primary)]`}
+          >
+            {deletingProvider ? (
+              <>
+                <p className="font-medium">
+                  {adminMessages.providers.deleteConfirmation.replace(
+                    "{provider}",
+                    deletingProvider.name,
+                  )}
+                </p>
+                {getProviderModels(deletingProvider.id).length > 0 ? (
+                  <p className="text-[var(--lc-text-secondary)]">
+                    {adminMessages.providers.deleteAssociatedModelsDescription.replace(
+                      "{count}",
+                      String(getProviderModels(deletingProvider.id).length),
+                    )}
+                  </p>
+                ) : null}
+              </>
+            ) : null}
+          </div>
+          <AdminDialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setProviderDeleteDialogOpen(false)}
+              disabled={providerDeletePending}
+            >
+              {messages.common.cancel}
+            </Button>
+            <Button
+              type="button"
+              className="bg-[var(--lc-danger)] text-white hover:bg-[var(--lc-danger)]/90 hover:text-white focus-visible:border-[var(--lc-danger)]/40 focus-visible:ring-[var(--lc-danger)]/20"
+              onClick={() => void confirmDeleteProvider()}
+              disabled={providerDeletePending}
+            >
+              {providerDeletePending
+                ? adminMessages.providers.deletingAction
+                : adminMessages.providers.deleteAction}
+            </Button>
+          </AdminDialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={modelDeleteDialogOpen}
+        onOpenChange={(open) => {
+          if (!modelDeletePending) {
+            setModelDeleteDialogOpen(open);
+          }
+        }}
+      >
+        <DialogContent
+          className={`${adminDialogContentClass} sm:max-w-[420px]`}
+          closeLabel={messages.common.close}
+        >
+          <DialogHeader className={adminDialogHeaderClass}>
+            <DialogTitle className={adminDialogTitleClass}>
+              {adminMessages.models.deleteTitle}
+            </DialogTitle>
+          </DialogHeader>
+          <div
+            className={`${adminDialogBodyClass} text-sm text-[var(--lc-text-primary)]`}
+          >
+            {deletingModel ? (
+              <p className="font-medium">
+                {adminMessages.models.deleteConfirmation
+                  .replace("{modelName}", deletingModel.displayName)
+                  .replace(
+                    "{provider}",
+                    getProviderName(deletingModel.providerConfigId),
+                  )}
+              </p>
+            ) : null}
+          </div>
+          <AdminDialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setModelDeleteDialogOpen(false)}
+              disabled={modelDeletePending}
+            >
+              {messages.common.cancel}
+            </Button>
+            <Button
+              type="button"
+              className="bg-[var(--lc-danger)] text-white hover:bg-[var(--lc-danger)]/90 hover:text-white focus-visible:border-[var(--lc-danger)]/40 focus-visible:ring-[var(--lc-danger)]/20"
+              onClick={() => void confirmDeleteModel()}
+              disabled={modelDeletePending}
+            >
+              {modelDeletePending
+                ? adminMessages.models.deletingAction
+                : adminMessages.models.deleteAction}
+            </Button>
+          </AdminDialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {draggingModel ? (
         <ModelDragPreview
           modelConfig={draggingModel.modelConfig}
@@ -1910,6 +2212,7 @@ function ModelDragPreview({
           />
         </span>
       </span>
+      <span className="w-10" />
     </div>
   );
 }

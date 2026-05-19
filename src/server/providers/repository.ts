@@ -61,6 +61,18 @@ export const getProviderConfigRepository = defineRepository(({ db }) => {
       await database.update(providerConfigs).set(updates).where(eq(providerConfigs.id, providerConfigId));
 
       return true;
+    },
+
+    async deleteProviderConfig(providerConfigId: string): Promise<boolean> {
+      const existingProviderConfig = await this.getProviderConfigById(providerConfigId);
+
+      if (!existingProviderConfig) {
+        return false;
+      }
+
+      await database.delete(providerConfigs).where(eq(providerConfigs.id, providerConfigId));
+
+      return true;
     }
   };
 });

@@ -76,6 +76,18 @@ export const getModelConfigRepository = defineRepository(({ db, dialect }) => {
       return true;
     },
 
+    async deleteModelConfig(modelConfigId: string): Promise<boolean> {
+      const existingModelConfig = await this.getModelConfigById(modelConfigId);
+
+      if (!existingModelConfig) {
+        return false;
+      }
+
+      await database.delete(modelConfigs).where(eq(modelConfigs.id, modelConfigId));
+
+      return true;
+    },
+
     async updateModelConfigOrders(modelConfigOrders: Array<{ id: string; sortOrder: number }>, updatedAt: string): Promise<void> {
       if (dialect === "sqlite") {
         database.transaction((tx: any) => {

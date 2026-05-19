@@ -1,5 +1,6 @@
 export {
   createModelConfig,
+  deleteModelConfig,
   listModelConfigs,
   listUserSelectableModels,
   reorderModelConfigs,
