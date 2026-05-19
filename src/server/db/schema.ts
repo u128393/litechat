@@ -5,6 +5,7 @@ import {
   int as mysqlInt,
   index as mysqlIndex,
   mysqlTable,
+  text as mysqlText,
   uniqueIndex as mysqlUniqueIndex,
   varchar as mysqlVarchar
 } from "drizzle-orm/mysql-core";
@@ -13,6 +14,7 @@ import {
   integer as pgInteger,
   index as pgIndex,
   pgTable,
+  text as pgText,
   uniqueIndex as pgUniqueIndex,
   varchar as pgVarchar
 } from "drizzle-orm/pg-core";
@@ -78,7 +80,16 @@ function defineSqliteSchema() {
     enabledSortIdx: sqliteIndex("model_configs_enabled_sort_order_idx").on(table.enabled, table.sortOrder)
   }));
 
-  return { users, sessions, providerConfigs, modelConfigs };
+  const userSettings = sqliteTable("user_settings", {
+    userId: sqliteText("user_id")
+      .primaryKey()
+      .references(() => users.id, { onDelete: "cascade" }),
+    customInstructions: sqliteText("custom_instructions").notNull().default(""),
+    createdAt: sqliteText("created_at").notNull(),
+    updatedAt: sqliteText("updated_at").notNull()
+  });
+
+  return { users, sessions, providerConfigs, modelConfigs, userSettings };
 }
 
 function definePostgresSchema() {
@@ -154,7 +165,16 @@ function definePostgresSchema() {
     })
   );
 
-  return { users, sessions, providerConfigs, modelConfigs };
+  const userSettings = pgTable("user_settings", {
+    userId: pgVarchar("user_id", { length: 191 })
+      .primaryKey()
+      .references(() => users.id, { onDelete: "cascade" }),
+    customInstructions: pgText("custom_instructions").notNull().default(""),
+    createdAt: pgVarchar("created_at", { length: 64 }).notNull(),
+    updatedAt: pgVarchar("updated_at", { length: 64 }).notNull()
+  });
+
+  return { users, sessions, providerConfigs, modelConfigs, userSettings };
 }
 
 function defineMysqlSchema() {
@@ -230,7 +250,16 @@ function defineMysqlSchema() {
     })
   );
 
-  return { users, sessions, providerConfigs, modelConfigs };
+  const userSettings = mysqlTable("user_settings", {
+    userId: mysqlVarchar("user_id", { length: 191 })
+      .primaryKey()
+      .references(() => users.id, { onDelete: "cascade" }),
+    customInstructions: mysqlText("custom_instructions").notNull().default(""),
+    createdAt: mysqlVarchar("created_at", { length: 64 }).notNull(),
+    updatedAt: mysqlVarchar("updated_at", { length: 64 }).notNull()
+  });
+
+  return { users, sessions, providerConfigs, modelConfigs, userSettings };
 }
 
 const activeSchema =
@@ -244,9 +273,11 @@ export const users = activeSchema.users;
 export const sessions = activeSchema.sessions;
 export const providerConfigs = activeSchema.providerConfigs;
 export const modelConfigs = activeSchema.modelConfigs;
+export const userSettings = activeSchema.userSettings;
 export const schema = {
   users,
   sessions,
   providerConfigs,
-  modelConfigs
+  modelConfigs,
+  userSettings
 };

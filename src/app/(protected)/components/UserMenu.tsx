@@ -18,7 +18,7 @@ import {
 import { useI18n } from "@/lib/i18n/provider";
 import { isAdminUser } from "@/lib/auth/roles";
 import { supportedAppLocales, type AppLocale } from "@/lib/i18n/locales";
-import { ChevronDown, Globe, Lock, Monitor, Moon, Shield, Sun, LogOut } from "lucide-react";
+import { ChevronDown, Globe, Lock, Monitor, Moon, Shield, SlidersHorizontal, Sun, LogOut } from "lucide-react";
 import type { CurrentUser } from "@/server/auth/types";
 import { cn } from "@/lib/utils";
 
@@ -150,6 +150,16 @@ export function UserMenu({ currentUser, collapsed = false }: UserMenuProps) {
         </DropdownMenuSub>
 
         <DropdownMenuSeparator className="my-1 h-px bg-[var(--lc-border)]" />
+
+        {/* Custom instructions */}
+        <DropdownMenuItem
+          className="flex items-center gap-2 rounded-[4px] px-3 py-2 text-[14px] text-[var(--lc-text-primary)]"
+        >
+          <Link href="/account/instructions" className="flex w-full items-center gap-2">
+            <SlidersHorizontal className="size-4" />
+            {messages.shell.customInstructionsSettings}
+          </Link>
+        </DropdownMenuItem>
 
         {/* Change password */}
         <DropdownMenuItem

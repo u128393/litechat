@@ -9,6 +9,8 @@ import {
 } from "@/server/chat";
 import { parseCreateChatRouteRequest } from "@/server/chat/validation";
 import { requireApiUser } from "@/server/auth/api";
+import { getCustomInstructions } from "@/server/user-settings";
+import type { ChatRequestMessage } from "@/server/chat";
 
 const encoder = new TextEncoder();
 
@@ -29,9 +31,13 @@ export async function POST(request: Request) {
     const model = await resolveChatModelTarget(parsedRequest.data.modelConfigId);
     const adapter = getChatProviderAdapter(model.providerType);
     const tools = resolveAutomaticChatTools(model, adapter);
+    const messages = withCustomInstructions(
+      parsedRequest.data.messages,
+      await getCustomInstructions(currentUser.userId)
+    );
     const responseStream = await adapter.createResponseStream({
       model,
-      messages: parsedRequest.data.messages,
+      messages,
       tools,
       signal: request.signal
     });
@@ -46,6 +52,20 @@ export async function POST(request: Request) {
     const safeError = toChatAdapterError(error);
     return NextResponse.json({ error: safeError.message, code: safeError.code }, { status: toStatusCode(safeError) });
   }
+}
+
+function withCustomInstructions(messages: ChatRequestMessage[], customInstructions: string): ChatRequestMessage[] {
+  if (customInstructions.trim() === "") {
+    return messages;
+  }
+
+  return [
+    {
+      role: "system",
+      content: customInstructions
+    },
+    ...messages
+  ];
 }
 
 function createTextStream(eventStream: ReadableStream<{ type: string; delta?: string }>): ReadableStream<Uint8Array> {

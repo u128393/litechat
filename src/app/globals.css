@@ -192,6 +192,24 @@
   }
 }
 
+[data-sonner-toaster][data-sonner-theme="light"] {
+  --success-bg: #ecfdf3;
+  --success-border: #bbf7d0;
+  --success-text: #166534;
+  --error-bg: #fff1f2;
+  --error-border: #fecdd3;
+  --error-text: #be123c;
+}
+
+[data-sonner-toaster][data-sonner-theme="dark"] {
+  --success-bg: #052e16;
+  --success-border: #166534;
+  --success-text: #bbf7d0;
+  --error-bg: #4c0519;
+  --error-border: #9f1239;
+  --error-text: #fecdd3;
+}
+
 @layer components {
   .lc-markdown {
     --lc-code-attr: #0550ae;

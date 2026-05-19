@@ -51,6 +51,7 @@ export type AppMessages = {
     modelsLoading: string;
     modelsEmpty: string;
     languageStatus: string;
+    customInstructionsSettings: string;
     passwordSettings: string;
     passwordManage: string;
     themeLabel: string;
@@ -90,6 +91,17 @@ export type AppMessages = {
     forgotPasswordOutOfScope: string;
     newPasswordPlaceholder: string;
     confirmPasswordPlaceholder: string;
+  };
+  instructions: {
+    title: string;
+    label: string;
+    placeholder: string;
+    submit: string;
+    saving: string;
+    success: string;
+    loading: string;
+    tooLong: string;
+    unknownError: string;
   };
   chat: {
     title: string;
@@ -176,6 +188,7 @@ export const messagesByLocale: Record<AppLocale, AppMessages> = {
       modelsLoading: "Loading models...",
       modelsEmpty: "No enabled models",
       languageStatus: "Language preference saved locally",
+      customInstructionsSettings: "Custom instructions",
       passwordSettings: "Password",
       passwordManage: "Update",
       themeLabel: "Theme",
@@ -215,6 +228,17 @@ export const messagesByLocale: Record<AppLocale, AppMessages> = {
       forgotPasswordOutOfScope: "Forgot-password email recovery is not included in this app yet.",
       newPasswordPlaceholder: "Enter new password",
       confirmPasswordPlaceholder: "Confirm new password",
+    },
+    instructions: {
+      title: "Custom instructions",
+      label: "Instructions",
+      placeholder: "Example: Keep answers concise, ask clarifying questions when requirements are unclear, and prefer TypeScript examples.",
+      submit: "Save",
+      saving: "Saving...",
+      success: "Saved.",
+      loading: "Loading instructions...",
+      tooLong: "Use 8000 characters or fewer.",
+      unknownError: "Save failed."
     },
     chat: {
       title: "New conversation",
@@ -299,6 +323,7 @@ export const messagesByLocale: Record<AppLocale, AppMessages> = {
       modelsLoading: "正在加载模型...",
       modelsEmpty: "没有已启用模型",
       languageStatus: "语言偏好已保存在本地",
+      customInstructionsSettings: "个人指令",
       passwordSettings: "修改密码",
       passwordManage: "修改",
       themeLabel: "主题模式",
@@ -338,6 +363,17 @@ export const messagesByLocale: Record<AppLocale, AppMessages> = {
       forgotPasswordOutOfScope: "当前应用暂不提供忘记密码邮件找回。",
       newPasswordPlaceholder: "输入新密码",
       confirmPasswordPlaceholder: "确认新密码",
+    },
+    instructions: {
+      title: "个人指令",
+      label: "指令内容",
+      placeholder: "例如：回答保持简洁；需求不明确时先追问；代码示例优先使用 TypeScript。",
+      submit: "保存",
+      saving: "保存中...",
+      success: "已保存。",
+      loading: "正在加载指令...",
+      tooLong: "最多可输入 8000 个字符。",
+      unknownError: "保存失败。"
     },
     chat: {
       title: "新会话",

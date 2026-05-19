@@ -29,6 +29,13 @@
       "when": 1775120000000,
       "tag": "0003_add_user_enabled",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1779186207641,
+      "tag": "0005_add_user_settings",
+      "breakpoints": true
     }
   ]
 }
