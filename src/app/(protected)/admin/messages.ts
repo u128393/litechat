@@ -239,7 +239,7 @@ export const adminMessagesByLocale: Record<AppLocale, AdminMessages> = {
   },
   "zh-CN": {
     badge: "仅管理员",
-    title: "管理控制台",
+    title: "后台管理",
     description: "为共享聊天工作区配置提供商与模型。",
     navigationLabel: "管理分区",
     usersNav: "用户管理",

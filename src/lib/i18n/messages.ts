@@ -273,7 +273,7 @@ export const messagesByLocale: Record<AppLocale, AppMessages> = {
       conversationGroupPrevious7Days: "过去 7 天",
       conversationGroupOlder: "更早",
       menu: "菜单",
-      adminArea: "管理区域",
+      adminArea: "后台管理",
       adminManage: "管理",
       logout: "退出登录",
       mobileHint: "移动端导航收纳在此抽屉中，以保留聊天工作区。",
