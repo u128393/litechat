@@ -97,7 +97,7 @@ export type AdminMessages = {
     displayNameLabel: string;
     enabledLabel: string;
     supportsWebSearchLabel: string;
-    sortOrderLabel: string;
+    dragHandleLabel: string;
     successCreate: string;
     successUpdate: string;
     errorPrefix: string;
@@ -202,7 +202,7 @@ export const adminMessagesByLocale: Record<AppLocale, AdminMessages> = {
       displayNameLabel: "Display name",
       enabledLabel: "Enabled",
       supportsWebSearchLabel: "Supports web search",
-      sortOrderLabel: "Sort order",
+      dragHandleLabel: "Reorder model",
       successCreate: "Model created.",
       successUpdate: "Model updated.",
       errorPrefix: "Model request failed:"
@@ -305,7 +305,7 @@ export const adminMessagesByLocale: Record<AppLocale, AdminMessages> = {
       displayNameLabel: "显示名称",
       enabledLabel: "已启用",
       supportsWebSearchLabel: "支持网页搜索",
-      sortOrderLabel: "排序值",
+      dragHandleLabel: "调整模型顺序",
       successCreate: "模型已创建。",
       successUpdate: "模型已更新。",
       errorPrefix: "模型请求失败："

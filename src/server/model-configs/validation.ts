@@ -1,4 +1,4 @@
-import type { CreateModelConfigInput, UpdateModelConfigInput } from "@/server/model-configs/service";
+import type { CreateModelConfigInput, ReorderModelConfigsInput, UpdateModelConfigInput } from "@/server/model-configs/service";
 
 type ValidationResult<TValue> =
   | { success: true; data: TValue }
@@ -131,6 +131,43 @@ export async function parseUpdateModelConfigRequest(request: Request): Promise<V
   return {
     success: true,
     data: updates
+  };
+}
+
+export async function parseReorderModelConfigsRequest(request: Request): Promise<ValidationResult<ReorderModelConfigsInput>> {
+  const body = await parseJsonBody(request);
+
+  if (!body || Array.isArray(body)) {
+    return invalid("Request body must be a JSON object.");
+  }
+
+  if (!Array.isArray(body.modelConfigIds)) {
+    return invalid("modelConfigIds must be an array.");
+  }
+
+  const modelConfigIds = body.modelConfigIds.map((modelConfigId) => {
+    if (typeof modelConfigId !== "string") {
+      return null;
+    }
+
+    const normalizedModelConfigId = modelConfigId.trim();
+
+    return normalizedModelConfigId.length > 0 ? normalizedModelConfigId : null;
+  });
+
+  if (modelConfigIds.some((modelConfigId) => modelConfigId === null)) {
+    return invalid("modelConfigIds must contain non-empty strings.");
+  }
+
+  if (new Set(modelConfigIds).size !== modelConfigIds.length) {
+    return invalid("modelConfigIds must not contain duplicate values.");
+  }
+
+  return {
+    success: true,
+    data: {
+      modelConfigIds: modelConfigIds as string[]
+    }
   };
 }
 

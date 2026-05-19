@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 
 import { requireAdminApiUser } from "@/server/auth/api";
-import { createModelConfig, listModelConfigs } from "@/server/model-configs";
-import { parseCreateModelConfigRequest } from "@/server/model-configs/validation";
+import { createModelConfig, listModelConfigs, reorderModelConfigs } from "@/server/model-configs";
+import { parseCreateModelConfigRequest, parseReorderModelConfigsRequest } from "@/server/model-configs/validation";
 
 export async function GET() {
   const currentUser = await requireAdminApiUser();
@@ -36,4 +36,26 @@ export async function POST(request: Request) {
   }
 
   return NextResponse.json({ modelConfig: result.modelConfig }, { status: 201 });
+}
+
+export async function PATCH(request: Request) {
+  const currentUser = await requireAdminApiUser();
+
+  if (currentUser instanceof NextResponse) {
+    return currentUser;
+  }
+
+  const parsedRequest = await parseReorderModelConfigsRequest(request);
+
+  if (!parsedRequest.success) {
+    return NextResponse.json({ error: parsedRequest.error }, { status: 400 });
+  }
+
+  const result = await reorderModelConfigs(parsedRequest.data);
+
+  if (!result.success) {
+    return NextResponse.json({ error: "Model order no longer matches the stored models." }, { status: 409 });
+  }
+
+  return NextResponse.json({ modelConfigs: result.modelConfigs });
 }

@@ -14,7 +14,7 @@ async function main() {
   const { createDatabaseConnection } = await import("../../src/server/db");
   const { createProviderConfig } = await import("../../src/server/providers");
   const { getModelConfigRepository } = await import("../../src/server/model-configs/repository");
-  const { createModelConfig, listModelConfigs, listUserSelectableModels, updateModelConfig } = await import("../../src/server/model-configs");
+    const { createModelConfig, listModelConfigs, listUserSelectableModels, reorderModelConfigs, updateModelConfig } = await import("../../src/server/model-configs");
 
   const database = createDatabaseConnection({
     type: "sqlite",
@@ -115,6 +115,45 @@ async function main() {
     assert(updatedModelResult.success, "model config update should succeed");
     assert(updatedModelResult.modelConfig.supportsWebSearch === false, "model config updates should persist web search support");
     assert(updatedModelResult.modelConfig.sortOrder === 1, "model config updates should persist sort order");
+
+    const reorderResult = await reorderModelConfigs(
+      {
+        modelConfigIds: [
+          blockedByProviderResult.modelConfig.id,
+          enabledModelResult.modelConfig.id,
+          disabledModelResult.modelConfig.id
+        ]
+      },
+      database
+    );
+    const mismatchReorderResult = await reorderModelConfigs(
+      {
+        modelConfigIds: [enabledModelResult.modelConfig.id]
+      },
+      database
+    );
+    const defaultTopModelResult = await createModelConfig(
+      {
+        providerConfigId: enabledProvider.id,
+        modelId: "gpt-default-top",
+        displayName: "Default Top Model",
+        enabled: true,
+        supportsWebSearch: false
+      },
+      database
+    );
+    const reorderedModels = await listModelConfigs(database);
+    const reorderedUserSelectableModels = await listUserSelectableModels(database);
+
+    assert(reorderResult.success, "model config reorder should succeed");
+    assert(defaultTopModelResult.success, "model config creation should default to the top of the list");
+    assert(reorderedModels[0]?.id === defaultTopModelResult.modelConfig.id, "new model configs should default above existing models");
+    assert(reorderedModels[1]?.id === blockedByProviderResult.modelConfig.id, "admin model listing should use reordered sort order");
+    assert(reorderedModels[2]?.id === enabledModelResult.modelConfig.id, "admin model listing should persist middle reordered model");
+    assert(reorderedModels[3]?.id === disabledModelResult.modelConfig.id, "admin model listing should persist last reordered model");
+    assert(reorderedUserSelectableModels[0]?.id === defaultTopModelResult.modelConfig.id, "user model listing should expose newly created top model first");
+    assert(reorderedUserSelectableModels[1]?.id === enabledModelResult.modelConfig.id, "user model listing should preserve reordered active model order");
+    assert(!mismatchReorderResult.success && mismatchReorderResult.error === "model_config_order_mismatch", "model config reorder should reject incomplete order lists");
 
     process.stdout.write(`Verified model config storage, validation, updates, and active filtering using ${sqlitePath}.\n`);
   } finally {

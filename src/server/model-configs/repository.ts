@@ -22,7 +22,7 @@ export type UpdateModelConfigRow = Partial<Pick<
   "providerConfigId" | "modelId" | "displayName" | "enabled" | "supportsWebSearch" | "sortOrder" | "updatedAt"
 >>;
 
-export const getModelConfigRepository = defineRepository(({ db }) => {
+export const getModelConfigRepository = defineRepository(({ db, dialect }) => {
   const database = db as any;
 
   return {
@@ -74,6 +74,30 @@ export const getModelConfigRepository = defineRepository(({ db }) => {
       await database.update(modelConfigs).set(updates).where(eq(modelConfigs.id, modelConfigId));
 
       return true;
+    },
+
+    async updateModelConfigOrders(modelConfigOrders: Array<{ id: string; sortOrder: number }>, updatedAt: string): Promise<void> {
+      if (dialect === "sqlite") {
+        database.transaction((tx: any) => {
+          for (const modelConfigOrder of modelConfigOrders) {
+            tx
+              .update(modelConfigs)
+              .set({ sortOrder: modelConfigOrder.sortOrder, updatedAt })
+              .where(eq(modelConfigs.id, modelConfigOrder.id))
+              .run();
+          }
+        });
+        return;
+      }
+
+      await database.transaction(async (tx: any) => {
+        for (const modelConfigOrder of modelConfigOrders) {
+          await tx
+            .update(modelConfigs)
+            .set({ sortOrder: modelConfigOrder.sortOrder, updatedAt })
+            .where(eq(modelConfigs.id, modelConfigOrder.id));
+        }
+      });
     }
   };
 });

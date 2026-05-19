@@ -42,11 +42,19 @@ export type UpdateModelConfigInput = {
   sortOrder?: number;
 };
 
+export type ReorderModelConfigsInput = {
+  modelConfigIds: string[];
+};
+
 type WriteResult =
   | { success: true; modelConfig: ModelConfig }
   | { success: false; error: "provider_config_not_found" };
 
 type UpdateResult = WriteResult | { success: false; error: "model_config_not_found" };
+
+type ReorderResult =
+  | { success: true; modelConfigs: ModelConfig[] }
+  | { success: false; error: "model_config_order_mismatch" };
 
 export async function listModelConfigs(database?: DatabaseConnection): Promise<ModelConfig[]> {
   const repository = getModelConfigRepository(database);
@@ -79,6 +87,14 @@ export async function createModelConfig(
   }
 
   const now = new Date().toISOString();
+  const repository = getModelConfigRepository(database);
+  const existingModelConfigs = await repository.listModelConfigs();
+  const nextSortOrder = existingModelConfigs.length > 0
+    ? existingModelConfigs.reduce(
+      (minSortOrder, modelConfig) => Math.min(minSortOrder, modelConfig.sortOrder),
+      existingModelConfigs[0]!.sortOrder
+    ) - 1
+    : 0;
   const modelConfig: ModelConfigRow = {
     id: randomUUID(),
     providerConfigId: input.providerConfigId,
@@ -86,11 +102,10 @@ export async function createModelConfig(
     displayName: input.displayName,
     enabled: input.enabled ?? true,
     supportsWebSearch: input.supportsWebSearch ?? false,
-    sortOrder: input.sortOrder ?? 0,
+    sortOrder: input.sortOrder ?? nextSortOrder,
     createdAt: now,
     updatedAt: now
   };
-  const repository = getModelConfigRepository(database);
 
   await repository.createModelConfig(modelConfig);
 
@@ -159,6 +174,36 @@ export async function updateModelConfig(
   return {
     success: true,
     modelConfig: toModelConfig(modelConfig)
+  };
+}
+
+export async function reorderModelConfigs(
+  input: ReorderModelConfigsInput,
+  database?: DatabaseConnection
+): Promise<ReorderResult> {
+  const repository = getModelConfigRepository(database);
+  const modelConfigs = await repository.listModelConfigs();
+  const existingIds = new Set(modelConfigs.map((modelConfig) => modelConfig.id));
+
+  if (
+    input.modelConfigIds.length !== existingIds.size ||
+    input.modelConfigIds.some((modelConfigId) => !existingIds.has(modelConfigId))
+  ) {
+    return { success: false, error: "model_config_order_mismatch" };
+  }
+
+  const updatedAt = new Date().toISOString();
+  await repository.updateModelConfigOrders(
+    input.modelConfigIds.map((modelConfigId, index) => ({
+      id: modelConfigId,
+      sortOrder: index
+    })),
+    updatedAt
+  );
+
+  return {
+    success: true,
+    modelConfigs: (await repository.listModelConfigs()).map(toModelConfig)
   };
 }
 
