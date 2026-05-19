@@ -2150,7 +2150,7 @@ function UsersTable({
         <span className="w-[100px] text-xs font-medium text-[var(--lc-text-secondary)]">
           {adminMessages.users.roleLabel}
         </span>
-        <span className="w-[100px] text-xs font-medium text-[var(--lc-text-secondary)]">
+        <span className="w-[100px] text-center text-xs font-medium text-[var(--lc-text-secondary)]">
           {adminMessages.users.statusLabel}
         </span>
         <span className="w-[130px] text-xs font-medium text-[var(--lc-text-secondary)]">
@@ -2164,7 +2164,7 @@ function UsersTable({
         users.map((user, index) => (
           <div
             key={user.id}
-            className={`flex items-center gap-3 px-4 py-3 ${index < users.length - 1 ? "border-b border-[var(--lc-border)]" : ""}`}
+            className={`flex items-center gap-3 px-4 py-3 sm:gap-0 ${index < users.length - 1 ? "border-b border-[var(--lc-border)]" : ""}`}
           >
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-medium text-[var(--lc-text-primary)]">
@@ -2178,7 +2178,7 @@ function UsersTable({
             <span className="hidden w-[100px] text-sm text-[var(--lc-text-secondary)] sm:block">
               {formatUserRole(user.role, adminMessages)}
             </span>
-            <span className="hidden w-[100px] sm:block">
+            <span className="hidden w-[100px] justify-center sm:flex">
               <StatusBadge
                 enabled={user.enabled}
                 enabledLabel={adminMessages.enabledStatus}
@@ -2543,7 +2543,7 @@ function StatusBadge({
       className={`inline-flex rounded-md px-2 py-0.5 text-xs font-medium ${
         enabled
           ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400"
-          : "bg-[var(--lc-bg-secondary)] text-[var(--lc-text-secondary)]"
+          : "bg-rose-50 text-rose-700 dark:bg-rose-950/50 dark:text-rose-400"
       }`}
     >
       {enabled ? enabledLabel : disabledLabel}
