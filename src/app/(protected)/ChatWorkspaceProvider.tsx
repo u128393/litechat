@@ -53,6 +53,7 @@ const searchConversationPageSize = 25;
 
 type ChatWorkspaceContextValue = {
   conversations: ChatConversationRecord[];
+  routeConversationId: string | null;
   activeConversationId: string | null;
   messages: ChatMessageRecord[];
   draft: string;
@@ -1122,6 +1123,7 @@ export function ChatWorkspaceProvider({ userId, children }: { userId: string; ch
     <ChatWorkspaceContext.Provider
       value={{
         conversations,
+        routeConversationId,
         activeConversationId,
         messages,
         draft,

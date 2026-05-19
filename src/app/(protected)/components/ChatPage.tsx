@@ -6,8 +6,8 @@ import { Composer } from "@/app/(protected)/components/Composer";
 import { useChatWorkspace } from "@/app/(protected)/ChatWorkspaceProvider";
 
 export function ChatPage() {
-  const { messages } = useChatWorkspace();
-  const isEmptyConversation = messages.length === 0;
+  const { routeConversationId, messages } = useChatWorkspace();
+  const isNewConversationEmpty = routeConversationId === null && messages.length === 0;
 
   return (
     <>
@@ -16,7 +16,7 @@ export function ChatPage() {
       </div>
 
       <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
-        {isEmptyConversation ? (
+        {isNewConversationEmpty ? (
           <div className="flex min-h-0 flex-1 items-center justify-center px-4 pb-16">
             <div className="relative w-full">
               <div className="absolute inset-x-0 bottom-full mb-12">
@@ -27,7 +27,7 @@ export function ChatPage() {
           </div>
         ) : (
           <>
-            <MessageTimeline />
+            {messages.length > 0 ? <MessageTimeline /> : <div className="flex min-h-0 flex-1" />}
 
             <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10">
               <Composer />
