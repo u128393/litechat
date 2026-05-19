@@ -77,24 +77,24 @@ export default function PasswordSettingsPage() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-[var(--lc-bg-primary)] font-sans">
-      <div className="flex w-[400px] flex-col gap-6">
-        {/* Header */}
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={() => router.push("/")}
-            className="flex h-8 w-8 items-center justify-center rounded-lg text-[var(--lc-text-primary)] transition-colors hover:bg-[var(--lc-bg-secondary)]"
-          >
-            <ArrowLeft className="h-[18px] w-[18px]" />
-          </button>
-          <h1 className="text-xl font-semibold text-[var(--lc-text-primary)]">
-            {messages.password.title}
-          </h1>
-        </div>
+    <main className="flex min-h-0 flex-1 flex-col bg-[var(--lc-bg-primary)] font-sans">
+      <div className="flex h-14 shrink-0 items-center gap-3 border-b border-[var(--lc-border)] px-4 sm:px-6">
+        <button
+          type="button"
+          onClick={() => router.push("/")}
+          className="flex size-8 shrink-0 items-center justify-center rounded-lg text-[var(--lc-text-secondary)] transition-colors hover:bg-[var(--lc-bg-secondary)] hover:text-[var(--lc-text-primary)]"
+          aria-label={messages.common.back}
+        >
+          <ArrowLeft className="size-[18px]" />
+        </button>
+        <h1 className="truncate text-[20px] font-semibold text-[var(--lc-text-primary)]">
+          {messages.password.title}
+        </h1>
+      </div>
 
-        {/* Form */}
-        <form className="flex flex-col gap-4" onSubmit={(event) => void handleSubmit(event)}>
+      <div className="flex-1 overflow-y-auto px-4 py-8 sm:px-6">
+        <div className="mx-auto flex w-full max-w-[400px] flex-col gap-6">
+          <form className="flex flex-col gap-4" onSubmit={(event) => void handleSubmit(event)}>
           {/* Current Password */}
           <div className="flex flex-col gap-1.5">
             <label className="text-sm font-medium text-[var(--lc-text-primary)]">
@@ -162,7 +162,8 @@ export default function PasswordSettingsPage() {
           >
             {isSubmitting || isPending ? messages.password.saving : messages.password.submit}
           </button>
-        </form>
+          </form>
+        </div>
       </div>
     </main>
   );

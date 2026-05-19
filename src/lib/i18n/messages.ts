@@ -295,7 +295,7 @@ export const messagesByLocale: Record<AppLocale, AppMessages> = {
       modelsLoading: "正在加载模型...",
       modelsEmpty: "没有已启用模型",
       languageStatus: "语言偏好已保存在本地",
-      passwordSettings: "密码",
+      passwordSettings: "修改密码",
       passwordManage: "修改",
       themeLight: "浅色模式",
       themeDark: "深色模式",
@@ -315,7 +315,7 @@ export const messagesByLocale: Record<AppLocale, AppMessages> = {
     },
     password: {
       badge: "账户安全",
-      title: "修改你的密码",
+      title: "修改密码",
       description: "设置新密码前，请先确认当前密码。邮件找回密码不在当前范围内。",
       currentPasswordLabel: "当前密码",
       newPasswordLabel: "新密码",
