@@ -89,7 +89,14 @@ function defineSqliteSchema() {
     updatedAt: sqliteText("updated_at").notNull()
   });
 
-  return { users, sessions, providerConfigs, modelConfigs, userSettings };
+  const appSettings = sqliteTable("app_settings", {
+    key: sqliteText("key").primaryKey(),
+    value: sqliteText("value").notNull(),
+    createdAt: sqliteText("created_at").notNull(),
+    updatedAt: sqliteText("updated_at").notNull()
+  });
+
+  return { users, sessions, providerConfigs, modelConfigs, userSettings, appSettings };
 }
 
 function definePostgresSchema() {
@@ -174,7 +181,14 @@ function definePostgresSchema() {
     updatedAt: pgVarchar("updated_at", { length: 64 }).notNull()
   });
 
-  return { users, sessions, providerConfigs, modelConfigs, userSettings };
+  const appSettings = pgTable("app_settings", {
+    key: pgVarchar("key", { length: 191 }).primaryKey(),
+    value: pgText("value").notNull(),
+    createdAt: pgVarchar("created_at", { length: 64 }).notNull(),
+    updatedAt: pgVarchar("updated_at", { length: 64 }).notNull()
+  });
+
+  return { users, sessions, providerConfigs, modelConfigs, userSettings, appSettings };
 }
 
 function defineMysqlSchema() {
@@ -259,7 +273,14 @@ function defineMysqlSchema() {
     updatedAt: mysqlVarchar("updated_at", { length: 64 }).notNull()
   });
 
-  return { users, sessions, providerConfigs, modelConfigs, userSettings };
+  const appSettings = mysqlTable("app_settings", {
+    key: mysqlVarchar("key", { length: 191 }).primaryKey(),
+    value: mysqlText("value").notNull(),
+    createdAt: mysqlVarchar("created_at", { length: 64 }).notNull(),
+    updatedAt: mysqlVarchar("updated_at", { length: 64 }).notNull()
+  });
+
+  return { users, sessions, providerConfigs, modelConfigs, userSettings, appSettings };
 }
 
 const activeSchema =
@@ -274,10 +295,12 @@ export const sessions = activeSchema.sessions;
 export const providerConfigs = activeSchema.providerConfigs;
 export const modelConfigs = activeSchema.modelConfigs;
 export const userSettings = activeSchema.userSettings;
+export const appSettings = activeSchema.appSettings;
 export const schema = {
   users,
   sessions,
   providerConfigs,
   modelConfigs,
-  userSettings
+  userSettings,
+  appSettings
 };

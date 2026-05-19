@@ -116,6 +116,12 @@ export type AdminMessages = {
     deleteConfirmation: string;
     errorPrefix: string;
   };
+  settings: {
+    titleGenerationTitle: string;
+    titleGenerationModelLabel: string;
+    useChatModel: string;
+    errorPrefix: string;
+  };
 };
 
 export const adminMessagesByLocale: Record<AppLocale, AdminMessages> = {
@@ -235,6 +241,12 @@ export const adminMessagesByLocale: Record<AppLocale, AdminMessages> = {
       deleteTitle: "Delete model?",
       deleteConfirmation: "This will delete \"{modelName} ({provider})\".",
       errorPrefix: "Model request failed:"
+    },
+    settings: {
+      titleGenerationTitle: "Title generation",
+      titleGenerationModelLabel: "Model",
+      useChatModel: "Follow chat",
+      errorPrefix: "Settings request failed:"
     }
   },
   "zh-CN": {
@@ -352,6 +364,12 @@ export const adminMessagesByLocale: Record<AppLocale, AdminMessages> = {
       deleteTitle: "删除模型？",
       deleteConfirmation: "这会删除“{modelName} ({provider})”。",
       errorPrefix: "模型请求失败："
+    },
+    settings: {
+      titleGenerationTitle: "标题生成",
+      titleGenerationModelLabel: "模型",
+      useChatModel: "跟随会话",
+      errorPrefix: "设置请求失败："
     }
   }
 };

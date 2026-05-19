@@ -23,6 +23,7 @@ import type { UserRole } from "@/server/db";
 import type { ModelConfig } from "@/server/model-configs";
 import type { ProviderConfig } from "@/server/providers";
 import type { ManagedUser } from "@/server/users";
+import type { AppSettings } from "@/server/app-settings";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -54,6 +55,7 @@ type AdminManagementClientProps = {
   initialUsers: ManagedUser[];
   initialProviderConfigs: ProviderConfig[];
   initialModelConfigs: ModelConfig[];
+  initialAppSettings: AppSettings;
 };
 
 type AdminSection = "users" | "model-config";
@@ -125,6 +127,7 @@ const adminDialogTitleClass =
 const adminDialogBodyClass = "flex flex-col gap-5 px-4 py-5";
 const adminDialogFormBodyClass = "flex flex-col gap-5 px-4 pt-5 pb-8";
 const dragPreviewOffset = 6;
+const chatModelTitleGenerationValue = "__litechat_chat_model__";
 
 function createDefaultModelForm(
   providerConfigs: ProviderConfig[],
@@ -144,6 +147,7 @@ export function AdminManagementClient({
   initialUsers,
   initialProviderConfigs,
   initialModelConfigs,
+  initialAppSettings,
 }: AdminManagementClientProps) {
   const router = useRouter();
   const { refreshModels } = useChatWorkspace();
@@ -170,6 +174,15 @@ export function AdminManagementClient({
     sortedInitialProviderConfigs,
   );
   const [modelConfigs, setModelConfigs] = useState(sortedInitialModelConfigs);
+  const [titleGenerationModelConfigId, setTitleGenerationModelConfigId] = useState(
+    initialAppSettings.titleGenerationModelConfigId
+  );
+  const enabledModelConfigs = modelConfigs.filter((modelConfig) => modelConfig.enabled);
+  const selectedTitleGenerationModelConfigId = enabledModelConfigs.some(
+    (modelConfig) => modelConfig.id === titleGenerationModelConfigId
+  )
+    ? titleGenerationModelConfigId
+    : null;
 
   const [userDialogOpen, setUserDialogOpen] = useState(false);
   const [userForm, setUserForm] = useState<UserFormState>(DEFAULT_USER_FORM);
@@ -225,6 +238,11 @@ export function AdminManagementClient({
     null,
   );
   const [reorderingModels, setReorderingModels] = useState(false);
+  const [updatingTitleGenerationModel, setUpdatingTitleGenerationModel] = useState(false);
+  const [settingsFeedback, setSettingsFeedback] = useState<{
+    type: "success" | "error";
+    message: string;
+  } | null>(null);
 
   const [togglingProviderId, setTogglingProviderId] = useState<string | null>(
     null,
@@ -954,6 +972,51 @@ export function AdminManagementClient({
     );
   }
 
+  async function updateTitleGenerationModelConfig(nextModelConfigId: string | null) {
+    if (updatingTitleGenerationModel || nextModelConfigId === selectedTitleGenerationModelConfigId) {
+      return;
+    }
+
+    const previousModelConfigId = selectedTitleGenerationModelConfigId;
+
+    setTitleGenerationModelConfigId(nextModelConfigId);
+    setUpdatingTitleGenerationModel(true);
+    setSettingsFeedback(null);
+
+    try {
+      const response = await fetch("/api/admin/settings", {
+        method: "PUT",
+        credentials: "same-origin",
+        headers: {
+          "content-type": "application/json"
+        },
+        body: JSON.stringify({
+          titleGenerationModelConfigId: nextModelConfigId
+        })
+      });
+      const payload = (await response.json().catch(() => null)) as { settings?: AppSettings } | null;
+
+      if (!response.ok || !payload?.settings) {
+        setTitleGenerationModelConfigId(previousModelConfigId);
+        setSettingsFeedback({
+          type: "error",
+          message: `${adminMessages.settings.errorPrefix} ${adminMessages.unexpectedResponse}`
+        });
+        return;
+      }
+
+      setTitleGenerationModelConfigId(payload.settings.titleGenerationModelConfigId);
+    } catch {
+      setTitleGenerationModelConfigId(previousModelConfigId);
+      setSettingsFeedback({
+        type: "error",
+        message: `${adminMessages.settings.errorPrefix} ${adminMessages.unexpectedResponse}`
+      });
+    } finally {
+      setUpdatingTitleGenerationModel(false);
+    }
+  }
+
   return (
     <div className="flex min-h-0 flex-1 flex-col bg-[var(--lc-bg-primary)]">
       <div className="grid h-14 shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-3 border-b border-[var(--lc-border)] px-4 sm:px-6">
@@ -1042,6 +1105,13 @@ export function AdminManagementClient({
                   feedback={modelFeedback}
                   dismissLabel={messages.common.dismiss}
                   onDismiss={() => setModelFeedback(null)}
+                />
+              )}
+              {settingsFeedback && (
+                <FeedbackBanner
+                  feedback={settingsFeedback}
+                  dismissLabel={messages.common.dismiss}
+                  onDismiss={() => setSettingsFeedback(null)}
                 />
               )}
 
@@ -1330,6 +1400,50 @@ export function AdminManagementClient({
                       </p>
                     </div>
                   )}
+                </div>
+              </section>
+
+              <section>
+                <div className="mb-4 flex items-center justify-between">
+                  <h2 className="text-lg font-semibold text-[var(--lc-text-primary)]">
+                    {adminMessages.settings.titleGenerationTitle}
+                  </h2>
+                </div>
+
+                <div className="rounded-lg border border-[var(--lc-border)] bg-[var(--lc-bg-primary)] px-4 py-4">
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium text-[var(--lc-text-primary)]">
+                        {adminMessages.settings.titleGenerationModelLabel}
+                      </p>
+                    </div>
+                    <div className="w-full shrink-0 sm:w-[280px]">
+                      <Select
+                        items={toTitleGenerationModelItems(enabledModelConfigs, adminMessages.settings.useChatModel)}
+                        value={selectedTitleGenerationModelConfigId ?? chatModelTitleGenerationValue}
+                        onValueChange={(value) => {
+                          void updateTitleGenerationModelConfig(
+                            value === chatModelTitleGenerationValue ? null : value
+                          );
+                        }}
+                        disabled={updatingTitleGenerationModel}
+                      >
+                        <SelectTrigger className="w-full" id="title-generation-model">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value={chatModelTitleGenerationValue}>
+                            {adminMessages.settings.useChatModel}
+                          </SelectItem>
+                          {enabledModelConfigs.map((modelConfig) => (
+                            <SelectItem key={modelConfig.id} value={modelConfig.id}>
+                              {modelConfig.displayName}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
                 </div>
               </section>
             </>
@@ -2379,6 +2493,13 @@ function userRoleSelectItems(
   return {
     user: adminMessages.users.userRole,
     admin: adminMessages.users.adminRole,
+  };
+}
+
+function toTitleGenerationModelItems(modelConfigs: ModelConfig[], useChatModelLabel: string) {
+  return {
+    [chatModelTitleGenerationValue]: useChatModelLabel,
+    ...Object.fromEntries(modelConfigs.map((modelConfig) => [modelConfig.id, modelConfig.displayName]))
   };
 }
 

@@ -747,6 +747,14 @@ export function ChatWorkspaceProvider({ userId, children }: { userId: string; ch
       }
 
       if (streamResult.status === "success") {
+        if (shouldGenerateConversationTitle(messageHistory)) {
+          void generateAndPersistConversationTitle({
+            conversationId: conversation.id,
+            fallbackModelConfigId: modelConfigId,
+            messageHistory: [...messageHistory, streamResult.assistantMessage]
+          });
+        }
+
         retryStatesRef.current.delete(conversation.id);
         return;
       }
@@ -800,6 +808,45 @@ export function ChatWorkspaceProvider({ userId, children }: { userId: string; ch
         })
       )
     );
+  }
+
+  async function generateAndPersistConversationTitle({
+    conversationId,
+    fallbackModelConfigId,
+    messageHistory
+  }: {
+    conversationId: string;
+    fallbackModelConfigId: string;
+    messageHistory: ChatMessageRecord[];
+  }) {
+    try {
+      const title = await generateConversationTitle({
+        fallbackModelConfigId,
+        messageHistory
+      });
+
+      if (!title) {
+        return;
+      }
+
+      const currentConversation = await conversationStore.getConversation(conversationId);
+
+      if (!currentConversation) {
+        return;
+      }
+
+      const updatedConversation = {
+        ...currentConversation,
+        title
+      };
+
+      await conversationStore.saveConversation(updatedConversation);
+      setConversations((currentConversations) =>
+        sortConversations(upsertConversation(currentConversations, updatedConversation))
+      );
+    } catch {
+      return;
+    }
   }
 
   async function selectModel(modelId: string) {
@@ -1060,6 +1107,10 @@ function buildConversationTitle(text: string | undefined, fallbackTitle: string)
   return normalized.slice(0, 60);
 }
 
+function shouldGenerateConversationTitle(messageHistory: ChatMessageRecord[]) {
+  return messageHistory.length === 1 && messageHistory[0]?.role === "user";
+}
+
 function normalizeSearchQuery(text: string) {
   return text.toLocaleLowerCase().replace(/\s+/g, " ").trim();
 }
@@ -1214,6 +1265,38 @@ async function streamAssistantMessage({
   await savePartialMessage(assistantMessage);
 
   return { status: "success", assistantMessage };
+}
+
+async function generateConversationTitle({
+  fallbackModelConfigId,
+  messageHistory
+}: {
+  fallbackModelConfigId: string;
+  messageHistory: ChatMessageRecord[];
+}) {
+  const response = await fetch("/api/chat/title", {
+    method: "POST",
+    credentials: "same-origin",
+    headers: {
+      "content-type": "application/json"
+    },
+    body: JSON.stringify({
+      fallbackModelConfigId,
+      messages: messageHistory.map((message) => ({
+        role: message.role,
+        content: message.content
+      }))
+    })
+  });
+
+  if (!response.ok) {
+    return null;
+  }
+
+  const payload = (await response.json().catch(() => null)) as { title?: unknown } | null;
+  const title = typeof payload?.title === "string" ? payload.title.trim() : "";
+
+  return title === "" ? null : title;
 }
 
 async function createChatRequestError(response: Response) {

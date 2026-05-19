@@ -36,6 +36,13 @@
       "when": 1779186207641,
       "tag": "0005_add_user_settings",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1779186207642,
+      "tag": "0006_add_app_settings",
+      "breakpoints": true
     }
   ]
 }

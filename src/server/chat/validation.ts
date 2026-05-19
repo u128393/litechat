@@ -9,6 +9,11 @@ export type CreateChatRouteRequest = {
   messages: ChatRequestMessage[];
 };
 
+export type CreateChatTitleRouteRequest = {
+  fallbackModelConfigId: string;
+  messages: ChatRequestMessage[];
+};
+
 export async function parseCreateChatRouteRequest(request: Request): Promise<ValidationResult<CreateChatRouteRequest>> {
   const body = await parseJsonBody(request);
 
@@ -31,6 +36,33 @@ export async function parseCreateChatRouteRequest(request: Request): Promise<Val
     success: true,
     data: {
       modelConfigId: modelConfigId.value!,
+      messages: messages.value!
+    }
+  };
+}
+
+export async function parseCreateChatTitleRouteRequest(request: Request): Promise<ValidationResult<CreateChatTitleRouteRequest>> {
+  const body = await parseJsonBody(request);
+
+  if (!body || Array.isArray(body)) {
+    return invalid("Request body must be a JSON object.");
+  }
+
+  const fallbackModelConfigId = readRequiredString(body.fallbackModelConfigId, "fallbackModelConfigId");
+  const messages = readMessages(body.messages);
+
+  if (fallbackModelConfigId.error) {
+    return invalid(fallbackModelConfigId.error);
+  }
+
+  if (messages.error) {
+    return invalid(messages.error);
+  }
+
+  return {
+    success: true,
+    data: {
+      fallbackModelConfigId: fallbackModelConfigId.value!,
       messages: messages.value!
     }
   };

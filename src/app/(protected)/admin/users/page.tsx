@@ -14,6 +14,7 @@ export default async function AdminUsersPage() {
         initialUsers={users}
         initialProviderConfigs={[]}
         initialModelConfigs={[]}
+        initialAppSettings={{ titleGenerationModelConfigId: null }}
       />
     </main>
   );
