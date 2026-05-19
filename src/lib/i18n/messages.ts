@@ -128,6 +128,8 @@ export type AppMessages = {
     stop: string;
     retry: string;
     clearError: string;
+    copyMessage: string;
+    editMessage: string;
     send: string;
     stopped: string;
     errorModelMissing: string;
@@ -267,6 +269,8 @@ export const messagesByLocale: Record<AppLocale, AppMessages> = {
       stop: "Stop",
       retry: "Retry",
       clearError: "Clear error",
+      copyMessage: "Copy message",
+      editMessage: "Edit message",
       send: "Send",
       stopped: "Response stopped. You can retry from the latest user message.",
       errorModelMissing: "Select a model before sending.",
@@ -404,6 +408,8 @@ export const messagesByLocale: Record<AppLocale, AppMessages> = {
       stop: "停止",
       retry: "重试",
       clearError: "清除错误",
+      copyMessage: "复制消息",
+      editMessage: "编辑消息",
       send: "发送",
       stopped: "回复已停止。你可以基于最新的用户消息重新生成。",
       errorModelMissing: "请先选择一个模型后再发送。",

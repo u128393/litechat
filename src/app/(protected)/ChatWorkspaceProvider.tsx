@@ -77,6 +77,7 @@ type ChatWorkspaceContextValue = {
   stopMessage(): void;
   retryMessage(): Promise<void>;
   regenerateMessage(messageId: string): Promise<void>;
+  editUserMessage(messageId: string, nextContent: string): Promise<void>;
   clearChatError(): void;
   deleteConversation(conversationId: string): Promise<void>;
   selectModel(modelId: string): Promise<void>;
@@ -670,6 +671,92 @@ export function ChatWorkspaceProvider({ userId, children }: { userId: string; ch
     }
   }
 
+  async function editUserMessage(messageId: string, nextContent: string) {
+    const trimmedContent = nextContent.trim();
+
+    if (!activeConversationId || trimmedContent === "") {
+      return;
+    }
+
+    if (isConversationSending(activeConversationId)) {
+      return;
+    }
+
+    if (!selectedModelId) {
+      setChatErrorForConversation(activeConversationId, {
+        code: "model_missing",
+        message: i18nMessages.chat.errorModelMissing,
+        canRetry: false
+      });
+      return;
+    }
+
+    const targetMessageIndex = messages.findIndex((message) => message.id === messageId && message.role === "user");
+
+    if (targetMessageIndex === -1) {
+      return;
+    }
+
+    const conversation =
+      conversations.find((currentConversation) => currentConversation.id === activeConversationId) ??
+      await conversationStore.getConversation(activeConversationId);
+
+    if (!conversation) {
+      return;
+    }
+
+    const now = new Date().toISOString();
+    const editedMessage: ChatMessageRecord = {
+      ...messages[targetMessageIndex]!,
+      content: trimmedContent,
+      updatedAt: now
+    };
+    const messageHistory = [
+      ...messages.slice(0, targetMessageIndex),
+      editedMessage
+    ];
+    const removedMessages = messages.slice(targetMessageIndex + 1);
+    const updatedConversation: ChatConversationRecord = {
+      ...conversation,
+      title: targetMessageIndex === 0 ? buildConversationTitle(trimmedContent, i18nMessages.chat.title) : conversation.title,
+      updatedAt: now
+    };
+
+    clearChatErrorForConversation(conversation.id);
+    setMessages(messageHistory);
+    setConversations((currentConversations) =>
+      sortConversations(upsertConversation(currentConversations, updatedConversation))
+    );
+    retryStatesRef.current.set(conversation.id, {
+      conversation,
+      updatedConversation,
+      messageHistory,
+      modelConfigId: selectedModelId
+    });
+
+    try {
+      await Promise.all([
+        conversationStore.saveConversation(updatedConversation),
+        conversationStore.saveMessage(editedMessage),
+        ...removedMessages.map((message) => conversationStore.deleteMessage(message.id))
+      ]);
+
+      await continueAssistantResponse({
+        assistantMessageId: crypto.randomUUID(),
+        conversation,
+        updatedConversation,
+        modelConfigId: selectedModelId,
+        messageHistory
+      });
+    } catch {
+      setChatErrorForConversation(conversation.id, {
+        code: "unknown",
+        message: i18nMessages.chat.errorUnknown,
+        canRetry: true
+      });
+    }
+  }
+
   function clearChatError() {
     clearChatErrorForConversation(activeConversationId);
   }
@@ -1059,6 +1146,7 @@ export function ChatWorkspaceProvider({ userId, children }: { userId: string; ch
         stopMessage,
         retryMessage,
         regenerateMessage,
+        editUserMessage,
         clearChatError,
         deleteConversation,
         selectModel,
