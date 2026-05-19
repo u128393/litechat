@@ -9,7 +9,7 @@ import {
 } from "@/server/chat";
 import { parseCreateChatRouteRequest } from "@/server/chat/validation";
 import { requireApiUser } from "@/server/auth/api";
-import { getCustomInstructions } from "@/server/user-settings";
+import { getPersonalization } from "@/server/user-settings";
 import type { ChatRequestMessage } from "@/server/chat";
 
 const encoder = new TextEncoder();
@@ -31,9 +31,9 @@ export async function POST(request: Request) {
     const model = await resolveChatModelTarget(parsedRequest.data.modelConfigId);
     const adapter = getChatProviderAdapter(model.providerType);
     const tools = resolveAutomaticChatTools(model, adapter);
-    const messages = withCustomInstructions(
+    const messages = withPersonalization(
       parsedRequest.data.messages,
-      await getCustomInstructions(currentUser.userId)
+      await getPersonalization(currentUser.userId)
     );
     const responseStream = await adapter.createResponseStream({
       model,
@@ -54,15 +54,15 @@ export async function POST(request: Request) {
   }
 }
 
-function withCustomInstructions(messages: ChatRequestMessage[], customInstructions: string): ChatRequestMessage[] {
-  if (customInstructions.trim() === "") {
+function withPersonalization(messages: ChatRequestMessage[], personalization: string): ChatRequestMessage[] {
+  if (personalization.trim() === "") {
     return messages;
   }
 
   return [
     {
       role: "system",
-      content: customInstructions
+      content: personalization
     },
     ...messages
   ];

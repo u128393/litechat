@@ -84,7 +84,7 @@ function defineSqliteSchema() {
     userId: sqliteText("user_id")
       .primaryKey()
       .references(() => users.id, { onDelete: "cascade" }),
-    customInstructions: sqliteText("custom_instructions").notNull().default(""),
+    personalization: sqliteText("custom_instructions").notNull().default(""),
     createdAt: sqliteText("created_at").notNull(),
     updatedAt: sqliteText("updated_at").notNull()
   });
@@ -176,7 +176,7 @@ function definePostgresSchema() {
     userId: pgVarchar("user_id", { length: 191 })
       .primaryKey()
       .references(() => users.id, { onDelete: "cascade" }),
-    customInstructions: pgText("custom_instructions").notNull().default(""),
+    personalization: pgText("custom_instructions").notNull().default(""),
     createdAt: pgVarchar("created_at", { length: 64 }).notNull(),
     updatedAt: pgVarchar("updated_at", { length: 64 }).notNull()
   });
@@ -268,7 +268,7 @@ function defineMysqlSchema() {
     userId: mysqlVarchar("user_id", { length: 191 })
       .primaryKey()
       .references(() => users.id, { onDelete: "cascade" }),
-    customInstructions: mysqlText("custom_instructions").notNull().default(""),
+    personalization: mysqlText("custom_instructions").notNull().default(""),
     createdAt: mysqlVarchar("created_at", { length: 64 }).notNull(),
     updatedAt: mysqlVarchar("updated_at", { length: 64 }).notNull()
   });

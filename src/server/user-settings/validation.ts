@@ -1,6 +1,6 @@
 import {
-  customInstructionsMaxLength,
-  normalizeCustomInstructions,
+  normalizePersonalization,
+  personalizationMaxLength,
   type UpdateUserSettingsInput
 } from "@/server/user-settings/service";
 
@@ -15,22 +15,22 @@ export async function parseUpdateUserSettingsRequest(request: Request): Promise<
     return invalid("Request body must be a JSON object.");
   }
 
-  if (typeof body.customInstructions !== "string") {
-    return invalid("customInstructions must be a string.");
+  if (typeof body.personalization !== "string") {
+    return invalid("personalization must be a string.");
   }
 
-  const customInstructions = normalizeCustomInstructions(body.customInstructions);
+  const personalization = normalizePersonalization(body.personalization);
 
-  if (customInstructions.length > customInstructionsMaxLength) {
+  if (personalization.length > personalizationMaxLength) {
     return invalid(
-      `customInstructions must be at most ${customInstructionsMaxLength} characters.`,
-      "custom_instructions_too_long"
+      `personalization must be at most ${personalizationMaxLength} characters.`,
+      "personalization_too_long"
     );
   }
 
   return {
     success: true,
-    data: { customInstructions }
+    data: { personalization }
   };
 }
 

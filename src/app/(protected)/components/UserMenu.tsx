@@ -22,14 +22,14 @@ import { ChevronDown, Globe, Lock, Monitor, Moon, Shield, SlidersHorizontal, Sun
 import type { CurrentUser } from "@/server/auth/types";
 import { cn } from "@/lib/utils";
 
-type ThemePreference = "system" | "light" | "dark";
+type AppearancePreference = "system" | "light" | "dark";
 
 const languageNames: Record<AppLocale, string> = {
   en: "English",
   "zh-CN": "简体中文",
 };
 
-const themePreferences: ThemePreference[] = ["system", "light", "dark"];
+const appearancePreferences: AppearancePreference[] = ["system", "light", "dark"];
 
 const userMenuTriggerClass =
   "flex h-10 w-full items-center justify-start gap-2.5 overflow-hidden rounded-lg px-2 py-1 text-left transition-colors duration-200 ease-out hover:bg-[var(--lc-bg-tertiary)] outline-none";
@@ -48,7 +48,7 @@ type UserMenuProps = {
 export function UserMenu({ currentUser, collapsed = false }: UserMenuProps) {
   const { locale, messages, setLocale } = useI18n();
   const { theme, setTheme } = useTheme();
-  const currentTheme: ThemePreference = isThemePreference(theme) ? theme : "system";
+  const currentAppearance: AppearancePreference = isAppearancePreference(theme) ? theme : "system";
 
   const initials = currentUser.email.slice(0, 2).toUpperCase();
 
@@ -92,29 +92,29 @@ export function UserMenu({ currentUser, collapsed = false }: UserMenuProps) {
         sideOffset={8}
         className="w-[220px] rounded-lg border border-[var(--lc-border)] bg-[var(--lc-bg-primary)] p-1 shadow-lg"
       >
-        {/* Theme */}
+        {/* Appearance */}
         <DropdownMenuSub>
           <DropdownMenuSubTrigger className="flex items-center gap-2 rounded-[4px] px-3 py-2 text-[14px] text-[var(--lc-text-primary)]">
             <Monitor className="size-4" />
-            {messages.shell.themeLabel}
+            {messages.shell.appearanceLabel}
           </DropdownMenuSubTrigger>
           <DropdownMenuSubContent className="min-w-[160px] rounded-lg border border-[var(--lc-border)] bg-[var(--lc-bg-primary)] p-1 shadow-lg">
             <DropdownMenuRadioGroup
-              value={currentTheme}
-              onValueChange={(nextTheme) => {
-                if (isThemePreference(nextTheme)) {
-                  setTheme(nextTheme);
+              value={currentAppearance}
+              onValueChange={(nextAppearance) => {
+                if (isAppearancePreference(nextAppearance)) {
+                  setTheme(nextAppearance);
                 }
               }}
             >
-              {themePreferences.map((themePreference) => (
+              {appearancePreferences.map((appearancePreference) => (
                 <DropdownMenuRadioItem
-                  key={themePreference}
-                  value={themePreference}
+                  key={appearancePreference}
+                  value={appearancePreference}
                   className="flex items-center gap-2 rounded-[4px] px-3 py-2 pr-8 text-[14px] text-[var(--lc-text-primary)]"
                 >
-                  {getThemeIcon(themePreference)}
-                  {getThemeLabel(themePreference, messages)}
+                  {getAppearanceIcon(appearancePreference)}
+                  {getAppearanceLabel(appearancePreference, messages)}
                 </DropdownMenuRadioItem>
               ))}
             </DropdownMenuRadioGroup>
@@ -151,13 +151,13 @@ export function UserMenu({ currentUser, collapsed = false }: UserMenuProps) {
 
         <DropdownMenuSeparator className="my-1 h-px bg-[var(--lc-border)]" />
 
-        {/* Custom instructions */}
+        {/* Personalization */}
         <DropdownMenuItem
           className="flex items-center gap-2 rounded-[4px] px-3 py-2 text-[14px] text-[var(--lc-text-primary)]"
         >
-          <Link href="/account/instructions" className="flex w-full items-center gap-2">
+          <Link href="/account/personalization" className="flex w-full items-center gap-2">
             <SlidersHorizontal className="size-4" />
-            {messages.shell.customInstructionsSettings}
+            {messages.shell.personalizationSettings}
           </Link>
         </DropdownMenuItem>
 
@@ -201,7 +201,7 @@ export function UserMenu({ currentUser, collapsed = false }: UserMenuProps) {
   );
 }
 
-function isThemePreference(value: unknown): value is ThemePreference {
+function isAppearancePreference(value: unknown): value is AppearancePreference {
   return value === "system" || value === "light" || value === "dark";
 }
 
@@ -209,8 +209,8 @@ function isAppLocale(value: unknown): value is AppLocale {
   return value === "en" || value === "zh-CN";
 }
 
-function getThemeIcon(themePreference: ThemePreference) {
-  switch (themePreference) {
+function getAppearanceIcon(appearancePreference: AppearancePreference) {
+  switch (appearancePreference) {
     case "light":
       return <Sun className="size-4" />;
     case "dark":
@@ -220,13 +220,13 @@ function getThemeIcon(themePreference: ThemePreference) {
   }
 }
 
-function getThemeLabel(themePreference: ThemePreference, messages: ReturnType<typeof useI18n>["messages"]) {
-  switch (themePreference) {
+function getAppearanceLabel(appearancePreference: AppearancePreference, messages: ReturnType<typeof useI18n>["messages"]) {
+  switch (appearancePreference) {
     case "light":
-      return messages.shell.themeLight;
+      return messages.shell.appearanceLight;
     case "dark":
-      return messages.shell.themeDark;
+      return messages.shell.appearanceDark;
     default:
-      return messages.shell.themeSystem;
+      return messages.shell.appearanceSystem;
   }
 }

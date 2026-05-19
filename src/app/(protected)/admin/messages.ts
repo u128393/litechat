@@ -127,11 +127,11 @@ export type AdminMessages = {
 export const adminMessagesByLocale: Record<AppLocale, AdminMessages> = {
   en: {
     badge: "Admin only",
-    title: "Admin management",
+    title: "Admin Console",
     description: "Configure providers and models for the shared chat workspace.",
     navigationLabel: "Management sections",
-    usersNav: "User management",
-    modelConfigNav: "Model management",
+    usersNav: "Users",
+    modelConfigNav: "Models",
     providersNav: "Providers",
     modelsNav: "Models",
     unexpectedResponse: "Unexpected response.",
@@ -212,7 +212,7 @@ export const adminMessagesByLocale: Record<AppLocale, AdminMessages> = {
     },
     models: {
       badge: "Models",
-      title: "Model management",
+      title: "Models",
       description: "Create and update the selectable models backed by configured providers.",
       emptyTitle: "No models configured yet.",
       emptyDescription: "Create at least one visible model to make it available in the app.",
@@ -251,7 +251,7 @@ export const adminMessagesByLocale: Record<AppLocale, AdminMessages> = {
   },
   "zh-CN": {
     badge: "仅管理员",
-    title: "后台管理",
+    title: "管理",
     description: "为共享聊天工作区配置提供商与模型。",
     navigationLabel: "管理分区",
     usersNav: "用户管理",

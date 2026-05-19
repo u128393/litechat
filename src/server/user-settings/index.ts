@@ -1,8 +1,8 @@
 export {
-  customInstructionsMaxLength,
+  personalizationMaxLength,
   getCurrentUserSettings,
-  getCustomInstructions,
-  normalizeCustomInstructions,
+  getPersonalization,
+  normalizePersonalization,
   updateCurrentUserSettings,
   type UpdateUserSettingsInput,
   type UpdateUserSettingsResult,

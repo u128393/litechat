@@ -51,13 +51,13 @@ export type AppMessages = {
     modelsLoading: string;
     modelsEmpty: string;
     languageStatus: string;
-    customInstructionsSettings: string;
+    personalizationSettings: string;
     passwordSettings: string;
     passwordManage: string;
-    themeLabel: string;
-    themeSystem: string;
-    themeLight: string;
-    themeDark: string;
+    appearanceLabel: string;
+    appearanceSystem: string;
+    appearanceLight: string;
+    appearanceDark: string;
     navigation: string;
     toggleSidebar: string;
     showKeyboardShortcuts: string;
@@ -92,15 +92,17 @@ export type AppMessages = {
     newPasswordPlaceholder: string;
     confirmPasswordPlaceholder: string;
   };
-  instructions: {
+  personalization: {
     title: string;
-    label: string;
-    placeholder: string;
+    customInstructions: {
+      title: string;
+      placeholder: string;
+      loading: string;
+      tooLong: string;
+    };
     submit: string;
     saving: string;
     success: string;
-    loading: string;
-    tooLong: string;
     unknownError: string;
   };
   chat: {
@@ -163,10 +165,10 @@ export const messagesByLocale: Record<AppLocale, AppMessages> = {
       conversationsEmpty: "No local conversations yet.",
       conversationGroupToday: "Today",
       conversationGroupYesterday: "Yesterday",
-      conversationGroupPrevious7Days: "Previous 7 Days",
+      conversationGroupPrevious7Days: "Previous 7 days",
       conversationGroupOlder: "Older",
       menu: "Menu",
-      adminArea: "Admin area",
+      adminArea: "Admin Console",
       adminManage: "Manage",
       logout: "Log out",
       mobileHint: "Mobile navigation is collapsed into this drawer to preserve the chat workspace.",
@@ -182,19 +184,19 @@ export const messagesByLocale: Record<AppLocale, AppMessages> = {
       deleteConversationBodyStart: "This will delete ",
       deleteConversationBodyEnd: ".",
       deleteConversationDescription: "This action cannot be undone.",
-      languageLabel: "Display language",
+      languageLabel: "Language",
       languageDescription: "Switch the authenticated workspace language instantly.",
       modelLabel: "Model",
       modelsLoading: "Loading models...",
       modelsEmpty: "No models available",
       languageStatus: "Language preference saved locally",
-      customInstructionsSettings: "Custom instructions",
+      personalizationSettings: "Personalization",
       passwordSettings: "Password",
       passwordManage: "Update",
-      themeLabel: "Theme",
-      themeSystem: "System",
-      themeLight: "Light",
-      themeDark: "Dark",
+      appearanceLabel: "Appearance",
+      appearanceSystem: "System",
+      appearanceLight: "Light",
+      appearanceDark: "Dark",
       navigation: "Navigation",
       toggleSidebar: "Toggle sidebar",
       showKeyboardShortcuts: "Show keyboard shortcuts",
@@ -229,15 +231,17 @@ export const messagesByLocale: Record<AppLocale, AppMessages> = {
       newPasswordPlaceholder: "Enter new password",
       confirmPasswordPlaceholder: "Confirm new password",
     },
-    instructions: {
-      title: "Custom instructions",
-      label: "Instructions",
-      placeholder: "Example: Keep answers concise, ask clarifying questions when requirements are unclear, and prefer TypeScript examples.",
+    personalization: {
+      title: "Personalization",
+      customInstructions: {
+        title: "Custom instructions",
+        placeholder: "Example: Keep answers concise, ask clarifying questions when requirements are unclear, and prefer TypeScript examples.",
+        loading: "Loading custom instructions...",
+        tooLong: "Use 8000 characters or fewer."
+      },
       submit: "Save",
       saving: "Saving...",
       success: "Saved.",
-      loading: "Loading instructions...",
-      tooLong: "Use 8000 characters or fewer.",
       unknownError: "Save failed."
     },
     chat: {
@@ -271,7 +275,7 @@ export const messagesByLocale: Record<AppLocale, AppMessages> = {
       errorUpstream: "The model provider could not complete the request. Retry in a moment.",
       errorInterrupted: "The response stream was interrupted before completion. Retry to continue.",
       errorUnknown: "Something went wrong while sending the message. Retry to continue.",
-      selectModel: "Select Model",
+      selectModel: "Select model",
       composerKeyboardHint: "Enter to send, Shift+Enter for new line"
     },
     admin: adminMessagesByLocale.en
@@ -301,7 +305,7 @@ export const messagesByLocale: Record<AppLocale, AppMessages> = {
       conversationGroupPrevious7Days: "过去 7 天",
       conversationGroupOlder: "更早",
       menu: "菜单",
-      adminArea: "后台管理",
+      adminArea: "管理",
       adminManage: "管理",
       logout: "退出登录",
       mobileHint: "移动端导航收纳在此抽屉中，以保留聊天工作区。",
@@ -317,19 +321,19 @@ export const messagesByLocale: Record<AppLocale, AppMessages> = {
       deleteConversationBodyStart: "这会删除",
       deleteConversationBodyEnd: "。",
       deleteConversationDescription: "此操作无法撤销。",
-      languageLabel: "显示语言",
+      languageLabel: "语言",
       languageDescription: "即时切换已登录工作区语言。",
       modelLabel: "模型",
       modelsLoading: "正在加载模型...",
       modelsEmpty: "没有可用模型",
       languageStatus: "语言偏好已保存在本地",
-      customInstructionsSettings: "个人指令",
-      passwordSettings: "修改密码",
+      personalizationSettings: "个性化",
+      passwordSettings: "密码",
       passwordManage: "修改",
-      themeLabel: "主题模式",
-      themeSystem: "跟随系统",
-      themeLight: "浅色模式",
-      themeDark: "深色模式",
+      appearanceLabel: "外观",
+      appearanceSystem: "跟随系统",
+      appearanceLight: "浅色模式",
+      appearanceDark: "深色模式",
       navigation: "导航",
       toggleSidebar: "切换侧边栏",
       showKeyboardShortcuts: "显示快捷键列表",
@@ -364,15 +368,17 @@ export const messagesByLocale: Record<AppLocale, AppMessages> = {
       newPasswordPlaceholder: "输入新密码",
       confirmPasswordPlaceholder: "确认新密码",
     },
-    instructions: {
-      title: "个人指令",
-      label: "指令内容",
-      placeholder: "例如：回答保持简洁；需求不明确时先追问；代码示例优先使用 TypeScript。",
+    personalization: {
+      title: "个性化",
+      customInstructions: {
+        title: "自定义指令",
+        placeholder: "例如：回答保持简洁；需求不明确时先追问；代码示例优先使用 TypeScript。",
+        loading: "正在加载自定义指令...",
+        tooLong: "最多可输入 8000 个字符。"
+      },
       submit: "保存",
       saving: "保存中...",
       success: "已保存。",
-      loading: "正在加载指令...",
-      tooLong: "最多可输入 8000 个字符。",
       unknownError: "保存失败。"
     },
     chat: {

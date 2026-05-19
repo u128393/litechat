@@ -5,7 +5,7 @@ import { userSettings } from "@/server/db/schema";
 
 export type UserSettingsRow = {
   userId: string;
-  customInstructions: string;
+  personalization: string;
   createdAt: string;
   updatedAt: string;
 };
@@ -30,7 +30,7 @@ export const getUserSettingsRepository = defineRepository(({ db }) => {
         await database
           .update(userSettings)
           .set({
-            customInstructions: settings.customInstructions,
+            personalization: settings.personalization,
             updatedAt: settings.updatedAt
           })
           .where(eq(userSettings.userId, settings.userId));

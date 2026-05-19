@@ -10,15 +10,15 @@ import { useI18n } from "@/lib/i18n/provider";
 
 type AccountSettingsResponse = {
   settings?: {
-    customInstructions?: unknown;
+    personalization?: unknown;
   };
   code?: string;
 };
 
-export default function InstructionsSettingsPage() {
+export default function PersonalizationSettingsPage() {
   const router = useRouter();
   const { messages } = useI18n();
-  const [customInstructions, setCustomInstructions] = useState("");
+  const [personalization, setPersonalization] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -42,12 +42,12 @@ export default function InstructionsSettingsPage() {
           return;
         }
 
-        setCustomInstructions(
-          typeof payload?.settings?.customInstructions === "string" ? payload.settings.customInstructions : ""
+        setPersonalization(
+          typeof payload?.settings?.personalization === "string" ? payload.settings.personalization : ""
         );
       } catch {
         if (active) {
-          toast.error(messages.instructions.unknownError);
+          toast.error(messages.personalization.unknownError);
         }
       } finally {
         if (active) {
@@ -66,8 +66,8 @@ export default function InstructionsSettingsPage() {
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    if (customInstructions.trim().length > 8000) {
-      toast.error(messages.instructions.tooLong);
+    if (personalization.trim().length > 8000) {
+      toast.error(messages.personalization.customInstructions.tooLong);
       return;
     }
 
@@ -80,7 +80,7 @@ export default function InstructionsSettingsPage() {
         headers: {
           "content-type": "application/json"
         },
-        body: JSON.stringify({ customInstructions })
+        body: JSON.stringify({ personalization })
       });
       const payload = (await response.json().catch(() => null)) as AccountSettingsResponse | null;
 
@@ -89,12 +89,12 @@ export default function InstructionsSettingsPage() {
         return;
       }
 
-      const savedInstructions =
-        typeof payload?.settings?.customInstructions === "string" ? payload.settings.customInstructions : customInstructions.trim();
-      setCustomInstructions(savedInstructions);
-      toast.success(messages.instructions.success);
+      const savedPersonalization =
+        typeof payload?.settings?.personalization === "string" ? payload.settings.personalization : personalization.trim();
+      setPersonalization(savedPersonalization);
+      toast.success(messages.personalization.success);
     } catch {
-      toast.error(messages.instructions.unknownError);
+      toast.error(messages.personalization.unknownError);
     } finally {
       setIsSubmitting(false);
     }
@@ -112,7 +112,7 @@ export default function InstructionsSettingsPage() {
           <ArrowLeft className="size-[18px]" />
         </button>
         <h1 className="truncate text-[20px] font-semibold text-[var(--lc-text-primary)]">
-          {messages.instructions.title}
+          {messages.personalization.title}
         </h1>
       </div>
 
@@ -120,29 +120,29 @@ export default function InstructionsSettingsPage() {
         <div className="mx-auto flex w-full max-w-[640px] flex-col gap-6">
           {isLoading ? (
             <p className="rounded-lg border border-[var(--lc-border)] bg-[var(--lc-bg-secondary)] px-3 py-2.5 text-sm text-[var(--lc-text-secondary)]">
-              {messages.instructions.loading}
+              {messages.personalization.customInstructions.loading}
             </p>
           ) : (
             <form className="flex flex-col gap-4" onSubmit={(event) => void handleSubmit(event)}>
               <div className="flex flex-col gap-2">
                 <div className="flex items-center gap-3">
                   <label className="text-sm font-medium text-[var(--lc-text-primary)]">
-                    {messages.instructions.label}
+                    {messages.personalization.customInstructions.title}
                   </label>
                 </div>
                 <div className="relative">
                   <textarea
-                    value={customInstructions}
+                    value={personalization}
                     onChange={(event) => {
-                      setCustomInstructions(event.target.value);
+                      setPersonalization(event.target.value);
                     }}
                     rows={12}
                     maxLength={8000}
-                    placeholder={messages.instructions.placeholder}
+                    placeholder={messages.personalization.customInstructions.placeholder}
                     className="min-h-[320px] w-full resize-y rounded-lg border border-[var(--lc-border)] bg-[var(--lc-bg-primary)] px-3 py-2.5 text-sm leading-6 text-[var(--lc-text-primary)] outline-none transition placeholder:text-[var(--lc-text-tertiary)] focus:border-[var(--lc-accent)]"
                   />
                   <span className="pointer-events-none absolute left-0 top-full mt-0.5 text-xs text-[var(--lc-text-tertiary)]">
-                    {customInstructions.trim().length}/8000
+                    {personalization.trim().length}/8000
                   </span>
                 </div>
               </div>
@@ -153,7 +153,7 @@ export default function InstructionsSettingsPage() {
                   disabled={isSubmitting}
                   className="h-10 rounded-lg bg-[var(--lc-accent)] px-4 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-60"
                 >
-                  {isSubmitting ? messages.instructions.saving : messages.instructions.submit}
+                  {isSubmitting ? messages.personalization.saving : messages.personalization.submit}
                 </button>
               </div>
             </form>
@@ -166,9 +166,9 @@ export default function InstructionsSettingsPage() {
 
 function resolveErrorMessage(code: string | undefined, messages: AppMessages) {
   switch (code) {
-    case "custom_instructions_too_long":
-      return messages.instructions.tooLong;
+    case "personalization_too_long":
+      return messages.personalization.customInstructions.tooLong;
     default:
-      return messages.instructions.unknownError;
+      return messages.personalization.unknownError;
   }
 }

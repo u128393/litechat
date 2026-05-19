@@ -1,21 +1,21 @@
 import type { DatabaseConnection } from "@/server/db";
 import { getUserSettingsRepository, type UserSettingsRow } from "@/server/user-settings/repository";
 
-export const customInstructionsMaxLength = 8000;
+export const personalizationMaxLength = 8000;
 
 export type UserSettings = {
-  customInstructions: string;
+  personalization: string;
   createdAt: string | null;
   updatedAt: string | null;
 };
 
 export type UpdateUserSettingsInput = {
-  customInstructions: string;
+  personalization: string;
 };
 
 export type UpdateUserSettingsResult =
   | { success: true; settings: UserSettings }
-  | { success: false; error: "custom_instructions_too_long" };
+  | { success: false; error: "personalization_too_long" };
 
 export async function getCurrentUserSettings(userId: string, database?: DatabaseConnection): Promise<UserSettings> {
   const repository = getUserSettingsRepository(database);
@@ -24,9 +24,9 @@ export async function getCurrentUserSettings(userId: string, database?: Database
   return settings ? toUserSettings(settings) : createDefaultUserSettings();
 }
 
-export async function getCustomInstructions(userId: string, database?: DatabaseConnection): Promise<string> {
+export async function getPersonalization(userId: string, database?: DatabaseConnection): Promise<string> {
   const settings = await getCurrentUserSettings(userId, database);
-  return settings.customInstructions;
+  return settings.personalization;
 }
 
 export async function updateCurrentUserSettings(
@@ -34,10 +34,10 @@ export async function updateCurrentUserSettings(
   input: UpdateUserSettingsInput,
   database?: DatabaseConnection
 ): Promise<UpdateUserSettingsResult> {
-  const customInstructions = normalizeCustomInstructions(input.customInstructions);
+  const personalization = normalizePersonalization(input.personalization);
 
-  if (customInstructions.length > customInstructionsMaxLength) {
-    return { success: false, error: "custom_instructions_too_long" };
+  if (personalization.length > personalizationMaxLength) {
+    return { success: false, error: "personalization_too_long" };
   }
 
   const repository = getUserSettingsRepository(database);
@@ -45,7 +45,7 @@ export async function updateCurrentUserSettings(
   const now = new Date().toISOString();
   const settings = await repository.upsertUserSettings({
     userId,
-    customInstructions,
+    personalization,
     createdAt: existingSettings?.createdAt ?? now,
     updatedAt: now
   });
@@ -53,13 +53,13 @@ export async function updateCurrentUserSettings(
   return { success: true, settings: toUserSettings(settings) };
 }
 
-export function normalizeCustomInstructions(value: string): string {
+export function normalizePersonalization(value: string): string {
   return value.trim();
 }
 
 function createDefaultUserSettings(): UserSettings {
   return {
-    customInstructions: "",
+    personalization: "",
     createdAt: null,
     updatedAt: null
   };
@@ -67,7 +67,7 @@ function createDefaultUserSettings(): UserSettings {
 
 function toUserSettings(settings: UserSettingsRow): UserSettings {
   return {
-    customInstructions: settings.customInstructions,
+    personalization: settings.personalization,
     createdAt: settings.createdAt,
     updatedAt: settings.updatedAt
   };
