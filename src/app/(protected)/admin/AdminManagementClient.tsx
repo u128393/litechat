@@ -1,14 +1,28 @@
 "use client";
 
-import { useState, type FormEvent, type KeyboardEvent } from "react";
+import { useMemo, useState, type FormEvent, type KeyboardEvent } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Plus, Globe } from "lucide-react";
+import { ArrowLeft, Globe, MoreHorizontal, Plus, Search } from "lucide-react";
 
 import { useI18n } from "@/lib/i18n/provider";
+import type { UserRole } from "@/server/db";
 import type { ModelConfig } from "@/server/model-configs";
 import type { ProviderConfig } from "@/server/providers";
+import type { ManagedUser } from "@/server/users";
 
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useChatWorkspace } from "@/app/(protected)/ChatWorkspaceProvider";
@@ -19,18 +33,27 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  SidePanel,
-  SidePanelBody,
-  SidePanelContent,
-  SidePanelFooter,
-  SidePanelHeader,
-  SidePanelTitle,
-} from "@/components/ui/side-panel";
 
 type AdminManagementClientProps = {
+  activeSection: AdminSection;
+  currentUserId: string;
+  initialUsers: ManagedUser[];
   initialProviderConfigs: ProviderConfig[];
   initialModelConfigs: ModelConfig[];
+};
+
+type AdminSection = "users" | "model-config";
+
+type UserFormState = {
+  email: string;
+  password: string;
+  role: UserRole;
+  enabled: boolean;
+};
+
+type ResetPasswordFormState = {
+  password: string;
+  confirmPassword: string;
 };
 
 type ProviderFormState = {
@@ -58,6 +81,24 @@ const DEFAULT_PROVIDER_FORM: ProviderFormState = {
   enabled: true
 };
 
+const DEFAULT_USER_FORM: UserFormState = {
+  email: "",
+  password: "",
+  role: "user",
+  enabled: true
+};
+
+const DEFAULT_RESET_PASSWORD_FORM: ResetPasswordFormState = {
+  password: "",
+  confirmPassword: ""
+};
+
+const adminDialogContentClass = "gap-0 overflow-hidden border border-[var(--lc-border)] bg-[var(--lc-bg-primary)] p-0";
+const adminDialogHeaderClass = "border-b border-[var(--lc-border)] px-4 py-4";
+const adminDialogTitleClass = "text-[18px] font-semibold text-[var(--lc-text-primary)]";
+const adminDialogBodyClass = "flex flex-col gap-5 px-4 py-5";
+const adminDialogFormBodyClass = "flex flex-col gap-5 px-4 pt-5 pb-8";
+
 function createDefaultModelForm(providerConfigs: ProviderConfig[]): ModelFormState {
   return {
     providerConfigId: providerConfigs[0]?.id ?? "",
@@ -69,11 +110,23 @@ function createDefaultModelForm(providerConfigs: ProviderConfig[]): ModelFormSta
   };
 }
 
-export function AdminManagementClient({ initialProviderConfigs, initialModelConfigs }: AdminManagementClientProps) {
+export function AdminManagementClient({
+  activeSection,
+  currentUserId,
+  initialUsers,
+  initialProviderConfigs,
+  initialModelConfigs
+}: AdminManagementClientProps) {
   const router = useRouter();
   const { refreshModels } = useChatWorkspace();
   const { messages } = useI18n();
   const adminMessages = messages.admin;
+  const [users, setUsers] = useState(sortUsers(initialUsers));
+  const [userSearchQuery, setUserSearchQuery] = useState("");
+  const filteredUsers = useMemo(
+    () => filterUsers(users, userSearchQuery),
+    [users, userSearchQuery]
+  );
   const sortedInitialProviderConfigs = sortProviderConfigs(initialProviderConfigs);
   const sortedInitialModelConfigs = sortModelConfigs(initialModelConfigs);
   const providerTypeSelectItems: Record<ProviderFormState["providerType"], string> = {
@@ -82,6 +135,20 @@ export function AdminManagementClient({ initialProviderConfigs, initialModelConf
 
   const [providerConfigs, setProviderConfigs] = useState(sortedInitialProviderConfigs);
   const [modelConfigs, setModelConfigs] = useState(sortedInitialModelConfigs);
+
+  const [userDialogOpen, setUserDialogOpen] = useState(false);
+  const [userForm, setUserForm] = useState<UserFormState>(DEFAULT_USER_FORM);
+  const [userPending, setUserPending] = useState(false);
+  const [userFeedback, setUserFeedback] = useState<{ type: "success" | "error"; message: string } | null>(null);
+
+  const [resetPasswordDialogOpen, setResetPasswordDialogOpen] = useState(false);
+  const [resettingPasswordUser, setResettingPasswordUser] = useState<ManagedUser | null>(null);
+  const [resetPasswordForm, setResetPasswordForm] = useState<ResetPasswordFormState>(DEFAULT_RESET_PASSWORD_FORM);
+  const [resetPasswordPending, setResetPasswordPending] = useState(false);
+
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deletingUser, setDeletingUser] = useState<ManagedUser | null>(null);
+  const [deletePending, setDeletePending] = useState(false);
 
   const [providerDialogOpen, setProviderDialogOpen] = useState(false);
   const [editingProvider, setEditingProvider] = useState<ProviderConfig | null>(null);
@@ -99,6 +166,172 @@ export function AdminManagementClient({ initialProviderConfigs, initialModelConf
 
   const [togglingProviderId, setTogglingProviderId] = useState<string | null>(null);
   const [togglingModelId, setTogglingModelId] = useState<string | null>(null);
+  const [togglingUserId, setTogglingUserId] = useState<string | null>(null);
+
+  function openAddUser() {
+    setUserForm(DEFAULT_USER_FORM);
+    setUserFeedback(null);
+    setUserDialogOpen(true);
+  }
+
+  function openResetPassword(user: ManagedUser) {
+    setResettingPasswordUser(user);
+    setResetPasswordForm(DEFAULT_RESET_PASSWORD_FORM);
+    setUserFeedback(null);
+    setResetPasswordDialogOpen(true);
+  }
+
+  function openDeleteUser(user: ManagedUser) {
+    setDeletingUser(user);
+    setUserFeedback(null);
+    setDeleteDialogOpen(true);
+  }
+
+  async function submitUserForm(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    setUserPending(true);
+    setUserFeedback(null);
+
+    try {
+      const response = await fetch("/api/admin/users", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(userForm)
+      });
+      const payload = await readJsonResponse(response);
+
+      if (!response.ok || !payload || typeof payload.user !== "object" || payload.user === null) {
+        setUserFeedback({
+          type: "error",
+          message: `${adminMessages.users.errorPrefix} ${readErrorMessage(payload, adminMessages.unexpectedResponse)}`
+        });
+        return;
+      }
+
+      const nextUser = payload.user as ManagedUser;
+      setUsers(sortUsers(upsertById(users, nextUser)));
+      setUserDialogOpen(false);
+      setUserFeedback({ type: "success", message: adminMessages.users.successCreate });
+    } catch {
+      setUserFeedback({
+        type: "error",
+        message: `${adminMessages.users.errorPrefix} ${adminMessages.unexpectedResponse}`
+      });
+    } finally {
+      setUserPending(false);
+    }
+  }
+
+  async function toggleUserEnabled(user: ManagedUser) {
+    setTogglingUserId(user.id);
+    setUserFeedback(null);
+
+    try {
+      const response = await fetch(`/api/admin/users/${user.id}`, {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ enabled: !user.enabled })
+      });
+      const payload = await readJsonResponse(response);
+
+      if (!response.ok || !payload || typeof payload.user !== "object" || payload.user === null) {
+        setUserFeedback({
+          type: "error",
+          message: `${adminMessages.users.errorPrefix} ${readErrorMessage(payload, adminMessages.unexpectedResponse)}`
+        });
+        return;
+      }
+
+      const nextUser = payload.user as ManagedUser;
+      setUsers(sortUsers(upsertById(users, nextUser)));
+    } catch {
+      setUserFeedback({
+        type: "error",
+        message: `${adminMessages.users.errorPrefix} ${adminMessages.unexpectedResponse}`
+      });
+    } finally {
+      setTogglingUserId(null);
+    }
+  }
+
+  async function submitResetPasswordForm(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!resettingPasswordUser) {
+      return;
+    }
+
+    if (resetPasswordForm.password !== resetPasswordForm.confirmPassword) {
+      setUserFeedback({ type: "error", message: adminMessages.users.passwordMismatch });
+      return;
+    }
+
+    setResetPasswordPending(true);
+    setUserFeedback(null);
+
+    try {
+      const response = await fetch(`/api/admin/users/${resettingPasswordUser.id}/password`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ password: resetPasswordForm.password })
+      });
+      const payload = await readJsonResponse(response);
+
+      if (!response.ok || !payload || typeof payload.user !== "object" || payload.user === null) {
+        setUserFeedback({
+          type: "error",
+          message: `${adminMessages.users.errorPrefix} ${readErrorMessage(payload, adminMessages.unexpectedResponse)}`
+        });
+        return;
+      }
+
+      const nextUser = payload.user as ManagedUser;
+      setUsers(sortUsers(upsertById(users, nextUser)));
+      setResetPasswordDialogOpen(false);
+      setUserFeedback({ type: "success", message: adminMessages.users.successPassword });
+    } catch {
+      setUserFeedback({
+        type: "error",
+        message: `${adminMessages.users.errorPrefix} ${adminMessages.unexpectedResponse}`
+      });
+    } finally {
+      setResetPasswordPending(false);
+    }
+  }
+
+  async function confirmDeleteUser() {
+    if (!deletingUser) {
+      return;
+    }
+
+    setDeletePending(true);
+    setUserFeedback(null);
+
+    try {
+      const response = await fetch(`/api/admin/users/${deletingUser.id}`, { method: "DELETE" });
+      const payload = await readJsonResponse(response);
+
+      if (!response.ok) {
+        setUserFeedback({
+          type: "error",
+          message: `${adminMessages.users.errorPrefix} ${readErrorMessage(payload, adminMessages.unexpectedResponse)}`
+        });
+        return;
+      }
+
+      setUsers(users.filter((user) => user.id !== deletingUser.id));
+      setDeleteDialogOpen(false);
+      setUserFeedback({ type: "success", message: adminMessages.users.successDelete });
+    } catch {
+      setUserFeedback({
+        type: "error",
+        message: `${adminMessages.users.errorPrefix} ${adminMessages.unexpectedResponse}`
+      });
+    } finally {
+      setDeletePending(false);
+    }
+  }
 
   function openAddProvider() {
     setEditingProvider(null);
@@ -313,37 +546,67 @@ export function AdminManagementClient({ initialProviderConfigs, initialModelConf
 
   return (
     <div className="flex min-h-0 flex-1 flex-col bg-[var(--lc-bg-primary)]">
-      <div className="flex h-14 shrink-0 items-center gap-3 border-b border-[var(--lc-border)] px-6">
-        <button
-          type="button"
-          onClick={() => router.push("/")}
-          className="flex size-8 items-center justify-center rounded-lg text-[var(--lc-text-secondary)] transition-colors hover:bg-[var(--lc-bg-secondary)] hover:text-[var(--lc-text-primary)]"
-          aria-label={messages.common.back}
-        >
-          <ArrowLeft className="size-[18px]" />
-        </button>
-        <h1 className="text-[20px] font-semibold text-[var(--lc-text-primary)]">{adminMessages.title}</h1>
+      <div className="grid h-14 shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-3 border-b border-[var(--lc-border)] px-4 sm:px-6">
+        <div className="flex min-w-0 items-center gap-3">
+          <button type="button" onClick={() => router.push("/")} className="flex size-8 shrink-0 items-center justify-center rounded-lg text-[var(--lc-text-secondary)] transition-colors hover:bg-[var(--lc-bg-secondary)] hover:text-[var(--lc-text-primary)]" aria-label={messages.common.back}>
+            <ArrowLeft className="size-[18px]" />
+          </button>
+          <h1 className="truncate text-[20px] font-semibold text-[var(--lc-text-primary)]">{adminMessages.title}</h1>
+        </div>
+        <div className="flex rounded-lg bg-[var(--lc-bg-secondary)] p-1">
+          <AdminSectionButton active={activeSection === "users"} onClick={() => router.push("/admin/users")}>
+            {adminMessages.usersNav}
+          </AdminSectionButton>
+          <AdminSectionButton active={activeSection === "model-config"} onClick={() => router.push("/admin/models")}>
+            {adminMessages.modelConfigNav}
+          </AdminSectionButton>
+        </div>
+        <div aria-hidden="true" />
       </div>
 
       <div className="flex-1 overflow-y-auto px-0 py-8">
-        <div className="mx-auto flex max-w-[800px] flex-col gap-8">
+        <div className="mx-auto flex max-w-[920px] flex-col gap-8 px-4 sm:px-6">
+          {activeSection === "users" ? (
+            <>
+              {userFeedback && (
+                <FeedbackBanner feedback={userFeedback} dismissLabel={messages.common.dismiss} onDismiss={() => setUserFeedback(null)} />
+              )}
+              <div className="flex items-center gap-3">
+                <div className="relative min-w-0 flex-1">
+                  <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[var(--lc-text-tertiary)]" />
+                  <Input
+                    value={userSearchQuery}
+                    onChange={(event) => setUserSearchQuery(event.target.value)}
+                    placeholder={adminMessages.users.searchPlaceholder}
+                    className="h-9 pl-9"
+                  />
+                </div>
+                <button type="button" onClick={openAddUser} className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg border border-[var(--lc-accent)] px-3.5 text-[13px] font-medium text-[var(--lc-accent)] transition-colors hover:bg-[var(--lc-accent)]/5">
+                  <Plus className="size-3.5" />
+                  {adminMessages.users.newAction}
+                </button>
+              </div>
 
-          {providerFeedback && (
-            <FeedbackBanner
-              feedback={providerFeedback}
-              dismissLabel={messages.common.dismiss}
-              onDismiss={() => setProviderFeedback(null)}
-            />
-          )}
-          {modelFeedback && (
-            <FeedbackBanner
-              feedback={modelFeedback}
-              dismissLabel={messages.common.dismiss}
-              onDismiss={() => setModelFeedback(null)}
-            />
-          )}
+              <UsersTable
+                users={filteredUsers}
+                currentUserId={currentUserId}
+                adminMessages={adminMessages}
+                togglingUserId={togglingUserId}
+                onToggleUser={(user) => void toggleUserEnabled(user)}
+                onResetPassword={openResetPassword}
+                onDeleteUser={openDeleteUser}
+              />
+            </>
+          ) : (
+            <>
+              {providerFeedback && (
+                <FeedbackBanner feedback={providerFeedback} dismissLabel={messages.common.dismiss} onDismiss={() => setProviderFeedback(null)} />
+              )}
+              {modelFeedback && (
+                <FeedbackBanner feedback={modelFeedback} dismissLabel={messages.common.dismiss} onDismiss={() => setModelFeedback(null)} />
+              )}
 
-          <section>
+              <section>
             <div className="mb-4 flex items-center justify-between">
               <h2 className="text-lg font-semibold text-[var(--lc-text-primary)]">
                 {adminMessages.providersNav}
@@ -403,9 +666,9 @@ export function AdminManagementClient({ initialProviderConfigs, initialModelConf
                 </div>
               )}
             </div>
-          </section>
+              </section>
 
-          <section>
+              <section>
             <div className="mb-4 flex items-center justify-between">
               <h2 className="text-lg font-semibold text-[var(--lc-text-primary)]">
                 {adminMessages.modelsNav}
@@ -481,22 +744,93 @@ export function AdminManagementClient({ initialProviderConfigs, initialModelConf
                 </div>
               )}
             </div>
-          </section>
+              </section>
+            </>
+          )}
         </div>
       </div>
 
-      <SidePanel open={providerDialogOpen} onOpenChange={(open) => setProviderDialogOpen(open)}>
-        <SidePanelContent>
-          <SidePanelHeader closeLabel={messages.common.close}>
-            <SidePanelTitle>
+      <Dialog open={userDialogOpen} onOpenChange={(open) => setUserDialogOpen(open)}>
+        <DialogContent className={`${adminDialogContentClass} sm:max-w-[420px]`} closeLabel={messages.common.close}>
+          <DialogHeader className={adminDialogHeaderClass}>
+            <DialogTitle className={adminDialogTitleClass}>{adminMessages.users.createModeLabel}</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={submitUserForm}>
+            <div className={adminDialogFormBodyClass}>
+              <FormField id="user-email" label={adminMessages.users.emailLabel}>
+                <Input id="user-email" type="email" value={userForm.email} onChange={(event) => setUserForm((f) => ({ ...f, email: event.target.value }))} required />
+              </FormField>
+              <FormField id="user-password" label={adminMessages.users.initialPasswordLabel}>
+                <Input id="user-password" type="password" value={userForm.password} onChange={(event) => setUserForm((f) => ({ ...f, password: event.target.value }))} minLength={8} required />
+              </FormField>
+              <FormField id="user-role" label={adminMessages.users.roleLabel}>
+                <Select items={userRoleSelectItems(adminMessages)} value={userForm.role} onValueChange={(value) => setUserForm((f) => ({ ...f, role: (value ?? "user") as UserRole }))}>
+                  <SelectTrigger className="w-full" id="user-role"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="user">{adminMessages.users.userRole}</SelectItem>
+                    <SelectItem value="admin">{adminMessages.users.adminRole}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </FormField>
+            </div>
+            <AdminDialogFooter>
+              <Button type="button" variant="outline" onClick={() => setUserDialogOpen(false)} disabled={userPending}>{messages.common.cancel}</Button>
+              <AdminPrimaryButton type="submit" disabled={userPending}>{userPending ? adminMessages.users.creatingAction : adminMessages.users.createAction}</AdminPrimaryButton>
+            </AdminDialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={resetPasswordDialogOpen} onOpenChange={(open) => setResetPasswordDialogOpen(open)}>
+        <DialogContent className={`${adminDialogContentClass} sm:max-w-[420px]`} closeLabel={messages.common.close}>
+          <DialogHeader className={adminDialogHeaderClass}>
+            <DialogTitle className={adminDialogTitleClass}>{adminMessages.users.resetPasswordAction}</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={submitResetPasswordForm}>
+            <div className={adminDialogBodyClass}>
+              {resettingPasswordUser ? <p className="text-sm font-medium text-[var(--lc-text-primary)]">{resettingPasswordUser.email}</p> : null}
+              <FormField id="reset-password" label={adminMessages.users.newPasswordLabel}>
+                <Input id="reset-password" type="password" value={resetPasswordForm.password} onChange={(event) => setResetPasswordForm((f) => ({ ...f, password: event.target.value }))} minLength={8} required />
+              </FormField>
+              <FormField id="reset-password-confirm" label={adminMessages.users.confirmPasswordLabel}>
+                <Input id="reset-password-confirm" type="password" value={resetPasswordForm.confirmPassword} onChange={(event) => setResetPasswordForm((f) => ({ ...f, confirmPassword: event.target.value }))} minLength={8} required />
+              </FormField>
+            </div>
+            <AdminDialogFooter>
+              <Button type="button" variant="outline" onClick={() => setResetPasswordDialogOpen(false)} disabled={resetPasswordPending}>{messages.common.cancel}</Button>
+              <AdminPrimaryButton type="submit" disabled={resetPasswordPending}>{resetPasswordPending ? adminMessages.users.savingAction : adminMessages.users.saveAction}</AdminPrimaryButton>
+            </AdminDialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={deleteDialogOpen} onOpenChange={(open) => setDeleteDialogOpen(open)}>
+        <DialogContent className={`${adminDialogContentClass} sm:max-w-[400px]`} closeLabel={messages.common.close}>
+          <DialogHeader className={adminDialogHeaderClass}>
+            <DialogTitle className={adminDialogTitleClass}>{adminMessages.users.deleteTitle}</DialogTitle>
+          </DialogHeader>
+          <div className={`${adminDialogBodyClass} text-sm text-[var(--lc-text-primary)]`}>
+            {deletingUser ? <p className="font-medium">{deletingUser.email}</p> : null}
+            <p className="text-[var(--lc-text-secondary)]">{adminMessages.users.deleteDescription}</p>
+          </div>
+          <AdminDialogFooter>
+            <Button type="button" variant="outline" onClick={() => setDeleteDialogOpen(false)} disabled={deletePending}>{messages.common.cancel}</Button>
+            <Button type="button" variant="destructive" onClick={() => void confirmDeleteUser()} disabled={deletePending}>{deletePending ? adminMessages.users.deletingAction : adminMessages.users.deleteAction}</Button>
+          </AdminDialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={providerDialogOpen} onOpenChange={(open) => setProviderDialogOpen(open)}>
+        <DialogContent className={`${adminDialogContentClass} sm:max-w-[520px]`} closeLabel={messages.common.close}>
+          <DialogHeader className={adminDialogHeaderClass}>
+            <DialogTitle className={adminDialogTitleClass}>
               {editingProvider ? adminMessages.providers.editModeLabel : adminMessages.providers.createModeLabel}
-            </SidePanelTitle>
-          </SidePanelHeader>
+            </DialogTitle>
+          </DialogHeader>
 
           <form className="flex flex-col" onSubmit={submitProviderForm}>
-            <SidePanelBody className="flex flex-col gap-5">
-              <div className="flex flex-col gap-[6px]">
-                <Label htmlFor="provider-name">{adminMessages.providers.nameLabel}</Label>
+            <div className={adminDialogFormBodyClass}>
+              <FormField id="provider-name" label={adminMessages.providers.nameLabel}>
                 <Input
                   id="provider-name"
                   value={providerForm.name}
@@ -504,10 +838,9 @@ export function AdminManagementClient({ initialProviderConfigs, initialModelConf
                   name="name"
                   required
                 />
-              </div>
+              </FormField>
 
-            <div className="flex flex-col gap-[6px]">
-              <Label htmlFor="provider-type">{adminMessages.providers.providerTypeLabel}</Label>
+            <FormField id="provider-type" label={adminMessages.providers.providerTypeLabel}>
               <Select
                 items={providerTypeSelectItems}
                 value={providerForm.providerType}
@@ -522,10 +855,9 @@ export function AdminManagementClient({ initialProviderConfigs, initialModelConf
                   <SelectItem value="openai-responses">{adminMessages.providers.defaultProviderType}</SelectItem>
                 </SelectContent>
               </Select>
-            </div>
+            </FormField>
 
-            <div className="flex flex-col gap-[6px]">
-              <Label htmlFor="provider-base-url">{adminMessages.providers.baseUrlLabel}</Label>
+            <FormField id="provider-base-url" label={adminMessages.providers.baseUrlLabel}>
               <Input
                 id="provider-base-url"
                 value={providerForm.baseUrl}
@@ -533,10 +865,9 @@ export function AdminManagementClient({ initialProviderConfigs, initialModelConf
                 name="baseUrl"
                 type="url"
               />
-            </div>
+            </FormField>
 
-            <div className="flex flex-col gap-[6px]">
-              <Label htmlFor="provider-api-key">{adminMessages.providers.apiKeyLabel}</Label>
+            <FormField id="provider-api-key" label={adminMessages.providers.apiKeyLabel}>
               <Input
                 id="provider-api-key"
                 value={providerForm.apiKey}
@@ -545,7 +876,7 @@ export function AdminManagementClient({ initialProviderConfigs, initialModelConf
                 type="password"
                 required={!editingProvider}
               />
-            </div>
+            </FormField>
 
             <div className="flex items-center justify-between">
               <Label>{adminMessages.providers.enabledLabel}</Label>
@@ -554,9 +885,9 @@ export function AdminManagementClient({ initialProviderConfigs, initialModelConf
                 onChange={() => setProviderForm((f) => ({ ...f, enabled: !f.enabled }))}
               />
             </div>
-            </SidePanelBody>
+            </div>
 
-            <SidePanelFooter>
+            <AdminDialogFooter>
               <Button
                 type="button"
                 variant="outline"
@@ -565,7 +896,7 @@ export function AdminManagementClient({ initialProviderConfigs, initialModelConf
               >
                 {messages.common.cancel}
               </Button>
-              <Button type="submit" disabled={providerPending}>
+              <AdminPrimaryButton type="submit" disabled={providerPending}>
                 {providerPending
                   ? editingProvider
                     ? adminMessages.providers.updatingAction
@@ -573,25 +904,24 @@ export function AdminManagementClient({ initialProviderConfigs, initialModelConf
                   : editingProvider
                     ? adminMessages.providers.updateAction
                     : adminMessages.providers.createAction}
-              </Button>
-            </SidePanelFooter>
+              </AdminPrimaryButton>
+            </AdminDialogFooter>
           </form>
-        </SidePanelContent>
-      </SidePanel>
+        </DialogContent>
+      </Dialog>
 
-      <SidePanel open={modelDialogOpen} onOpenChange={(open) => setModelDialogOpen(open)}>
-        <SidePanelContent>
-          <SidePanelHeader closeLabel={messages.common.close}>
-            <SidePanelTitle>
+      <Dialog open={modelDialogOpen} onOpenChange={(open) => setModelDialogOpen(open)}>
+        <DialogContent className={`${adminDialogContentClass} sm:max-w-[520px]`} closeLabel={messages.common.close}>
+          <DialogHeader className={adminDialogHeaderClass}>
+            <DialogTitle className={adminDialogTitleClass}>
               {editingModel ? adminMessages.models.editModeLabel : adminMessages.models.createModeLabel}
-            </SidePanelTitle>
-          </SidePanelHeader>
+            </DialogTitle>
+          </DialogHeader>
 
           <form className="flex flex-col" onSubmit={submitModelForm}>
-            <SidePanelBody className="flex flex-col gap-5">
+            <div className={adminDialogFormBodyClass}>
               <fieldset disabled={providerConfigs.length === 0 || modelPending} className="contents disabled:opacity-70">
-              <div className="flex flex-col gap-[6px]">
-                <Label htmlFor="model-provider">{adminMessages.models.providerLabel}</Label>
+              <FormField id="model-provider" label={adminMessages.models.providerLabel}>
                 <Select
                   items={providerConfigs.map((providerConfig) => ({
                     label: providerConfig.name,
@@ -613,10 +943,9 @@ export function AdminManagementClient({ initialProviderConfigs, initialModelConf
                     ))}
                   </SelectContent>
                 </Select>
-              </div>
+              </FormField>
 
-              <div className="flex flex-col gap-[6px]">
-                <Label htmlFor="model-id">{adminMessages.models.modelIdLabel}</Label>
+              <FormField id="model-id" label={adminMessages.models.modelIdLabel}>
                 <Input
                   id="model-id"
                   value={modelForm.modelId}
@@ -624,10 +953,9 @@ export function AdminManagementClient({ initialProviderConfigs, initialModelConf
                   name="modelId"
                   required
                 />
-              </div>
+              </FormField>
 
-              <div className="flex flex-col gap-[6px]">
-                <Label htmlFor="model-display-name">{adminMessages.models.displayNameLabel}</Label>
+              <FormField id="model-display-name" label={adminMessages.models.displayNameLabel}>
                 <Input
                   id="model-display-name"
                   value={modelForm.displayName}
@@ -635,10 +963,9 @@ export function AdminManagementClient({ initialProviderConfigs, initialModelConf
                   name="displayName"
                   required
                 />
-              </div>
+              </FormField>
 
-              <div className="flex flex-col gap-[6px]">
-                <Label htmlFor="model-sort-order">{adminMessages.models.sortOrderLabel}</Label>
+              <FormField id="model-sort-order" label={adminMessages.models.sortOrderLabel}>
                 <Input
                   id="model-sort-order"
                   value={modelForm.sortOrder}
@@ -648,7 +975,7 @@ export function AdminManagementClient({ initialProviderConfigs, initialModelConf
                   step="1"
                   required
                 />
-              </div>
+              </FormField>
 
               <div className="flex items-center justify-between">
                 <Label>{adminMessages.models.enabledLabel}</Label>
@@ -666,9 +993,9 @@ export function AdminManagementClient({ initialProviderConfigs, initialModelConf
                 />
               </div>
               </fieldset>
-            </SidePanelBody>
+            </div>
 
-            <SidePanelFooter>
+            <AdminDialogFooter>
               <Button
                 type="button"
                 variant="outline"
@@ -677,7 +1004,7 @@ export function AdminManagementClient({ initialProviderConfigs, initialModelConf
               >
                 {messages.common.cancel}
               </Button>
-              <Button type="submit" disabled={providerConfigs.length === 0 || modelPending}>
+              <AdminPrimaryButton type="submit" disabled={providerConfigs.length === 0 || modelPending}>
                 {modelPending
                   ? editingModel
                     ? adminMessages.models.updatingAction
@@ -685,11 +1012,119 @@ export function AdminManagementClient({ initialProviderConfigs, initialModelConf
                   : editingModel
                     ? adminMessages.models.updateAction
                     : adminMessages.models.createAction}
-              </Button>
-            </SidePanelFooter>
+              </AdminPrimaryButton>
+            </AdminDialogFooter>
           </form>
-        </SidePanelContent>
-      </SidePanel>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+function AdminSectionButton({ active, children, onClick }: { active: boolean; children: React.ReactNode; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`rounded-md px-3 py-1.5 text-[13px] font-medium transition-colors ${
+        active
+          ? "bg-[var(--lc-bg-primary)] text-[var(--lc-text-primary)] shadow-sm"
+          : "text-[var(--lc-text-secondary)] hover:text-[var(--lc-text-primary)]"
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
+
+function FormField({ id, label, children }: { id: string; label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex flex-col gap-[6px]">
+      <Label htmlFor={id}>{label}</Label>
+      {children}
+    </div>
+  );
+}
+
+function AdminDialogFooter({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="flex justify-end gap-2 border-t border-[var(--lc-border)] bg-[var(--lc-bg-primary)] px-4 py-4">
+      {children}
+    </div>
+  );
+}
+
+function AdminPrimaryButton({ children, ...props }: React.ComponentProps<typeof Button>) {
+  return (
+    <Button
+      variant="ghost"
+      className="bg-[var(--lc-accent)] text-white hover:bg-[var(--lc-accent)] hover:text-white hover:opacity-90"
+      {...props}
+    >
+      {children}
+    </Button>
+  );
+}
+
+function UsersTable({
+  users,
+  currentUserId,
+  adminMessages,
+  togglingUserId,
+  onToggleUser,
+  onResetPassword,
+  onDeleteUser
+}: {
+  users: ManagedUser[];
+  currentUserId: string;
+  adminMessages: ReturnType<typeof useI18n>["messages"]["admin"];
+  togglingUserId: string | null;
+  onToggleUser: (user: ManagedUser) => void;
+  onResetPassword: (user: ManagedUser) => void;
+  onDeleteUser: (user: ManagedUser) => void;
+}) {
+  return (
+    <div className="overflow-hidden rounded-lg border border-[var(--lc-border)]">
+      <div className="hidden items-center bg-[var(--lc-bg-secondary)] px-4 py-2.5 sm:flex">
+        <span className="flex-1 text-xs font-medium text-[var(--lc-text-secondary)]">{adminMessages.users.emailLabel}</span>
+        <span className="w-[100px] text-xs font-medium text-[var(--lc-text-secondary)]">{adminMessages.users.roleLabel}</span>
+        <span className="w-[100px] text-xs font-medium text-[var(--lc-text-secondary)]">{adminMessages.users.statusLabel}</span>
+        <span className="w-[130px] text-xs font-medium text-[var(--lc-text-secondary)]">{adminMessages.users.createdAtLabel}</span>
+        <span className="w-10 text-right text-xs font-medium text-[var(--lc-text-secondary)]">{adminMessages.users.actionsLabel}</span>
+      </div>
+      {users.length > 0 ? (
+        users.map((user, index) => (
+          <div key={user.id} className={`flex items-center gap-3 px-4 py-3 ${index < users.length - 1 ? "border-b border-[var(--lc-border)]" : ""}`}>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-medium text-[var(--lc-text-primary)]">{user.email}</p>
+              <p className="mt-0.5 text-xs text-[var(--lc-text-secondary)] sm:hidden">
+                {formatUserRole(user.role, adminMessages)} · {formatUserStatus(user.enabled, adminMessages)}
+              </p>
+            </div>
+            <span className="hidden w-[100px] text-sm text-[var(--lc-text-secondary)] sm:block">{formatUserRole(user.role, adminMessages)}</span>
+            <span className="hidden w-[100px] sm:block"><StatusBadge enabled={user.enabled} enabledLabel={adminMessages.enabledStatus} disabledLabel={adminMessages.disabledStatus} /></span>
+            <span className="hidden w-[130px] text-sm text-[var(--lc-text-secondary)] sm:block">{formatDate(user.createdAt)}</span>
+            <div className="flex w-10 justify-end">
+              <DropdownMenu>
+                <DropdownMenuTrigger className="flex size-8 items-center justify-center rounded-lg text-[var(--lc-text-secondary)] hover:bg-[var(--lc-bg-secondary)] hover:text-[var(--lc-text-primary)]" aria-label={adminMessages.users.actionsLabel}>
+                  <MoreHorizontal className="size-4" />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-40 border border-[var(--lc-border)] bg-[var(--lc-bg-primary)]">
+                  <DropdownMenuItem onClick={() => onResetPassword(user)}>{adminMessages.users.resetPasswordAction}</DropdownMenuItem>
+                  <DropdownMenuItem disabled={user.id === currentUserId || togglingUserId === user.id} onClick={() => onToggleUser(user)}>
+                    {user.enabled ? adminMessages.users.disableAction : adminMessages.users.enableAction}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem variant="destructive" disabled={user.id === currentUserId} onClick={() => onDeleteUser(user)}>
+                    {adminMessages.users.deleteAction}
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          </div>
+        ))
+      ) : (
+        <div className="px-4 py-8 text-center text-sm text-[var(--lc-text-secondary)]">{adminMessages.users.emptySearch}</div>
+      )}
     </div>
   );
 }
@@ -807,6 +1242,59 @@ function sortModelConfigs(modelConfigs: ModelConfig[]): ModelConfig[] {
 
     return left.displayName.localeCompare(right.displayName);
   });
+}
+
+function sortUsers(users: ManagedUser[]): ManagedUser[] {
+  return [...users].sort((left, right) => left.email.localeCompare(right.email));
+}
+
+function filterUsers(users: ManagedUser[], query: string): ManagedUser[] {
+  const normalizedQuery = query.trim().toLowerCase();
+
+  if (normalizedQuery.length === 0) {
+    return users;
+  }
+
+  return users.filter((user) => user.email.toLowerCase().includes(normalizedQuery));
+}
+
+function userRoleSelectItems(adminMessages: ReturnType<typeof useI18n>["messages"]["admin"]) {
+  return {
+    user: adminMessages.users.userRole,
+    admin: adminMessages.users.adminRole
+  };
+}
+
+function formatUserRole(role: UserRole, adminMessages: ReturnType<typeof useI18n>["messages"]["admin"]): string {
+  return role === "admin" ? adminMessages.users.adminRole : adminMessages.users.userRole;
+}
+
+function formatUserStatus(enabled: boolean, adminMessages: ReturnType<typeof useI18n>["messages"]["admin"]): string {
+  return enabled ? adminMessages.enabledStatus : adminMessages.disabledStatus;
+}
+
+function formatDate(value: string): string {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return date.toISOString().slice(0, 10);
+}
+
+function StatusBadge({ enabled, enabledLabel, disabledLabel }: { enabled: boolean; enabledLabel: string; disabledLabel: string }) {
+  return (
+    <span
+      className={`inline-flex rounded-md px-2 py-0.5 text-xs font-medium ${
+        enabled
+          ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400"
+          : "bg-[var(--lc-bg-secondary)] text-[var(--lc-text-secondary)]"
+      }`}
+    >
+      {enabled ? enabledLabel : disabledLabel}
+    </span>
+  );
 }
 
 function upsertById<TValue extends { id: string }>(items: TValue[], nextItem: TValue): TValue[] {

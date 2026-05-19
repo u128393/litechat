@@ -30,6 +30,7 @@ function defineSqliteSchema() {
     email: sqliteText("email").notNull().unique(),
     passwordHash: sqliteText("password_hash").notNull(),
     role: sqliteText("role", { enum: USER_ROLE_VALUES }).notNull(),
+    enabled: sqliteInteger("enabled", { mode: "boolean" }).notNull(),
     createdAt: sqliteText("created_at").notNull(),
     updatedAt: sqliteText("updated_at").notNull()
   });
@@ -88,6 +89,7 @@ function definePostgresSchema() {
       email: pgVarchar("email", { length: 320 }).notNull(),
       passwordHash: pgVarchar("password_hash", { length: 512 }).notNull(),
       role: pgVarchar("role", { length: 32 }).notNull(),
+      enabled: pgBoolean("enabled").notNull(),
       createdAt: pgVarchar("created_at", { length: 64 }).notNull(),
       updatedAt: pgVarchar("updated_at", { length: 64 }).notNull()
     },
@@ -163,6 +165,7 @@ function defineMysqlSchema() {
       email: mysqlVarchar("email", { length: 320 }).notNull(),
       passwordHash: mysqlVarchar("password_hash", { length: 512 }).notNull(),
       role: mysqlVarchar("role", { length: 32 }).notNull(),
+      enabled: mysqlBoolean("enabled").notNull(),
       createdAt: mysqlVarchar("created_at", { length: 64 }).notNull(),
       updatedAt: mysqlVarchar("updated_at", { length: 64 }).notNull()
     },

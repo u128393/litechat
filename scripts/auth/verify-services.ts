@@ -33,7 +33,8 @@ async function main() {
   const { createSessionCookie, getCurrentUserFromCookieStore, hashPassword, logout, verifyPassword } = await import(
     "../../src/server/auth"
   );
-  const { changePassword, createUser, verifyUserPassword } = await import("../../src/server/auth/service");
+    const { changePassword, createUser, verifyUserPassword } = await import("../../src/server/auth/service");
+    const { createManagedUser, deleteManagedUser, resetManagedUserPassword, updateManagedUser } = await import("../../src/server/users");
 
   const database = createDatabaseConnection({
     type: "sqlite",
@@ -101,7 +102,56 @@ async function main() {
       "logout should clear the session cookie"
     );
 
-    process.stdout.write(`Verified password hashing, password changes, session lifecycle, and logout invalidation using ${sqlitePath}.\n`);
+    const managedUserResult = await createManagedUser(
+      {
+        email: "user@example.com",
+        password: "correct horse battery staple",
+        role: "user",
+        enabled: true
+      },
+      database
+    );
+
+    assert(managedUserResult.success, "admin user creation should create a managed user");
+
+    const managedCookieStore = new MemoryCookieStore();
+    await createSessionCookie(managedUserResult.user.id, managedCookieStore, database);
+
+    const disabledResult = await updateManagedUser(managedUserResult.user.id, user.id, { enabled: false }, database);
+    const disabledLoginUser = await verifyUserPassword("user@example.com", "correct horse battery staple", database);
+    const disabledSessionUser = await getCurrentUserFromCookieStore(managedCookieStore, database);
+
+    assert(disabledResult.success && disabledResult.user.enabled === false, "admin should disable a managed user");
+    assert(disabledLoginUser === null, "disabled users should not authenticate");
+    assert(disabledSessionUser === null, "disabled users should lose active sessions");
+
+    const selfDisableResult = await updateManagedUser(user.id, user.id, { enabled: false }, database);
+
+    assert(!selfDisableResult.success && selfDisableResult.error === "cannot_disable_self", "admins should not disable themselves");
+
+    const reenabledResult = await updateManagedUser(managedUserResult.user.id, user.id, { enabled: true }, database);
+    assert(reenabledResult.success && reenabledResult.user.enabled, "admin should re-enable a managed user");
+
+    const resetCookieStore = new MemoryCookieStore();
+    await createSessionCookie(managedUserResult.user.id, resetCookieStore, database);
+
+    const resetPasswordResult = await resetManagedUserPassword(managedUserResult.user.id, "new managed password", database);
+    const resetOldPasswordUser = await verifyUserPassword("user@example.com", "correct horse battery staple", database);
+    const resetNewPasswordUser = await verifyUserPassword("user@example.com", "new managed password", database);
+    const resetSessionUser = await getCurrentUserFromCookieStore(resetCookieStore, database);
+
+    assert(resetPasswordResult.success, "admin password reset should update managed user password");
+    assert(resetOldPasswordUser === null, "admin password reset should reject old password");
+    assert(resetNewPasswordUser?.id === managedUserResult.user.id, "admin password reset should accept new password");
+    assert(resetSessionUser === null, "admin password reset should invalidate active sessions");
+
+    const selfDeleteResult = await deleteManagedUser(user.id, user.id, database);
+    const deleteManagedUserResult = await deleteManagedUser(managedUserResult.user.id, user.id, database);
+
+    assert(!selfDeleteResult.success && selfDeleteResult.error === "cannot_delete_self", "admins should not delete themselves");
+    assert(deleteManagedUserResult.success, "admin should delete managed users");
+
+    process.stdout.write(`Verified password hashing, user management, session lifecycle, and logout invalidation using ${sqlitePath}.\n`);
   } finally {
     await database.close();
 

@@ -4,6 +4,7 @@ export type AuthUser = {
   id: string;
   email: string;
   role: UserRole;
+  enabled: boolean;
   createdAt: string;
   updatedAt: string;
 };
@@ -17,7 +18,7 @@ export type SessionRecord = {
   invalidatedAt: string | null;
 };
 
-export type SessionUser = Pick<AuthUser, "id" | "email" | "role">;
+export type SessionUser = Pick<AuthUser, "id" | "email" | "role" | "enabled">;
 
 export type AuthSession = {
   session: SessionRecord;

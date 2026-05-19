@@ -5,6 +5,8 @@ export type AdminMessages = {
   title: string;
   description: string;
   navigationLabel: string;
+  usersNav: string;
+  modelConfigNav: string;
   providersNav: string;
   modelsNav: string;
   unexpectedResponse: string;
@@ -15,6 +17,39 @@ export type AdminMessages = {
   listSortOrderPrefix: string;
   defaultValue: string;
   webSearchShortLabel: string;
+  users: {
+    newAction: string;
+    createAction: string;
+    creatingAction: string;
+    saveAction: string;
+    savingAction: string;
+    deleteAction: string;
+    deletingAction: string;
+    enableAction: string;
+    disableAction: string;
+    resetPasswordAction: string;
+    createModeLabel: string;
+    searchPlaceholder: string;
+    emailLabel: string;
+    initialPasswordLabel: string;
+    newPasswordLabel: string;
+    confirmPasswordLabel: string;
+    roleLabel: string;
+    statusLabel: string;
+    createdAtLabel: string;
+    actionsLabel: string;
+    enabledLabel: string;
+    userRole: string;
+    adminRole: string;
+    successCreate: string;
+    successPassword: string;
+    successDelete: string;
+    passwordMismatch: string;
+    deleteTitle: string;
+    deleteDescription: string;
+    emptySearch: string;
+    errorPrefix: string;
+  };
   providers: {
     badge: string;
     title: string;
@@ -75,6 +110,8 @@ export const adminMessagesByLocale: Record<AppLocale, AdminMessages> = {
     title: "Admin management",
     description: "Configure providers and models for the shared chat workspace.",
     navigationLabel: "Management sections",
+    usersNav: "User management",
+    modelConfigNav: "Model management",
     providersNav: "Providers",
     modelsNav: "Models",
     unexpectedResponse: "Unexpected response.",
@@ -85,6 +122,39 @@ export const adminMessagesByLocale: Record<AppLocale, AdminMessages> = {
     listSortOrderPrefix: "sort",
     defaultValue: "Default",
     webSearchShortLabel: "Web",
+    users: {
+      newAction: "New user",
+      createAction: "Create",
+      creatingAction: "Creating...",
+      saveAction: "Save",
+      savingAction: "Saving...",
+      deleteAction: "Delete",
+      deletingAction: "Deleting...",
+      enableAction: "Enable user",
+      disableAction: "Disable user",
+      resetPasswordAction: "Reset password",
+      createModeLabel: "New user",
+      searchPlaceholder: "Search email",
+      emailLabel: "Email",
+      initialPasswordLabel: "Initial password",
+      newPasswordLabel: "New password",
+      confirmPasswordLabel: "Confirm new password",
+      roleLabel: "Role",
+      statusLabel: "Status",
+      createdAtLabel: "Created",
+      actionsLabel: "Actions",
+      enabledLabel: "Enabled",
+      userRole: "User",
+      adminRole: "Admin",
+      successCreate: "User created.",
+      successPassword: "Password updated.",
+      successDelete: "User deleted.",
+      passwordMismatch: "Password confirmation does not match.",
+      deleteTitle: "Delete user?",
+      deleteDescription: "Deleted users can no longer sign in.",
+      emptySearch: "No users found.",
+      errorPrefix: "User request failed:"
+    },
     providers: {
       badge: "Providers",
       title: "Provider management",
@@ -143,6 +213,8 @@ export const adminMessagesByLocale: Record<AppLocale, AdminMessages> = {
     title: "管理控制台",
     description: "为共享聊天工作区配置提供商与模型。",
     navigationLabel: "管理分区",
+    usersNav: "用户管理",
+    modelConfigNav: "模型管理",
     providersNav: "提供商",
     modelsNav: "模型",
     unexpectedResponse: "响应异常。",
@@ -153,6 +225,39 @@ export const adminMessagesByLocale: Record<AppLocale, AdminMessages> = {
     listSortOrderPrefix: "排序",
     defaultValue: "默认",
     webSearchShortLabel: "联网",
+    users: {
+      newAction: "新建用户",
+      createAction: "创建",
+      creatingAction: "创建中...",
+      saveAction: "保存",
+      savingAction: "保存中...",
+      deleteAction: "删除",
+      deletingAction: "删除中...",
+      enableAction: "启用用户",
+      disableAction: "禁用用户",
+      resetPasswordAction: "重置密码",
+      createModeLabel: "新建用户",
+      searchPlaceholder: "搜索邮箱",
+      emailLabel: "邮箱",
+      initialPasswordLabel: "初始密码",
+      newPasswordLabel: "新密码",
+      confirmPasswordLabel: "确认新密码",
+      roleLabel: "角色",
+      statusLabel: "状态",
+      createdAtLabel: "创建时间",
+      actionsLabel: "操作",
+      enabledLabel: "已启用",
+      userRole: "用户",
+      adminRole: "管理员",
+      successCreate: "用户已创建。",
+      successPassword: "密码已更新。",
+      successDelete: "用户已删除。",
+      passwordMismatch: "两次输入的密码不一致。",
+      deleteTitle: "删除用户？",
+      deleteDescription: "删除后该用户将无法登录。",
+      emptySearch: "没有找到用户。",
+      errorPrefix: "用户请求失败："
+    },
     providers: {
       badge: "提供商",
       title: "提供商管理",

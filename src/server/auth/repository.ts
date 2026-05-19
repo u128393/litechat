@@ -1,13 +1,14 @@
-import { and, eq, gt, isNull } from "drizzle-orm";
+import { and, asc, eq, gt, isNull } from "drizzle-orm";
 
 import { defineRepository } from "@/server/db";
 import { sessions, users, type UserRole } from "@/server/db/schema";
 
-type UserRow = {
+export type UserRow = {
   id: string;
   email: string;
   passwordHash: string;
   role: UserRole;
+  enabled: boolean;
   createdAt: string;
   updatedAt: string;
 };
@@ -29,6 +30,10 @@ export const getAuthRepository = defineRepository(({ db }) => {
       await database.insert(users).values(user);
     },
 
+    async listUsers(): Promise<UserRow[]> {
+      return database.select().from(users).orderBy(asc(users.createdAt), asc(users.email));
+    },
+
     async getUserById(userId: string): Promise<UserRow | null> {
       const [user] = await database.select().from(users).where(eq(users.id, userId)).limit(1);
       return user ?? null;
@@ -47,6 +52,30 @@ export const getAuthRepository = defineRepository(({ db }) => {
       }
 
       await database.update(users).set({ passwordHash, updatedAt }).where(eq(users.id, userId));
+
+      return true;
+    },
+
+    async updateUser(userId: string, updates: Partial<Pick<UserRow, "email" | "passwordHash" | "role" | "enabled" | "updatedAt">>): Promise<boolean> {
+      const [user] = await database.select({ id: users.id }).from(users).where(eq(users.id, userId)).limit(1);
+
+      if (!user) {
+        return false;
+      }
+
+      await database.update(users).set(updates).where(eq(users.id, userId));
+
+      return true;
+    },
+
+    async deleteUser(userId: string): Promise<boolean> {
+      const [user] = await database.select({ id: users.id }).from(users).where(eq(users.id, userId)).limit(1);
+
+      if (!user) {
+        return false;
+      }
+
+      await database.delete(users).where(eq(users.id, userId));
 
       return true;
     },

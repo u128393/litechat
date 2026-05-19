@@ -38,6 +38,7 @@ export async function createUser(input: CreateUserInput, database?: DatabaseConn
     email: normalizedEmail,
     passwordHash: await hashPassword(input.password),
     role: input.role ?? "user",
+    enabled: true,
     createdAt: now,
     updatedAt: now
   };
@@ -51,7 +52,7 @@ export async function verifyUserPassword(email: string, password: string, databa
   const repository = getAuthRepository(database);
   const user = await repository.getUserByEmail(normalizeEmail(email));
 
-  if (!user) {
+  if (!user || !user.enabled) {
     return null;
   }
 
@@ -96,12 +97,17 @@ export async function getAuthSession(token: string, database?: DatabaseConnectio
     return null;
   }
 
+  if (!result.user.enabled) {
+    return null;
+  }
+
   return {
     session: result.session,
     user: {
       id: result.user.id,
       email: result.user.email,
-      role: result.user.role
+      role: result.user.role,
+      enabled: result.user.enabled
     }
   };
 }
@@ -130,6 +136,11 @@ export async function invalidateSession(sessionId: string, database?: DatabaseCo
 export async function invalidateSessionToken(token: string, database?: DatabaseConnection): Promise<boolean> {
   const repository = getAuthRepository(database);
   return repository.invalidateSessionByTokenHash(hashSessionToken(token), new Date().toISOString());
+}
+
+export async function invalidateSessionsByUserId(userId: string, database?: DatabaseConnection): Promise<number> {
+  const repository = getAuthRepository(database);
+  return repository.invalidateSessionsByUserId(userId, new Date().toISOString());
 }
 
 export async function changePassword(input: ChangePasswordInput, database?: DatabaseConnection): Promise<ChangePasswordResult> {
@@ -173,6 +184,7 @@ function toAuthUser(user: {
   id: string;
   email: string;
   role: UserRole;
+  enabled: boolean;
   createdAt: string;
   updatedAt: string;
 }): AuthUser {
@@ -180,6 +192,7 @@ function toAuthUser(user: {
     id: user.id,
     email: user.email,
     role: user.role,
+    enabled: user.enabled,
     createdAt: user.createdAt,
     updatedAt: user.updatedAt
   };
