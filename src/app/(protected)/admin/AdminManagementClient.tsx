@@ -1140,10 +1140,11 @@ export function AdminManagementClient({
                     <span className="flex-1 text-xs font-medium text-[var(--lc-text-secondary)]">
                       {adminMessages.providers.baseUrlLabel}
                     </span>
-                    <span className="w-20 text-right text-xs font-medium text-[var(--lc-text-secondary)]">
+                    <span className="w-[50px]" aria-hidden="true" />
+                    <span className="w-20 text-center text-xs font-medium text-[var(--lc-text-secondary)]">
                       {adminMessages.providers.enabledLabel}
                     </span>
-                    <span className="w-10 text-right text-xs font-medium text-[var(--lc-text-secondary)]">
+                    <span className="w-16 text-center text-xs font-medium text-[var(--lc-text-secondary)]">
                       {adminMessages.actionsLabel}
                     </span>
                   </div>
@@ -1179,8 +1180,9 @@ export function AdminManagementClient({
                         <span className="flex-1 text-sm text-[var(--lc-text-secondary)]">
                           {providerConfig.baseUrl ?? adminMessages.defaultValue}
                         </span>
+                        <span className="w-[50px]" aria-hidden="true" />
                         <span
-                          className="flex w-20 justify-end"
+                          className="flex w-20 justify-center"
                           onClick={(e) => e.stopPropagation()}
                         >
                           <SwitchToggle
@@ -1192,7 +1194,7 @@ export function AdminManagementClient({
                           />
                         </span>
                         <span
-                          className="flex w-10 justify-end"
+                          className="flex w-16 justify-center"
                           onClick={(event) => event.stopPropagation()}
                         >
                           <DropdownMenu>
@@ -1257,7 +1259,7 @@ export function AdminManagementClient({
                       className="w-8 text-xs font-medium text-[var(--lc-text-secondary)]"
                       aria-hidden="true"
                     />
-                    <span className="w-[150px] text-xs font-medium text-[var(--lc-text-secondary)]">
+                    <span className="w-[168px] text-xs font-medium text-[var(--lc-text-secondary)]">
                       {adminMessages.models.displayNameLabel}
                     </span>
                     <span className="w-[180px] text-xs font-medium text-[var(--lc-text-secondary)]">
@@ -1272,7 +1274,7 @@ export function AdminManagementClient({
                     <span className="w-20 text-center text-xs font-medium text-[var(--lc-text-secondary)]">
                       {adminMessages.models.visibleLabel}
                     </span>
-                    <span className="w-10 text-right text-xs font-medium text-[var(--lc-text-secondary)]">
+                    <span className="w-16 text-center text-xs font-medium text-[var(--lc-text-secondary)]">
                       {adminMessages.actionsLabel}
                     </span>
                   </div>
@@ -1318,7 +1320,7 @@ export function AdminManagementClient({
                             >
                               <GripVertical className="size-4" />
                             </button>
-                            <span className="w-[150px] text-sm font-medium text-[var(--lc-text-primary)]">
+                            <span className="w-[168px] text-sm font-medium text-[var(--lc-text-primary)]">
                               {modelConfig.displayName}
                             </span>
                             <span className="w-[180px] text-[13px] text-[var(--lc-text-secondary)]">
@@ -1345,7 +1347,7 @@ export function AdminManagementClient({
                               />
                             </span>
                             <span
-                              className="flex w-10 justify-end"
+                              className="flex w-16 justify-center"
                               onClick={(event) => event.stopPropagation()}
                             >
                               <DropdownMenu>
@@ -2155,7 +2157,7 @@ function UsersTable({
         <span className="w-[130px] text-xs font-medium text-[var(--lc-text-secondary)]">
           {adminMessages.users.createdAtLabel}
         </span>
-        <span className="w-10 text-right text-xs font-medium text-[var(--lc-text-secondary)]">
+        <span className="w-16 text-center text-xs font-medium text-[var(--lc-text-secondary)]">
           {adminMessages.users.actionsLabel}
         </span>
       </div>
@@ -2187,7 +2189,7 @@ function UsersTable({
             <span className="hidden w-[130px] text-sm text-[var(--lc-text-secondary)] sm:block">
               {formatDate(user.createdAt)}
             </span>
-            <div className="flex w-10 justify-end">
+            <div className="flex w-16 justify-center">
               <DropdownMenu>
                 <DropdownMenuTrigger
                   className="flex size-8 items-center justify-center rounded-lg text-[var(--lc-text-secondary)] hover:bg-[var(--lc-bg-secondary)] hover:text-[var(--lc-text-primary)]"
