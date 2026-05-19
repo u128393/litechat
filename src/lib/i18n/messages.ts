@@ -53,6 +53,8 @@ export type AppMessages = {
     languageStatus: string;
     passwordSettings: string;
     passwordManage: string;
+    themeLabel: string;
+    themeSystem: string;
     themeLight: string;
     themeDark: string;
     navigation: string;
@@ -168,7 +170,7 @@ export const messagesByLocale: Record<AppLocale, AppMessages> = {
       deleteConversationBodyStart: "This will delete ",
       deleteConversationBodyEnd: ".",
       deleteConversationDescription: "This action cannot be undone.",
-      languageLabel: "Language",
+      languageLabel: "Display language",
       languageDescription: "Switch the authenticated workspace language instantly.",
       modelLabel: "Model",
       modelsLoading: "Loading models...",
@@ -176,6 +178,8 @@ export const messagesByLocale: Record<AppLocale, AppMessages> = {
       languageStatus: "Language preference saved locally",
       passwordSettings: "Password",
       passwordManage: "Update",
+      themeLabel: "Theme",
+      themeSystem: "System",
       themeLight: "Light",
       themeDark: "Dark",
       navigation: "Navigation",
@@ -289,7 +293,7 @@ export const messagesByLocale: Record<AppLocale, AppMessages> = {
       deleteConversationBodyStart: "这会删除",
       deleteConversationBodyEnd: "。",
       deleteConversationDescription: "此操作无法撤销。",
-      languageLabel: "语言",
+      languageLabel: "显示语言",
       languageDescription: "即时切换已登录工作区语言。",
       modelLabel: "模型",
       modelsLoading: "正在加载模型...",
@@ -297,6 +301,8 @@ export const messagesByLocale: Record<AppLocale, AppMessages> = {
       languageStatus: "语言偏好已保存在本地",
       passwordSettings: "修改密码",
       passwordManage: "修改",
+      themeLabel: "主题模式",
+      themeSystem: "跟随系统",
       themeLight: "浅色模式",
       themeDark: "深色模式",
       navigation: "导航",

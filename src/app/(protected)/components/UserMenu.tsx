@@ -7,20 +7,29 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useI18n } from "@/lib/i18n/provider";
 import { isAdminUser } from "@/lib/auth/roles";
-import { supportedAppLocales } from "@/lib/i18n/locales";
-import { ChevronDown, Sun, Moon, Globe, Lock, Shield, LogOut } from "lucide-react";
+import { supportedAppLocales, type AppLocale } from "@/lib/i18n/locales";
+import { ChevronDown, Globe, Lock, Monitor, Moon, Shield, Sun, LogOut } from "lucide-react";
 import type { CurrentUser } from "@/server/auth/types";
 import { cn } from "@/lib/utils";
 
-const languageNames: Record<string, string> = {
+type ThemePreference = "system" | "light" | "dark";
+
+const languageNames: Record<AppLocale, string> = {
   en: "English",
   "zh-CN": "简体中文",
 };
+
+const themePreferences: ThemePreference[] = ["system", "light", "dark"];
 
 const userMenuTriggerClass =
   "flex h-10 w-full items-center justify-start gap-2.5 overflow-hidden rounded-lg px-2 py-1 text-left transition-colors duration-200 ease-out hover:bg-[var(--lc-bg-tertiary)] outline-none";
@@ -39,6 +48,7 @@ type UserMenuProps = {
 export function UserMenu({ currentUser, collapsed = false }: UserMenuProps) {
   const { locale, messages, setLocale } = useI18n();
   const { theme, setTheme } = useTheme();
+  const currentTheme: ThemePreference = isThemePreference(theme) ? theme : "system";
 
   const initials = currentUser.email.slice(0, 2).toUpperCase();
 
@@ -82,28 +92,62 @@ export function UserMenu({ currentUser, collapsed = false }: UserMenuProps) {
         sideOffset={8}
         className="w-[220px] rounded-lg border border-[var(--lc-border)] bg-[var(--lc-bg-primary)] p-1 shadow-lg"
       >
-        {/* Theme toggle */}
-        <DropdownMenuItem
-          className="flex items-center gap-2 rounded-[4px] px-3 py-2 text-[14px] text-[var(--lc-text-primary)]"
-          onClick={() => {
-            setTheme(theme === "dark" ? "light" : "dark");
-          }}
-        >
-          {theme === "dark" ? <Sun className="size-4" /> : <Moon className="size-4" />}
-          {theme === "dark" ? messages.shell.themeLight : messages.shell.themeDark}
-        </DropdownMenuItem>
+        {/* Theme */}
+        <DropdownMenuSub>
+          <DropdownMenuSubTrigger className="flex items-center gap-2 rounded-[4px] px-3 py-2 text-[14px] text-[var(--lc-text-primary)]">
+            <Monitor className="size-4" />
+            {messages.shell.themeLabel}
+          </DropdownMenuSubTrigger>
+          <DropdownMenuSubContent className="min-w-[160px] rounded-lg border border-[var(--lc-border)] bg-[var(--lc-bg-primary)] p-1 shadow-lg">
+            <DropdownMenuRadioGroup
+              value={currentTheme}
+              onValueChange={(nextTheme) => {
+                if (isThemePreference(nextTheme)) {
+                  setTheme(nextTheme);
+                }
+              }}
+            >
+              {themePreferences.map((themePreference) => (
+                <DropdownMenuRadioItem
+                  key={themePreference}
+                  value={themePreference}
+                  className="flex items-center gap-2 rounded-[4px] px-3 py-2 pr-8 text-[14px] text-[var(--lc-text-primary)]"
+                >
+                  {getThemeIcon(themePreference)}
+                  {getThemeLabel(themePreference, messages)}
+                </DropdownMenuRadioItem>
+              ))}
+            </DropdownMenuRadioGroup>
+          </DropdownMenuSubContent>
+        </DropdownMenuSub>
 
         {/* Language */}
-        <DropdownMenuItem
-          className="flex items-center gap-2 rounded-[4px] px-3 py-2 text-[14px] text-[var(--lc-text-primary)]"
-          onClick={() => {
-            const nextLocale = supportedAppLocales.find((l) => l !== locale) ?? locale;
-            void setLocale(nextLocale);
-          }}
-        >
-          <Globe className="size-4" />
-          {languageNames[locale]}
-        </DropdownMenuItem>
+        <DropdownMenuSub>
+          <DropdownMenuSubTrigger className="flex items-center gap-2 rounded-[4px] px-3 py-2 text-[14px] text-[var(--lc-text-primary)]">
+            <Globe className="size-4" />
+            {messages.shell.languageLabel}
+          </DropdownMenuSubTrigger>
+          <DropdownMenuSubContent className="min-w-[160px] rounded-lg border border-[var(--lc-border)] bg-[var(--lc-bg-primary)] p-1 shadow-lg">
+            <DropdownMenuRadioGroup
+              value={locale}
+              onValueChange={(nextLocale) => {
+                if (isAppLocale(nextLocale)) {
+                  void setLocale(nextLocale);
+                }
+              }}
+            >
+              {supportedAppLocales.map((supportedLocale) => (
+                <DropdownMenuRadioItem
+                  key={supportedLocale}
+                  value={supportedLocale}
+                  className="flex items-center gap-2 rounded-[4px] px-3 py-2 pr-8 text-[14px] text-[var(--lc-text-primary)]"
+                >
+                  {languageNames[supportedLocale]}
+                </DropdownMenuRadioItem>
+              ))}
+            </DropdownMenuRadioGroup>
+          </DropdownMenuSubContent>
+        </DropdownMenuSub>
 
         <DropdownMenuSeparator className="my-1 h-px bg-[var(--lc-border)]" />
 
@@ -145,4 +189,34 @@ export function UserMenu({ currentUser, collapsed = false }: UserMenuProps) {
       </DropdownMenuContent>
     </DropdownMenu>
   );
+}
+
+function isThemePreference(value: unknown): value is ThemePreference {
+  return value === "system" || value === "light" || value === "dark";
+}
+
+function isAppLocale(value: unknown): value is AppLocale {
+  return value === "en" || value === "zh-CN";
+}
+
+function getThemeIcon(themePreference: ThemePreference) {
+  switch (themePreference) {
+    case "light":
+      return <Sun className="size-4" />;
+    case "dark":
+      return <Moon className="size-4" />;
+    default:
+      return <Monitor className="size-4" />;
+  }
+}
+
+function getThemeLabel(themePreference: ThemePreference, messages: ReturnType<typeof useI18n>["messages"]) {
+  switch (themePreference) {
+    case "light":
+      return messages.shell.themeLight;
+    case "dark":
+      return messages.shell.themeDark;
+    default:
+      return messages.shell.themeSystem;
+  }
 }
