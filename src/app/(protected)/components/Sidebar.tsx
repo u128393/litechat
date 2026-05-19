@@ -1,6 +1,7 @@
 "use client";
 
 import { useLayoutEffect, useRef, useState, type UIEvent } from "react";
+import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { MoreHorizontal, Search, Trash2 } from "lucide-react";
 
@@ -30,8 +31,10 @@ import type { ButtonHTMLAttributes, ReactNode, SVGProps } from "react";
 const sidebarSectionXClass = "px-1";
 const sidebarMotionClass = "duration-200 ease-out";
 const sidebarHeaderClass = "flex h-14 items-center px-1 py-3 transition-[gap] duration-200 ease-out";
-const sidebarHeaderBrandClass =
-  "min-w-0 truncate text-[15px] font-semibold tracking-[-0.01em] text-[var(--lc-text-primary)] transition-[opacity,width,padding] duration-200 ease-out";
+const sidebarHeaderBrandContainerClass =
+  "min-w-0 truncate transition-[opacity,width,padding] duration-200 ease-out";
+const sidebarHeaderBrandLinkClass =
+  "inline-flex max-w-full rounded-md text-[15px] font-semibold tracking-[-0.01em] text-[var(--lc-text-primary)] transition-colors duration-200 ease-out hover:text-[var(--lc-text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--lc-accent)]";
 const sidebarToggleButtonClass =
   "ml-auto flex size-10 shrink-0 items-center justify-center rounded-lg text-[var(--lc-text-secondary)] transition-colors hover:bg-[var(--lc-bg-tertiary)] hover:text-[var(--lc-text-primary)]";
 const sidebarItemClass =
@@ -190,11 +193,19 @@ export function Sidebar({ className, collapsed = false, onCollapsedChange, onSea
       <div className={cn(sidebarHeaderClass, collapsed ? "gap-0" : "gap-2")}>
         <div
           className={cn(
-            sidebarHeaderBrandClass,
+            sidebarHeaderBrandContainerClass,
             collapsed ? "w-0 flex-none pl-0 opacity-0" : "flex-1 pl-2.5 opacity-100"
           )}
         >
-          {messages.shell.brand}
+          <Link
+            href="/"
+            onClick={onNavigate}
+            tabIndex={collapsed ? -1 : undefined}
+            aria-hidden={collapsed ? true : undefined}
+            className={sidebarHeaderBrandLinkClass}
+          >
+            {messages.shell.brand}
+          </Link>
         </div>
         {onCollapsedChange ? (
           <button
