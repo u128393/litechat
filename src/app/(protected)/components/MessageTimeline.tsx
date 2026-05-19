@@ -63,15 +63,10 @@ export function MessageTimeline() {
 
   if (conversationMessages.length === 0) {
     return (
-      <div className="flex flex-1 items-center justify-center">
-        <div className="flex flex-col items-center gap-2">
-          <h1 className="text-xl font-semibold text-[var(--lc-text-primary)]">
-            LiteChat
-          </h1>
-          <p className="text-[15px] text-[var(--lc-text-secondary)]">
-            {i18nMessages.chat.emptyState}
-          </p>
-        </div>
+      <div className="flex flex-col items-center">
+        <h1 className="text-[24px] font-normal tracking-[-0.01em] text-[var(--lc-text-primary)]">
+          {i18nMessages.chat.emptyState}
+        </h1>
       </div>
     );
   }

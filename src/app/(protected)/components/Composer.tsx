@@ -7,7 +7,11 @@ import { useI18n } from "@/lib/i18n/provider";
 import { ArrowUp, CircleAlert } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-export function Composer() {
+type ComposerProps = {
+  placement?: "bottom" | "center";
+};
+
+export function Composer({ placement = "bottom" }: ComposerProps) {
   const { messages } = useI18n();
   const {
     draft,
@@ -64,10 +68,13 @@ export function Composer() {
     "bg-[#111111] text-white hover:bg-[#2A2A2A] dark:bg-white dark:text-[#111111] dark:hover:bg-[#E5E5E5]";
   const disabledActionButtonClass =
     "bg-[#D4D4D8] text-[#8A8A8A] dark:bg-[#4A4A4A] dark:text-[#9B9B9B]";
+  const isBottomPlacement = placement === "bottom";
 
   return (
-    <div className="pointer-events-none relative w-full px-4 pb-6">
-      <div className="absolute inset-x-0 top-[26px] bottom-0 bg-[var(--lc-bg-primary)]" />
+    <div className={cn("pointer-events-none relative w-full px-4", isBottomPlacement && "pb-6")}>
+      {isBottomPlacement ? (
+        <div className="absolute inset-x-0 top-[26px] bottom-0 bg-[var(--lc-bg-primary)]" />
+      ) : null}
       <div className="pointer-events-auto relative mx-auto flex w-full max-w-[768px] flex-col gap-2">
         {/* Error banner */}
         {chatError ? (
@@ -137,9 +144,11 @@ export function Composer() {
         </div>
 
         {/* Hint text */}
-        <p className="hidden px-1 text-[11px] text-[var(--lc-text-tertiary)] md:block">
-          {messages.chat.composerKeyboardHint}
-        </p>
+        {isBottomPlacement ? (
+          <p className="hidden px-1 text-[11px] text-[var(--lc-text-tertiary)] md:block">
+            {messages.chat.composerKeyboardHint}
+          </p>
+        ) : null}
       </div>
     </div>
   );
