@@ -1062,7 +1062,7 @@ export function AdminManagementClient({
                 />
               )}
               <div className="flex items-center gap-3">
-                <div className="relative min-w-0 flex-1">
+                <div className="relative min-w-0 flex-1 sm:flex-none sm:w-[280px]">
                   <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[var(--lc-text-tertiary)]" />
                   <Input
                     value={userSearchQuery}
@@ -1074,7 +1074,7 @@ export function AdminManagementClient({
                 <button
                   type="button"
                   onClick={openAddUser}
-                  className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg border border-[var(--lc-accent)] px-3.5 text-[13px] font-medium text-[var(--lc-accent)] transition-colors hover:bg-[var(--lc-accent)]/5"
+                  className="ml-auto inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg border border-[var(--lc-accent)] px-3.5 text-[13px] font-medium text-[var(--lc-accent)] transition-colors hover:bg-[var(--lc-accent)]/5"
                 >
                   <Plus className="size-3.5" />
                   {adminMessages.users.newAction}
