@@ -128,6 +128,14 @@ const adminDialogBodyClass = "flex flex-col gap-5 px-4 py-5";
 const adminDialogFormBodyClass = "flex flex-col gap-5 px-4 pt-5 pb-8";
 const dragPreviewOffset = 6;
 const chatModelTitleGenerationValue = "__litechat_chat_model__";
+const randomPasswordCharacterGroups = [
+  "0123456789",
+  "ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+  "abcdefghijklmnopqrstuvwxyz",
+  "!@#$%^&*_-+=?",
+] as const;
+const randomPasswordCharacters = randomPasswordCharacterGroups.join("");
+const randomPasswordLength = 12;
 
 function createDefaultModelForm(
   providerConfigs: ProviderConfig[],
@@ -185,6 +193,7 @@ export function AdminManagementClient({
 
   const [userDialogOpen, setUserDialogOpen] = useState(false);
   const [userForm, setUserForm] = useState<UserFormState>(DEFAULT_USER_FORM);
+  const [userPasswordVisible, setUserPasswordVisible] = useState(false);
   const [userPending, setUserPending] = useState(false);
   const [userFeedback, setUserFeedback] = useState<{
     type: "success" | "error";
@@ -251,8 +260,14 @@ export function AdminManagementClient({
 
   function openAddUser() {
     setUserForm(DEFAULT_USER_FORM);
+    setUserPasswordVisible(false);
     setUserFeedback(null);
     setUserDialogOpen(true);
+  }
+
+  function generateUserPassword() {
+    setUserForm((form) => ({ ...form, password: generateRandomPassword() }));
+    setUserPasswordVisible(true);
   }
 
   function openResetPassword(user: ManagedUser) {
@@ -1482,16 +1497,31 @@ export function AdminManagementClient({
                 id="user-password"
                 label={adminMessages.users.initialPasswordLabel}
               >
-                <Input
-                  id="user-password"
-                  type="password"
-                  value={userForm.password}
-                  onChange={(event) =>
-                    setUserForm((f) => ({ ...f, password: event.target.value }))
-                  }
-                  minLength={8}
-                  required
-                />
+                <div className="relative">
+                  <Input
+                    id="user-password"
+                    type={userPasswordVisible ? "text" : "password"}
+                    className="pr-14"
+                    value={userForm.password}
+                    onChange={(event) =>
+                      setUserForm((f) => ({
+                        ...f,
+                        password: event.target.value,
+                      }))
+                    }
+                    minLength={8}
+                    required
+                  />
+                  <Button
+                    type="button"
+                    variant="link"
+                    className="absolute top-1/2 right-3 h-auto -translate-y-1/2 px-0 text-xs active:!-translate-y-1/2"
+                    onClick={generateUserPassword}
+                    disabled={userPending}
+                  >
+                    {adminMessages.users.randomPasswordAction}
+                  </Button>
+                </div>
               </FormField>
               <FormField id="user-role" label={adminMessages.users.roleLabel}>
                 <Select
@@ -2417,6 +2447,39 @@ function createModelForm(
     visible: modelConfig.visible,
     supportsWebSearch: modelConfig.supportsWebSearch,
   };
+}
+
+function generateRandomPassword(): string {
+  const characters = randomPasswordCharacterGroups.map(getRandomCharacter);
+
+  while (characters.length < randomPasswordLength) {
+    characters.push(getRandomCharacter(randomPasswordCharacters));
+  }
+
+  return shuffleCharacters(characters).join("");
+}
+
+function getRandomCharacter(characters: string): string {
+  return characters[generateRandomIndex(characters.length)]!;
+}
+
+function generateRandomIndex(max: number): number {
+  const value = new Uint32Array(1);
+  globalThis.crypto.getRandomValues(value);
+
+  return value[0]! % max;
+}
+
+function shuffleCharacters(characters: string[]): string[] {
+  for (let index = characters.length - 1; index > 0; index -= 1) {
+    const randomIndex = generateRandomIndex(index + 1);
+    [characters[index], characters[randomIndex]] = [
+      characters[randomIndex]!,
+      characters[index]!,
+    ];
+  }
+
+  return characters;
 }
 
 function sortProviderConfigs(

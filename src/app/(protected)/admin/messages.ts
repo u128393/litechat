@@ -33,6 +33,7 @@ export type AdminMessages = {
     searchPlaceholder: string;
     emailLabel: string;
     initialPasswordLabel: string;
+    randomPasswordAction: string;
     newPasswordLabel: string;
     confirmPasswordLabel: string;
     roleLabel: string;
@@ -158,6 +159,7 @@ export const adminMessagesByLocale: Record<AppLocale, AdminMessages> = {
       searchPlaceholder: "Search email",
       emailLabel: "Email",
       initialPasswordLabel: "Initial password",
+      randomPasswordAction: "Random",
       newPasswordLabel: "New password",
       confirmPasswordLabel: "Confirm new password",
       roleLabel: "Role",
@@ -282,6 +284,7 @@ export const adminMessagesByLocale: Record<AppLocale, AdminMessages> = {
       searchPlaceholder: "搜索邮箱",
       emailLabel: "邮箱",
       initialPasswordLabel: "初始密码",
+      randomPasswordAction: "随机",
       newPasswordLabel: "新密码",
       confirmPasswordLabel: "确认新密码",
       roleLabel: "角色",
