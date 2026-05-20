@@ -3,7 +3,7 @@ import path from "node:path";
 
 import { config as loadDotenv } from "dotenv";
 
-const ENV_FILES = [".env.local", ".env"] as const;
+const ENV_FILES = [".env"] as const;
 
 export function loadLocalEnv(cwd = process.cwd()): void {
   for (const fileName of ENV_FILES) {

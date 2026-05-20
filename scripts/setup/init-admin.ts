@@ -212,7 +212,7 @@ function parseArgs(argv: string[]): ParsedArgs {
 }
 
 async function collectSetupValues(args: ParsedArgs): Promise<SetupValues> {
-  const envFilePath = path.resolve(process.cwd(), args.envFile ?? ".env.local");
+  const envFilePath = path.resolve(process.cwd(), args.envFile ?? ".env");
   const defaults = process.env;
   const canPrompt = !args.nonInteractive && input.isTTY && output.isTTY;
   const rl = canPrompt ? createInterface({ input, output }) : null;
