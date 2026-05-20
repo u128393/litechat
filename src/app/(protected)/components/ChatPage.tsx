@@ -1,13 +1,37 @@
 "use client";
 
+import { useLayoutEffect, useRef, useState } from "react";
+
 import { ModelSelector } from "@/app/(protected)/components/ModelSelector";
 import { MessageTimeline } from "@/app/(protected)/components/MessageTimeline";
 import { Composer } from "@/app/(protected)/components/Composer";
 import { useChatWorkspace } from "@/app/(protected)/ChatWorkspaceProvider";
 
 export function ChatPage() {
-  const { routeConversationId, messages } = useChatWorkspace();
-  const isNewConversationEmpty = routeConversationId === null && messages.length === 0;
+  const { routeConversationId, messages, branchContext } = useChatWorkspace();
+  const composerOverlayRef = useRef<HTMLDivElement>(null);
+  const [composerOverlayHeight, setComposerOverlayHeight] = useState(0);
+  const isNewConversationEmpty = routeConversationId === null && !branchContext && messages.length === 0;
+
+  useLayoutEffect(() => {
+    const composerOverlay = composerOverlayRef.current;
+
+    if (!composerOverlay) {
+      setComposerOverlayHeight(0);
+      return;
+    }
+
+    function updateComposerOverlayHeight() {
+      setComposerOverlayHeight(composerOverlay?.getBoundingClientRect().height ?? 0);
+    }
+
+    updateComposerOverlayHeight();
+
+    const resizeObserver = new ResizeObserver(updateComposerOverlayHeight);
+    resizeObserver.observe(composerOverlay);
+
+    return () => resizeObserver.disconnect();
+  }, [isNewConversationEmpty]);
 
   return (
     <>
@@ -27,9 +51,13 @@ export function ChatPage() {
           </div>
         ) : (
           <>
-            {messages.length > 0 ? <MessageTimeline /> : <div className="flex min-h-0 flex-1" />}
+            {messages.length > 0 ? (
+              <MessageTimeline composerOverlayHeight={composerOverlayHeight} />
+            ) : (
+              <div className="flex min-h-0 flex-1" />
+            )}
 
-            <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10">
+            <div ref={composerOverlayRef} className="pointer-events-none absolute inset-x-0 bottom-0 z-10">
               <Composer />
             </div>
           </>

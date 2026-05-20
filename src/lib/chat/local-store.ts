@@ -27,6 +27,14 @@ export type ChatConversationRecord = {
   title: string;
   createdAt: string;
   updatedAt: string;
+  branch?: ChatConversationBranchRecord;
+};
+
+export type ChatConversationBranchRecord = {
+  sourceConversationId: string;
+  sourceMessageId: string;
+  sourceConversationTitle: string;
+  prefixMessageCount: number;
 };
 
 export type ChatConversationPageCursor = {
@@ -638,7 +646,8 @@ function toConversationRecord(record: ScopedConversationRecord): ChatConversatio
     id: record.id,
     title: record.title,
     createdAt: record.createdAt,
-    updatedAt: record.updatedAt
+    updatedAt: record.updatedAt,
+    branch: record.branch
   };
 }
 

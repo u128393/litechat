@@ -130,6 +130,10 @@ export type AppMessages = {
     clearError: string;
     copyMessage: string;
     editMessage: string;
+    branchMessage: string;
+    branchTitlePrefix: string;
+    branchDividerStart: string;
+    branchDividerEnd: string;
     send: string;
     stopped: string;
     errorModelMissing: string;
@@ -271,6 +275,10 @@ export const messagesByLocale: Record<AppLocale, AppMessages> = {
       clearError: "Clear error",
       copyMessage: "Copy message",
       editMessage: "Edit message",
+      branchMessage: "New branch from here",
+      branchTitlePrefix: "Branch · ",
+      branchDividerStart: "Branch from ",
+      branchDividerEnd: "",
       send: "Send",
       stopped: "Response stopped. You can retry from the latest user message.",
       errorModelMissing: "Select a model before sending.",
@@ -410,6 +418,10 @@ export const messagesByLocale: Record<AppLocale, AppMessages> = {
       clearError: "清除错误",
       copyMessage: "复制消息",
       editMessage: "编辑消息",
+      branchMessage: "从这里新建分支",
+      branchTitlePrefix: "分支 · ",
+      branchDividerStart: "从 ",
+      branchDividerEnd: " 建立的分支",
       send: "发送",
       stopped: "回复已停止。你可以基于最新的用户消息重新生成。",
       errorModelMissing: "请先选择一个模型后再发送。",

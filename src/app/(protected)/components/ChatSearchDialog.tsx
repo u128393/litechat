@@ -8,6 +8,7 @@ import {
   useChatWorkspace,
 } from "@/app/(protected)/ChatWorkspaceProvider";
 import { useI18n } from "@/lib/i18n/provider";
+import { getConversationDisplayTitle } from "@/lib/chat/presentation";
 import { cn } from "@/lib/utils";
 import {
   Dialog,
@@ -555,7 +556,11 @@ type SearchItemRowProps = {
 
 function SearchItemRow({ item, query, selected, resultMode = false, showDate = false, onPointerHover, onPointerLeave, onClick }: SearchItemRowProps) {
   const { messages } = useI18n();
-  const title = item.type === "new" ? messages.shell.newChat : item.conversation.title;
+  const title = item.type === "new"
+    ? messages.shell.newChat
+    : getConversationDisplayTitle(item.conversation, {
+        branchTitlePrefix: messages.chat.branchTitlePrefix
+      });
   const snippet = item.type === "conversation" && item.matchedText
     ? buildSnippet(item.matchedText, query ?? "")
     : null;

@@ -6,11 +6,13 @@ import { usePathname, useRouter } from "next/navigation";
 import { useI18n } from "@/lib/i18n/provider";
 import {
   createBrowserConversationStore,
+  type ChatConversationBranchRecord,
   type ChatConversationPageCursor,
   type ChatConversationRecord,
   type ChatMessageRecord
 } from "@/lib/chat/local-store";
 import { createBrowserPreferencesStore } from "@/lib/preferences";
+import { getConversationDisplayTitle } from "@/lib/chat/presentation";
 import type { UserSelectableModel } from "@/server/model-configs/service";
 
 const conversationPageSize = 25;
@@ -49,6 +51,15 @@ type ConversationRevealRequest = {
   token: number;
 };
 
+type ChatBranchContext = ChatConversationBranchRecord & {
+  isPreview: boolean;
+};
+
+type ChatRouteState =
+  | { kind: "new" }
+  | { kind: "conversation"; conversationId: string }
+  | { kind: "branch"; sourceConversationId: string; sourceMessageId: string };
+
 const searchConversationPageSize = 25;
 
 type ChatWorkspaceContextValue = {
@@ -56,6 +67,7 @@ type ChatWorkspaceContextValue = {
   routeConversationId: string | null;
   activeConversationId: string | null;
   messages: ChatMessageRecord[];
+  branchContext: ChatBranchContext | null;
   draft: string;
   models: UserSelectableModel[];
   selectedModelId: string | null;
@@ -80,6 +92,7 @@ type ChatWorkspaceContextValue = {
   retryMessage(): Promise<void>;
   regenerateMessage(messageId: string): Promise<void>;
   editUserMessage(messageId: string, nextContent: string): Promise<void>;
+  openConversationBranch(messageId: string): Promise<void>;
   clearChatError(): void;
   deleteConversation(conversationId: string): Promise<void>;
   selectModel(modelId: string): Promise<void>;
@@ -108,11 +121,13 @@ export function ChatWorkspaceProvider({ userId, children }: { userId: string; ch
   const pendingConversationSelectionSourceRef = useRef<SelectConversationSource | null>(null);
   const isLoadingOlderConversationsRef = useRef(false);
   const isLoadingNewerConversationsRef = useRef(false);
-  const routeConversationId = useMemo(() => getConversationIdFromPathname(pathname), [pathname]);
+  const routeState = useMemo(() => getChatRouteStateFromPathname(pathname), [pathname]);
+  const routeConversationId = routeState.kind === "conversation" ? routeState.conversationId : null;
 
   const [conversations, setConversations] = useState<ChatConversationRecord[]>([]);
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessageRecord[]>([]);
+  const [branchContext, setBranchContext] = useState<ChatBranchContext | null>(null);
   const [draft, setDraft] = useState("");
   const [models, setModels] = useState<UserSelectableModel[]>([]);
   const [selectedModelId, setSelectedModelId] = useState<string | null>(null);
@@ -201,9 +216,80 @@ export function ChatWorkspaceProvider({ userId, children }: { userId: string; ch
 
     async function loadWorkspace() {
       try {
-        const targetConversationId = routeConversationId;
+        const targetRouteState = routeState;
+        const targetConversationId = targetRouteState.kind === "conversation" ? targetRouteState.conversationId : null;
         const selectionSource = pendingConversationSelectionSourceRef.current;
         pendingConversationSelectionSourceRef.current = null;
+
+        if (targetRouteState.kind === "branch") {
+          const page = await conversationStore.listOlderConversationsPage({ limit: conversationPageSize });
+          const sourceConversation = await conversationStore.getConversation(targetRouteState.sourceConversationId);
+
+          if (!active) {
+            return;
+          }
+
+          if (!sourceConversation) {
+            olderConversationCursorRef.current = page.nextCursor;
+            newerConversationCursorRef.current = null;
+            setConversations(page.items);
+            setHasOlderConversations(Boolean(page.nextCursor));
+            setHasNewerConversations(false);
+            setActiveConversation(null);
+            setBranchContext(null);
+            setMessages([]);
+            setDraft("");
+            setHasLoadedConversations(true);
+            router.replace("/");
+            return;
+          }
+
+          const sourceMessages = await conversationStore.listMessages(sourceConversation.id);
+          const sourceMessageIndex = sourceMessages.findIndex(
+            (message) => message.id === targetRouteState.sourceMessageId && message.role === "assistant"
+          );
+
+          if (!active) {
+            return;
+          }
+
+          if (sourceMessageIndex === -1) {
+            olderConversationCursorRef.current = page.nextCursor;
+            newerConversationCursorRef.current = null;
+            setConversations(page.items);
+            setHasOlderConversations(Boolean(page.nextCursor));
+            setHasNewerConversations(false);
+            setActiveConversation(null);
+            setBranchContext(null);
+            setMessages([]);
+            setDraft("");
+            setHasLoadedConversations(true);
+            router.replace(`/c/${sourceConversation.id}`);
+            return;
+          }
+
+          const branchMessages = sourceMessages.slice(0, sourceMessageIndex + 1);
+
+          olderConversationCursorRef.current = page.nextCursor;
+          newerConversationCursorRef.current = null;
+          setConversations(page.items);
+          setHasOlderConversations(Boolean(page.nextCursor));
+          setHasNewerConversations(false);
+          setActiveConversation(null);
+          setBranchContext({
+            isPreview: true,
+            sourceConversationId: sourceConversation.id,
+            sourceMessageId: targetRouteState.sourceMessageId,
+            sourceConversationTitle: sourceConversation.title,
+            prefixMessageCount: branchMessages.length
+          });
+          setMessages(branchMessages);
+          setDraft("");
+          clearChatErrorForConversation(null);
+          setHasLoadedConversations(true);
+          requestComposerFocus();
+          return;
+        }
 
         if (!targetConversationId) {
           const page = await conversationStore.listOlderConversationsPage({ limit: conversationPageSize });
@@ -218,6 +304,7 @@ export function ChatWorkspaceProvider({ userId, children }: { userId: string; ch
           setHasOlderConversations(Boolean(page.nextCursor));
           setHasNewerConversations(false);
           setActiveConversation(null);
+          setBranchContext(null);
           setMessages([]);
           setDraft("");
           clearChatErrorForConversation(null);
@@ -246,6 +333,11 @@ export function ChatWorkspaceProvider({ userId, children }: { userId: string; ch
           }
 
           setActiveConversation(targetConversationId);
+          setBranchContext(
+            toConversationBranchContext(
+              conversations.find((conversation) => conversation.id === targetConversationId) ?? null
+            )
+          );
           setMessages(storedMessages);
           setDraft(storedDraft?.text ?? "");
           clearChatErrorForConversation(targetConversationId);
@@ -270,6 +362,7 @@ export function ChatWorkspaceProvider({ userId, children }: { userId: string; ch
           setHasOlderConversations(false);
           setHasNewerConversations(false);
           setActiveConversation(null);
+          setBranchContext(null);
           setMessages([]);
           setDraft("");
           setHasLoadedConversations(true);
@@ -299,6 +392,7 @@ export function ChatWorkspaceProvider({ userId, children }: { userId: string; ch
         setHasOlderConversations(Boolean(expandedWindow.olderCursor));
         setHasNewerConversations(Boolean(expandedWindow.newerCursor));
         setActiveConversation(targetConversationId);
+        setBranchContext(toConversationBranchContext(window.items.find((conversation) => conversation.id === targetConversationId) ?? null));
         setMessages(storedMessages);
         setDraft(storedDraft?.text ?? "");
         clearChatErrorForConversation(targetConversationId);
@@ -314,6 +408,7 @@ export function ChatWorkspaceProvider({ userId, children }: { userId: string; ch
 
         setConversations([]);
         setActiveConversation(null);
+        setBranchContext(null);
         setMessages([]);
         setDraft("");
         setHasOlderConversations(false);
@@ -329,7 +424,7 @@ export function ChatWorkspaceProvider({ userId, children }: { userId: string; ch
     return () => {
       active = false;
     };
-  }, [conversationStore, routeConversationId, router]);
+  }, [conversationStore, routeState, router]);
 
   useEffect(() => {
     void refreshModels();
@@ -369,28 +464,32 @@ export function ChatWorkspaceProvider({ userId, children }: { userId: string; ch
   async function loadConversationState(conversationId: string | null) {
     if (!conversationId) {
       setActiveConversation(null);
+      setBranchContext(null);
       setMessages([]);
       setDraft("");
       return;
     }
 
-    const [storedMessages, storedDraft] = await Promise.all([
+    const [storedConversation, storedMessages, storedDraft] = await Promise.all([
+      conversationStore.getConversation(conversationId),
       conversationStore.listMessages(conversationId),
       conversationStore.getDraft(conversationId)
     ]);
 
     setActiveConversation(conversationId);
+    setBranchContext(toConversationBranchContext(storedConversation));
     setMessages(storedMessages);
     setDraft(storedDraft?.text ?? "");
   }
 
-  async function createConversationRecord(initialDraft: string) {
+  async function createConversationRecord(initialDraft: string, branch?: ChatConversationBranchRecord) {
     const now = new Date().toISOString();
     const conversation: ChatConversationRecord = {
       id: crypto.randomUUID(),
-      title: buildConversationTitle(initialDraft, i18nMessages.chat.title),
+      title: branch?.sourceConversationTitle || buildConversationTitle(initialDraft, i18nMessages.chat.title),
       createdAt: now,
-      updatedAt: now
+      updatedAt: now,
+      branch
     };
 
     await conversationStore.saveConversation(conversation);
@@ -399,6 +498,7 @@ export function ChatWorkspaceProvider({ userId, children }: { userId: string; ch
     newerConversationCursorRef.current = null;
     setHasNewerConversations(false);
     setActiveConversation(conversation.id);
+    setBranchContext(toConversationBranchContext(conversation));
     setMessages([]);
 
     return conversation;
@@ -420,7 +520,8 @@ export function ChatWorkspaceProvider({ userId, children }: { userId: string; ch
     }
 
     if (!pendingConversationPromiseRef.current) {
-      pendingConversationPromiseRef.current = createConversationRecord(initialDraft).finally(() => {
+      const branch = branchContext?.isPreview ? toConversationBranchRecord(branchContext) : undefined;
+      pendingConversationPromiseRef.current = createConversationRecord(initialDraft, branch).finally(() => {
         pendingConversationPromiseRef.current = null;
       });
     }
@@ -431,6 +532,7 @@ export function ChatWorkspaceProvider({ userId, children }: { userId: string; ch
   async function createNewConversation() {
     clearChatErrorForConversation(null);
     setActiveConversation(null);
+    setBranchContext(null);
     setMessages([]);
     setDraft("");
     requestComposerFocus();
@@ -439,6 +541,7 @@ export function ChatWorkspaceProvider({ userId, children }: { userId: string; ch
 
   async function selectConversation(conversationId: string, options?: { source?: SelectConversationSource }) {
     clearChatErrorForConversation(conversationId);
+    setBranchContext(null);
     pendingConversationSelectionSourceRef.current = options?.source ?? "sidebar";
     requestComposerFocus();
     router.push(`/c/${conversationId}`);
@@ -505,6 +608,9 @@ export function ChatWorkspaceProvider({ userId, children }: { userId: string; ch
 
     const conversation = await ensureConversation(trimmedDraft);
     const now = new Date().toISOString();
+    const isBranchPreview = branchContext?.isPreview === true;
+    const prefixMessages = isBranchPreview ? cloneBranchPrefixMessages(messages, conversation.id) : [];
+    const baseMessageHistory = isBranchPreview ? prefixMessages : messages;
     const message: ChatMessageRecord = {
       id: crypto.randomUUID(),
       conversationId: conversation.id,
@@ -515,13 +621,16 @@ export function ChatWorkspaceProvider({ userId, children }: { userId: string; ch
     };
     const updatedConversation: ChatConversationRecord = {
       ...conversation,
-      title: messages.length === 0 ? buildConversationTitle(trimmedDraft, i18nMessages.chat.title) : conversation.title,
+      title: baseMessageHistory.length === 0 && !conversation.branch
+        ? buildConversationTitle(trimmedDraft, i18nMessages.chat.title)
+        : conversation.title,
       updatedAt: now
     };
     const assistantMessageId = crypto.randomUUID();
+    const messageHistory = [...baseMessageHistory, message];
 
     requestTimelineScrollToBottom();
-    setMessages((currentMessages) => [...currentMessages, message]);
+    setMessages(messageHistory);
     setDraft("");
     setConversations((currentConversations) =>
       sortConversations(upsertConversation(currentConversations, updatedConversation))
@@ -529,14 +638,14 @@ export function ChatWorkspaceProvider({ userId, children }: { userId: string; ch
     retryStatesRef.current.set(conversation.id, {
       conversation,
       updatedConversation,
-      messageHistory: [...messages, message],
+      messageHistory,
       modelConfigId: selectedModelId
     });
 
     try {
       await Promise.all([
         conversationStore.saveConversation(updatedConversation),
-        conversationStore.saveMessage(message),
+        conversationStore.saveMessages(messageHistory),
         conversationStore.deleteDraft(conversation.id)
       ]);
 
@@ -550,7 +659,7 @@ export function ChatWorkspaceProvider({ userId, children }: { userId: string; ch
         conversation,
         updatedConversation,
         modelConfigId: selectedModelId,
-        messageHistory: [...messages, message]
+        messageHistory
       });
     } catch {
       setChatErrorForConversation(conversation.id, {
@@ -1089,7 +1198,11 @@ export function ChatWorkspaceProvider({ userId, children }: { userId: string; ch
           return;
         }
 
-        if (normalizeSearchQuery(conversation.title).includes(normalizedQuery)) {
+        const displayTitle = getConversationDisplayTitle(conversation, {
+          branchTitlePrefix: i18nMessages.chat.branchTitlePrefix
+        });
+
+        if (normalizeSearchQuery(displayTitle).includes(normalizedQuery)) {
           onResult({
             conversation,
             matchedText: null,
@@ -1129,6 +1242,21 @@ export function ChatWorkspaceProvider({ userId, children }: { userId: string; ch
     } while (cursor);
   }
 
+  async function openConversationBranch(messageId: string) {
+    if (!activeConversationId || isConversationSending(activeConversationId)) {
+      return;
+    }
+
+    const targetMessage = messages.find((message) => message.id === messageId && message.role === "assistant");
+
+    if (!targetMessage) {
+      return;
+    }
+
+    clearChatErrorForConversation(null);
+    router.push(`/branch/${activeConversationId}/${messageId}`);
+  }
+
   return (
     <ChatWorkspaceContext.Provider
       value={{
@@ -1136,6 +1264,7 @@ export function ChatWorkspaceProvider({ userId, children }: { userId: string; ch
         routeConversationId,
         activeConversationId,
         messages,
+        branchContext,
         draft,
         models,
         selectedModelId,
@@ -1160,6 +1289,7 @@ export function ChatWorkspaceProvider({ userId, children }: { userId: string; ch
         retryMessage,
         regenerateMessage,
         editUserMessage,
+        openConversationBranch,
         clearChatError,
         deleteConversation,
         selectModel,
@@ -1185,9 +1315,52 @@ export function useChatWorkspace() {
   return contextValue;
 }
 
-function getConversationIdFromPathname(pathname: string) {
-  const match = /^\/c\/([^/]+)$/.exec(pathname);
-  return match?.[1] ?? null;
+function getChatRouteStateFromPathname(pathname: string): ChatRouteState {
+  const conversationMatch = /^\/c\/([^/]+)$/.exec(pathname);
+
+  if (conversationMatch?.[1]) {
+    return { kind: "conversation", conversationId: decodeURIComponent(conversationMatch[1]) };
+  }
+
+  const branchMatch = /^\/branch\/([^/]+)\/([^/]+)$/.exec(pathname);
+
+  if (branchMatch?.[1] && branchMatch[2]) {
+    return {
+      kind: "branch",
+      sourceConversationId: decodeURIComponent(branchMatch[1]),
+      sourceMessageId: decodeURIComponent(branchMatch[2])
+    };
+  }
+
+  return { kind: "new" };
+}
+
+function toConversationBranchContext(conversation: ChatConversationRecord | null): ChatBranchContext | null {
+  if (!conversation?.branch) {
+    return null;
+  }
+
+  return {
+    ...conversation.branch,
+    isPreview: false
+  };
+}
+
+function toConversationBranchRecord(branchContext: ChatBranchContext): ChatConversationBranchRecord {
+  return {
+    sourceConversationId: branchContext.sourceConversationId,
+    sourceMessageId: branchContext.sourceMessageId,
+    sourceConversationTitle: branchContext.sourceConversationTitle,
+    prefixMessageCount: branchContext.prefixMessageCount
+  };
+}
+
+function cloneBranchPrefixMessages(messages: ChatMessageRecord[], conversationId: string) {
+  return messages.map((message) => ({
+    ...message,
+    id: crypto.randomUUID(),
+    conversationId
+  }));
 }
 
 function resolveSelectedModelId(models: UserSelectableModel[], storedModelId: string | null) {

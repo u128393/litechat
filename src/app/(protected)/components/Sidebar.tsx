@@ -7,6 +7,7 @@ import { MoreHorizontal, Search, Trash2 } from "lucide-react";
 
 import { useChatWorkspace } from "@/app/(protected)/ChatWorkspaceProvider";
 import { useI18n } from "@/lib/i18n/provider";
+import { getConversationDisplayTitle } from "@/lib/chat/presentation";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
@@ -299,6 +300,9 @@ function SidebarConversationItem({
   onNavigate,
 }: SidebarConversationItemProps) {
   const { messages } = useI18n();
+  const conversationTitle = getConversationDisplayTitle(conversation, {
+    branchTitlePrefix: messages.chat.branchTitlePrefix
+  });
   const [menuOpen, setMenuOpen] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -347,7 +351,7 @@ function SidebarConversationItem({
             void onSelect(conversation.id, { source: "sidebar" });
           }}
         >
-          <span className="min-w-0 truncate">{conversation.title}</span>
+          <span className="min-w-0 truncate">{conversationTitle}</span>
           {isGenerating ? (
             <span className="ml-2 size-1.5 shrink-0 animate-pulse rounded-full bg-[var(--lc-accent)]" aria-hidden="true" />
           ) : null}
@@ -394,7 +398,7 @@ function SidebarConversationItem({
           <DialogDescription className="space-y-1.5 text-[15px] leading-6 text-[var(--lc-text-secondary)]">
             <span className="block text-[var(--lc-text-primary)]">
               {messages.shell.deleteConversationBodyStart}
-              <strong className="font-semibold">“{conversation.title}”</strong>
+              <strong className="font-semibold">“{conversationTitle}”</strong>
               {messages.shell.deleteConversationBodyEnd}
             </span>
             <span className="block">{messages.shell.deleteConversationDescription}</span>

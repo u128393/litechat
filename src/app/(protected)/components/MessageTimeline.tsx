@@ -1,32 +1,39 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type UIEvent } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type MutableRefObject, type UIEvent } from "react";
+import Link from "next/link";
 import rehypeHighlight from "rehype-highlight";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
 import { useChatWorkspace } from "@/app/(protected)/ChatWorkspaceProvider";
 import { useI18n } from "@/lib/i18n/provider";
-import { Copy, Check, RefreshCw, Pencil } from "lucide-react";
+import { Copy, Check, RefreshCw, Pencil, GitBranch } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ChatMessageRecord } from "@/lib/chat";
 
 const bottomPinThreshold = 32;
 const scrollDirectionTolerance = 1;
+const hashTargetBottomPadding = 32;
+const timelineBottomExtraPadding = 24;
 
-export function MessageTimeline() {
+export function MessageTimeline({ composerOverlayHeight = 0 }: { composerOverlayHeight?: number }) {
   const { messages: i18nMessages } = useI18n();
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const isPinnedToBottomRef = useRef(true);
   const previousScrollTopRef = useRef(0);
   const previousConversationIdRef = useRef<string | null>(null);
+  const consumedHashRef = useRef<string | null>(null);
+  const previousTimelineScrollRequestTokenRef = useRef<number | null>(null);
   const {
     activeConversationId,
     messages: conversationMessages,
+    branchContext,
     isSendingMessage,
     timelineScrollRequestToken,
     regenerateMessage,
     editUserMessage,
+    openConversationBranch,
   } = useChatWorkspace();
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const lastMessage = conversationMessages.at(-1);
@@ -40,6 +47,16 @@ export function MessageTimeline() {
 
     if (conversationChanged) {
       isPinnedToBottomRef.current = true;
+      consumedHashRef.current = null;
+    }
+
+    if (scrollContainer && activeConversationId && window.location.hash && composerOverlayHeight === 0) {
+      return;
+    }
+
+    if (scrollContainer && activeConversationId && scrollToHashMessage(scrollContainer, consumedHashRef, composerOverlayHeight)) {
+      previousScrollTopRef.current = scrollContainer.scrollTop;
+      return;
     }
 
     if (!scrollContainer || !isPinnedToBottomRef.current) {
@@ -48,7 +65,7 @@ export function MessageTimeline() {
 
     scrollContainer.scrollTop = scrollContainer.scrollHeight;
     previousScrollTopRef.current = scrollContainer.scrollTop;
-  }, [scrollDependency]);
+  }, [activeConversationId, composerOverlayHeight, scrollDependency]);
 
   useLayoutEffect(() => {
     const scrollContainer = scrollContainerRef.current;
@@ -56,6 +73,17 @@ export function MessageTimeline() {
     if (!scrollContainer) {
       return;
     }
+
+    if (previousTimelineScrollRequestTokenRef.current === null) {
+      previousTimelineScrollRequestTokenRef.current = timelineScrollRequestToken;
+      return;
+    }
+
+    if (previousTimelineScrollRequestTokenRef.current === timelineScrollRequestToken) {
+      return;
+    }
+
+    previousTimelineScrollRequestTokenRef.current = timelineScrollRequestToken;
 
     isPinnedToBottomRef.current = true;
     scrollContainer.scrollTop = scrollContainer.scrollHeight;
@@ -90,33 +118,44 @@ export function MessageTimeline() {
   return (
     <div
       ref={scrollContainerRef}
-      className="flex min-w-0 flex-1 flex-col overflow-y-auto pt-4 pb-32"
+      className="flex min-w-0 flex-1 flex-col overflow-y-auto pt-4"
+      style={{ paddingBottom: Math.max(128, composerOverlayHeight + timelineBottomExtraPadding) }}
       onScroll={handleScroll}
     >
       <div className="mx-auto flex min-w-0 w-full max-w-[768px] flex-col gap-6 px-4">
         {conversationMessages.map((message, index) => {
           const isStreaming = isSendingMessage && message.role === "assistant" && index === conversationMessages.length - 1 && message.content === "";
+          const shouldShowBranchDivider = branchContext ? index === branchContext.prefixMessageCount - 1 : false;
+          const isBranchPrefixMessage = branchContext ? index < branchContext.prefixMessageCount : false;
+          const branchDividerSourceTitle = shouldShowBranchDivider ? branchContext?.sourceConversationTitle ?? null : null;
+          const branchDividerHref = shouldShowBranchDivider && branchContext
+            ? `/c/${branchContext.sourceConversationId}#${getMessageAnchorId(branchContext.sourceMessageId)}`
+            : null;
 
           if (message.role === "user") {
             return (
-              <UserMessage
-                key={message.id}
-                message={message}
-                isEditing={editingMessageId === message.id}
-                disabled={isSendingMessage}
-                onCopy={() => setEditingMessageId(null)}
-                onEdit={() => setEditingMessageId(message.id)}
-                onCancelEdit={() => setEditingMessageId(null)}
-                onSubmitEdit={async (nextContent) => {
-                  setEditingMessageId(null);
-                  await editUserMessage(message.id, nextContent);
-                }}
-              />
+              <div id={getMessageAnchorId(message.id)} key={message.id} className="flex min-w-0 w-full flex-col gap-6">
+                <UserMessage
+                  message={message}
+                  isEditing={editingMessageId === message.id}
+                  disabled={isSendingMessage || isBranchPrefixMessage}
+                  onCopy={() => setEditingMessageId(null)}
+                  onEdit={() => setEditingMessageId(message.id)}
+                  onCancelEdit={() => setEditingMessageId(null)}
+                  onSubmitEdit={async (nextContent) => {
+                    setEditingMessageId(null);
+                    await editUserMessage(message.id, nextContent);
+                  }}
+                />
+                {branchDividerSourceTitle && branchDividerHref ? (
+                  <BranchDivider href={branchDividerHref} sourceTitle={branchDividerSourceTitle} />
+                ) : null}
+              </div>
             );
           }
 
           return (
-            <div key={message.id} className="flex min-w-0 w-full flex-col gap-3">
+            <div id={getMessageAnchorId(message.id)} key={message.id} className="flex min-w-0 w-full flex-col gap-3">
               {isStreaming ? (
                 <div
                   className="flex min-h-[1.6em] items-center"
@@ -140,22 +179,91 @@ export function MessageTimeline() {
                     <button
                       type="button"
                       className="flex size-8 items-center justify-center rounded-[6px] text-[var(--lc-text-tertiary)] transition-colors hover:bg-[var(--lc-bg-tertiary)]"
-                      disabled={isSendingMessage}
+                      disabled={isSendingMessage || isBranchPrefixMessage}
                       onClick={() => {
                         void regenerateMessage(message.id);
                       }}
                     >
                       <RefreshCw className="size-4" />
                     </button>
+                    <button
+                      type="button"
+                      className="flex size-8 items-center justify-center rounded-[6px] text-[var(--lc-text-tertiary)] transition-colors hover:bg-[var(--lc-bg-tertiary)] hover:text-[var(--lc-text-primary)] disabled:cursor-not-allowed disabled:opacity-40"
+                      disabled={isSendingMessage || isBranchPrefixMessage || !activeConversationId}
+                      aria-label={i18nMessages.chat.branchMessage}
+                      title={i18nMessages.chat.branchMessage}
+                      onClick={() => {
+                        void openConversationBranch(message.id);
+                      }}
+                    >
+                      <GitBranch className="size-4" />
+                    </button>
                   </div>
                 </>
               )}
+              {branchDividerSourceTitle && branchDividerHref ? (
+                <BranchDivider href={branchDividerHref} sourceTitle={branchDividerSourceTitle} />
+              ) : null}
             </div>
           );
         })}
       </div>
     </div>
   );
+}
+
+function BranchDivider({ href, sourceTitle }: { href: string; sourceTitle: string }) {
+  const { messages } = useI18n();
+
+  return (
+    <div className="flex items-center gap-3 py-2 text-[12px] text-[var(--lc-text-tertiary)]">
+      <span className="h-px flex-1 bg-[var(--lc-border)]" />
+      <span className="max-w-[70%] truncate rounded-full bg-[var(--lc-bg-tertiary)] px-3 py-1">
+        {messages.chat.branchDividerStart}
+        <Link
+          href={href}
+          className="font-medium text-[var(--lc-text-secondary)] underline underline-offset-2 transition-colors hover:text-[var(--lc-text-primary)]"
+        >
+          {sourceTitle}
+        </Link>
+        {messages.chat.branchDividerEnd}
+      </span>
+      <span className="h-px flex-1 bg-[var(--lc-border)]" />
+    </div>
+  );
+}
+
+function getMessageAnchorId(messageId: string) {
+  return `message-${messageId}`;
+}
+
+function scrollToHashMessage(
+  scrollContainer: HTMLDivElement,
+  consumedHashRef: MutableRefObject<string | null>,
+  composerOverlayHeight: number
+) {
+  const hash = window.location.hash.slice(1);
+
+  if (!hash || consumedHashRef.current === hash) {
+    return false;
+  }
+
+  const target = scrollContainer.querySelector<HTMLElement>(`#${CSS.escape(hash)}`);
+
+  if (!target) {
+    return false;
+  }
+
+  consumedHashRef.current = hash;
+  const visibleHeight = Math.max(scrollContainer.clientHeight - composerOverlayHeight, 1);
+  const desiredScrollTop = target.offsetTop + target.offsetHeight - visibleHeight + hashTargetBottomPadding;
+  const nextMessage = target.nextElementSibling instanceof HTMLElement ? target.nextElementSibling : null;
+  const maxScrollTopBeforeNextMessage = nextMessage
+    ? nextMessage.offsetTop - visibleHeight - 1
+    : Number.POSITIVE_INFINITY;
+
+  scrollContainer.scrollTop = Math.max(0, Math.min(desiredScrollTop, maxScrollTopBeforeNextMessage));
+  return true;
 }
 
 function UserMessage({
