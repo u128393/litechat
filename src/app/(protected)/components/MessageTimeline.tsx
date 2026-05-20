@@ -24,6 +24,7 @@ export function MessageTimeline() {
     activeConversationId,
     messages: conversationMessages,
     isSendingMessage,
+    timelineScrollRequestToken,
     regenerateMessage,
     editUserMessage,
   } = useChatWorkspace();
@@ -48,6 +49,18 @@ export function MessageTimeline() {
     scrollContainer.scrollTop = scrollContainer.scrollHeight;
     previousScrollTopRef.current = scrollContainer.scrollTop;
   }, [scrollDependency]);
+
+  useLayoutEffect(() => {
+    const scrollContainer = scrollContainerRef.current;
+
+    if (!scrollContainer) {
+      return;
+    }
+
+    isPinnedToBottomRef.current = true;
+    scrollContainer.scrollTop = scrollContainer.scrollHeight;
+    previousScrollTopRef.current = scrollContainer.scrollTop;
+  }, [timelineScrollRequestToken]);
 
   function handleScroll(event: UIEvent<HTMLDivElement>) {
     const scrollContainer = event.currentTarget;

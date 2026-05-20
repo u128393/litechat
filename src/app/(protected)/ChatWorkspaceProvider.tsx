@@ -71,6 +71,7 @@ type ChatWorkspaceContextValue = {
   chatError: ChatFailureState | null;
   activeConversationRevealRequest: ConversationRevealRequest | null;
   composerFocusRequestToken: number;
+  timelineScrollRequestToken: number;
   createNewConversation(): Promise<void>;
   selectConversation(conversationId: string, options?: { source?: SelectConversationSource }): Promise<void>;
   updateDraft(nextDraft: string): Promise<void>;
@@ -125,6 +126,7 @@ export function ChatWorkspaceProvider({ userId, children }: { userId: string; ch
   const [chatErrorsByConversationId, setChatErrorsByConversationId] = useState<Record<string, ChatFailureState>>({});
   const [activeConversationRevealRequest, setActiveConversationRevealRequest] = useState<ConversationRevealRequest | null>(null);
   const [composerFocusRequestToken, setComposerFocusRequestToken] = useState(1);
+  const [timelineScrollRequestToken, setTimelineScrollRequestToken] = useState(0);
   const hasSendingMessage = sendingConversationIds.length > 0;
   const isSendingMessage = activeConversationId !== null && sendingConversationIds.includes(activeConversationId);
   const chatError = chatErrorsByConversationId[getChatErrorKey(activeConversationId)] ?? null;
@@ -133,6 +135,10 @@ export function ChatWorkspaceProvider({ userId, children }: { userId: string; ch
 
   function requestComposerFocus() {
     setComposerFocusRequestToken((currentToken) => currentToken + 1);
+  }
+
+  function requestTimelineScrollToBottom() {
+    setTimelineScrollRequestToken((currentToken) => currentToken + 1);
   }
 
   function setActiveConversation(conversationId: string | null) {
@@ -514,6 +520,7 @@ export function ChatWorkspaceProvider({ userId, children }: { userId: string; ch
     };
     const assistantMessageId = crypto.randomUUID();
 
+    requestTimelineScrollToBottom();
     setMessages((currentMessages) => [...currentMessages, message]);
     setDraft("");
     setConversations((currentConversations) =>
@@ -578,6 +585,7 @@ export function ChatWorkspaceProvider({ userId, children }: { userId: string; ch
 
     try {
       await loadConversationState(retryState.conversation.id);
+      requestTimelineScrollToBottom();
       await continueAssistantResponse({
         assistantMessageId: crypto.randomUUID(),
         conversation: retryState.conversation,
@@ -639,6 +647,7 @@ export function ChatWorkspaceProvider({ userId, children }: { userId: string; ch
     };
 
     clearChatErrorForConversation(conversation.id);
+    requestTimelineScrollToBottom();
     setMessages(messageHistory);
     setConversations((currentConversations) =>
       sortConversations(upsertConversation(currentConversations, updatedConversation))
@@ -724,6 +733,7 @@ export function ChatWorkspaceProvider({ userId, children }: { userId: string; ch
     };
 
     clearChatErrorForConversation(conversation.id);
+    requestTimelineScrollToBottom();
     setMessages(messageHistory);
     setConversations((currentConversations) =>
       sortConversations(upsertConversation(currentConversations, updatedConversation))
@@ -1141,6 +1151,7 @@ export function ChatWorkspaceProvider({ userId, children }: { userId: string; ch
         chatError,
         activeConversationRevealRequest,
         composerFocusRequestToken,
+        timelineScrollRequestToken,
         createNewConversation,
         selectConversation,
         updateDraft,
