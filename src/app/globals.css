@@ -222,6 +222,8 @@
     --lc-code-title: #116329;
     --lc-code-variable: #953800;
 
+    max-width: 100%;
+    min-width: 0;
     overflow-wrap: anywhere;
   }
 
@@ -338,6 +340,7 @@
   }
 
   .lc-markdown pre {
+    max-width: 100%;
     overflow-x: auto;
     border: 1px solid var(--lc-border);
     border-radius: 0.9rem;

@@ -77,10 +77,10 @@ export function MessageTimeline() {
   return (
     <div
       ref={scrollContainerRef}
-      className="flex flex-1 flex-col overflow-y-auto pt-4 pb-32"
+      className="flex min-w-0 flex-1 flex-col overflow-y-auto pt-4 pb-32"
       onScroll={handleScroll}
     >
-      <div className="mx-auto flex w-full max-w-[768px] flex-col gap-6 px-4">
+      <div className="mx-auto flex min-w-0 w-full max-w-[768px] flex-col gap-6 px-4">
         {conversationMessages.map((message, index) => {
           const isStreaming = isSendingMessage && message.role === "assistant" && index === conversationMessages.length - 1 && message.content === "";
 
@@ -103,7 +103,7 @@ export function MessageTimeline() {
           }
 
           return (
-            <div key={message.id} className="flex w-full flex-col gap-3">
+            <div key={message.id} className="flex min-w-0 w-full flex-col gap-3">
               {isStreaming ? (
                 <div
                   className="flex min-h-[1.6em] items-center"
@@ -114,7 +114,7 @@ export function MessageTimeline() {
                 </div>
               ) : (
                 <>
-                  <div className="lc-markdown text-[15px] leading-[1.6] text-[var(--lc-text-primary)]">
+                  <div className="lc-markdown min-w-0 text-[15px] leading-[1.6] text-[var(--lc-text-primary)]">
                     <ReactMarkdown
                       remarkPlugins={[remarkGfm]}
                       rehypePlugins={[[rehypeHighlight, { ignoreMissing: true }]]}

@@ -118,7 +118,7 @@ export function ProtectedShell({ currentUser, initialSidebarCollapsed, children 
       </aside>
 
       {/* Main area */}
-      <div className="flex min-h-0 flex-1 flex-col">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         {/* Mobile top bar */}
         <div className="flex h-12 items-center justify-between border-b border-[var(--lc-border)] px-4 md:hidden">
           <button
