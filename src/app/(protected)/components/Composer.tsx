@@ -73,7 +73,7 @@ export function Composer({ placement = "bottom" }: ComposerProps) {
   return (
     <div className={cn("pointer-events-none relative w-full px-4", isBottomPlacement && "pb-6")}>
       {isBottomPlacement ? (
-        <div className="absolute inset-x-0 top-[26px] bottom-0 bg-[var(--lc-bg-primary)]" />
+        <div className="absolute top-[26px] bottom-0 left-1/2 w-[calc(100%-2rem)] max-w-[768px] -translate-x-1/2 bg-[var(--lc-bg-primary)]" />
       ) : null}
       <div className="pointer-events-auto relative mx-auto flex w-full max-w-[768px] flex-col gap-2">
         {/* Error banner */}
