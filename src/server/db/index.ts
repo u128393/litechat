@@ -11,5 +11,4 @@ export {
   defineRepository,
   type RepositoryContext
 } from "@/server/db/repository";
-export { describeDatabaseConnection, resolveDrizzleKitCredentials, resolveDrizzleKitDialect } from "@/server/db/config";
 export { appSettings, modelConfigs, providerConfigs, schema, sessions, userSettings, users, type UserRole } from "@/server/db/schema";

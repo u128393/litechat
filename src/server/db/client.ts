@@ -18,7 +18,7 @@ import { appConfig, type DatabaseConfig } from "@/server/config/app-config";
 import { resolveMysqlConnection, resolvePostgresConnection, resolveSqlitePath } from "@/server/db/config";
 import { schema } from "@/server/db/schema";
 
-const MIGRATIONS_FOLDER = path.resolve(process.cwd(), "drizzle");
+const MIGRATIONS_FOLDER = path.resolve(/* turbopackIgnore: true */ process.cwd(), "drizzle");
 
 type AppSchema = typeof schema;
 type SqliteDatabase = BetterSQLite3Database<AppSchema>;

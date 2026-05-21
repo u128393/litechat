@@ -53,7 +53,7 @@ export function resolveDrizzleKitCredentials(database: DatabaseConfig): DrizzleK
 }
 
 export function resolveSqlitePath(database: SqliteDatabaseConfig): string {
-  return path.resolve(process.cwd(), database.sqlitePath);
+  return path.resolve(/* turbopackIgnore: true */ process.cwd(), database.sqlitePath);
 }
 
 export function resolvePostgresConnection(database: PostgresDatabaseConfig): { url: string } | PostgresCredentials {
