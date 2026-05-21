@@ -10,6 +10,7 @@ import { Sidebar } from "@/app/(protected)/components/Sidebar";
 import { UserMenu } from "@/app/(protected)/components/UserMenu";
 import { MobileDrawer } from "@/app/(protected)/components/MobileDrawer";
 import { MobileModelSelector } from "@/app/(protected)/components/MobileModelSelector";
+import { ConversationExportMenu } from "@/app/(protected)/components/ConversationExportMenu";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { useI18n } from "@/lib/i18n/provider";
 import { cn } from "@/lib/utils";
@@ -129,7 +130,7 @@ export function ProtectedShell({ currentUser, initialSidebarCollapsed, children 
             <Menu className="size-5" />
           </button>
           <MobileModelSelector />
-          <div className="size-8" aria-hidden="true" />
+          <ConversationExportMenu />
         </div>
 
         {children}

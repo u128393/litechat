@@ -134,6 +134,11 @@ export type AppMessages = {
     branchTitlePrefix: string;
     branchDividerStart: string;
     branchDividerEnd: string;
+    exportConversation: string;
+    exportAsMarkdown: string;
+    exportAsJson: string;
+    exportSuccess: string;
+    exportFailed: string;
     send: string;
     stopped: string;
     errorModelMissing: string;
@@ -279,6 +284,11 @@ export const messagesByLocale: Record<AppLocale, AppMessages> = {
       branchTitlePrefix: "Branch · ",
       branchDividerStart: "Branch from ",
       branchDividerEnd: "",
+      exportConversation: "Export conversation",
+      exportAsMarkdown: "Markdown",
+      exportAsJson: "JSON",
+      exportSuccess: "Conversation exported.",
+      exportFailed: "Could not export the conversation.",
       send: "Send",
       stopped: "Response stopped. You can retry from the latest user message.",
       errorModelMissing: "Select a model before sending.",
@@ -422,6 +432,11 @@ export const messagesByLocale: Record<AppLocale, AppMessages> = {
       branchTitlePrefix: "分支 · ",
       branchDividerStart: "从 ",
       branchDividerEnd: " 建立的分支",
+      exportConversation: "导出对话",
+      exportAsMarkdown: "Markdown",
+      exportAsJson: "JSON",
+      exportSuccess: "对话已导出。",
+      exportFailed: "对话导出失败。",
       send: "发送",
       stopped: "回复已停止。你可以基于最新的用户消息重新生成。",
       errorModelMissing: "请先选择一个模型后再发送。",

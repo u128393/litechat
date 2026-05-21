@@ -5,6 +5,7 @@ import { useLayoutEffect, useRef, useState } from "react";
 import { ModelSelector } from "@/app/(protected)/components/ModelSelector";
 import { MessageTimeline } from "@/app/(protected)/components/MessageTimeline";
 import { Composer } from "@/app/(protected)/components/Composer";
+import { ConversationExportMenu } from "@/app/(protected)/components/ConversationExportMenu";
 import { useChatWorkspace } from "@/app/(protected)/ChatWorkspaceProvider";
 
 export function ChatPage() {
@@ -35,8 +36,9 @@ export function ChatPage() {
 
   return (
     <>
-      <div className="hidden h-12 items-center border-b border-[var(--lc-border)] px-4 md:flex">
+      <div className="hidden h-12 items-center justify-between border-b border-[var(--lc-border)] px-4 md:flex">
         <ModelSelector />
+        <ConversationExportMenu />
       </div>
 
       <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
