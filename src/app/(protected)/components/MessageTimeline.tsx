@@ -1,6 +1,18 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type MutableRefObject, type UIEvent } from "react";
+import {
+  Children,
+  isValidElement,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type ComponentPropsWithoutRef,
+  type KeyboardEvent,
+  type MutableRefObject,
+  type ReactNode,
+  type UIEvent
+} from "react";
 import Link from "next/link";
 import rehypeHighlight from "rehype-highlight";
 import ReactMarkdown from "react-markdown";
@@ -166,14 +178,7 @@ export function MessageTimeline({ composerOverlayHeight = 0 }: { composerOverlay
                 </div>
               ) : (
                 <>
-                  <div className="lc-markdown min-w-0 text-[15px] leading-[1.6] text-[var(--lc-text-primary)]">
-                    <ReactMarkdown
-                      remarkPlugins={[remarkGfm]}
-                      rehypePlugins={[[rehypeHighlight, { ignoreMissing: true }]]}
-                    >
-                      {message.content}
-                    </ReactMarkdown>
-                  </div>
+                  <MarkdownMessage content={message.content} copyCodeLabel={i18nMessages.chat.copyCode} />
                   <div className="flex gap-1">
                     <CopyButton text={message.content} />
                     <button
@@ -404,14 +409,74 @@ function UserMessage({
   );
 }
 
-function CopyButton({ text, label, onCopied }: { text: string; label?: string; onCopied?: () => void }) {
+function MarkdownMessage({ content, copyCodeLabel }: { content: string; copyCodeLabel: string }) {
+  return (
+    <div className="lc-markdown min-w-0 text-[15px] leading-[1.6] text-[var(--lc-text-primary)]">
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm]}
+        rehypePlugins={[[rehypeHighlight, { ignoreMissing: true }]]}
+        components={{
+          pre({ children, className, ...props }: ComponentPropsWithoutRef<"pre">) {
+            return (
+              <div className="lc-code-block my-[0.85em]">
+                <CopyButton
+                  text={normalizeCopiedText(extractTextContent(children))}
+                  label={copyCodeLabel}
+                  className="absolute top-3 right-2 z-10 bg-transparent hover:bg-transparent"
+                />
+                <pre className={className} {...props}>
+                  {children}
+                </pre>
+              </div>
+            );
+          }
+        }}
+      >
+        {content}
+      </ReactMarkdown>
+    </div>
+  );
+}
+
+function extractTextContent(node: ReactNode): string {
+  return Children.toArray(node)
+    .map((child) => {
+      if (typeof child === "string" || typeof child === "number") {
+        return String(child);
+      }
+
+      if (!isValidElement<{ children?: ReactNode }>(child)) {
+        return "";
+      }
+
+      return extractTextContent(child.props.children);
+    })
+    .join("");
+}
+
+function normalizeCopiedText(text: string): string {
+  return text.replace(/\r?\n$/, "");
+}
+
+function CopyButton({
+  text,
+  label,
+  onCopied,
+  className
+}: {
+  text: string;
+  label?: string;
+  onCopied?: () => void;
+  className?: string;
+}) {
   const [copied, setCopied] = useState(false);
 
   return (
     <button
       type="button"
       className={cn(
-        "flex size-8 items-center justify-center rounded-[6px] text-[var(--lc-text-tertiary)] transition-colors hover:bg-[var(--lc-bg-tertiary)] hover:text-[var(--lc-text-primary)]"
+        "flex size-8 items-center justify-center rounded-[6px] bg-transparent text-[var(--lc-text-tertiary)] transition-colors hover:text-[var(--lc-text-primary)]",
+        className
       )}
       aria-label={label}
       title={label}

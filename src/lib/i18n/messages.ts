@@ -129,6 +129,7 @@ export type AppMessages = {
     retry: string;
     clearError: string;
     copyMessage: string;
+    copyCode: string;
     editMessage: string;
     branchMessage: string;
     branchTitlePrefix: string;
@@ -279,6 +280,7 @@ export const messagesByLocale: Record<AppLocale, AppMessages> = {
       retry: "Retry",
       clearError: "Clear error",
       copyMessage: "Copy message",
+      copyCode: "Copy code",
       editMessage: "Edit message",
       branchMessage: "New branch from here",
       branchTitlePrefix: "Branch · ",
@@ -427,6 +429,7 @@ export const messagesByLocale: Record<AppLocale, AppMessages> = {
       retry: "重试",
       clearError: "清除错误",
       copyMessage: "复制消息",
+      copyCode: "复制代码",
       editMessage: "编辑消息",
       branchMessage: "从这里新建分支",
       branchTitlePrefix: "分支 · ",

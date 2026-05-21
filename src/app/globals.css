@@ -251,8 +251,12 @@
   .lc-markdown ul,
   .lc-markdown ol,
   .lc-markdown blockquote,
-  .lc-markdown pre,
   .lc-markdown table {
+    margin: 0.85em 0;
+  }
+
+  .lc-code-block {
+    position: relative;
     margin: 0.85em 0;
   }
 
@@ -345,7 +349,9 @@
     border: 1px solid var(--lc-border);
     border-radius: 0.9rem;
     background: color-mix(in srgb, var(--lc-bg-tertiary) 82%, var(--lc-bg-secondary));
+    margin: 0;
     padding: 1em;
+    padding-right: 3.5rem;
   }
 
   .lc-markdown pre code {
