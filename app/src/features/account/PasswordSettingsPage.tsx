@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { useState, useTransition, type FormEvent } from "react";
+import { useState, type FormEvent } from "react";
 import { ArrowLeft } from "lucide-react";
 
 import type { AppMessages } from "@/lib/i18n/messages";
@@ -9,17 +9,15 @@ export default function PasswordSettingsPage() {
   const navigate = useNavigate();
   const { messages } = useI18n();
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isPending, startTransition] = useTransition();
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const form = event.currentTarget;
 
     setErrorMessage(null);
-    setSuccessMessage(null);
 
-    const formData = new FormData(event.currentTarget);
+    const formData = new FormData(form);
     const currentPassword = formData.get("currentPassword");
     const newPassword = formData.get("newPassword");
     const confirmPassword = formData.get("confirmPassword");
@@ -63,12 +61,10 @@ export default function PasswordSettingsPage() {
         return;
       }
 
-      event.currentTarget.reset();
-      setSuccessMessage(messages.password.success);
-
-      startTransition(() => {
-        navigate(payload?.redirectTo ?? "/login?password_changed=1", { replace: true });
-      });
+      form.reset();
+      navigate(payload?.redirectTo ?? "/login?password_changed=1", { replace: true });
+    } catch {
+      setErrorMessage(messages.password.unknownError);
     } finally {
       setIsSubmitting(false);
     }
@@ -145,20 +141,16 @@ export default function PasswordSettingsPage() {
             <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-red-700">{errorMessage}</p>
           ) : null}
 
-          {successMessage ? (
-            <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-sm text-emerald-700">{successMessage}</p>
-          ) : null}
-
           {/* Spacer */}
           <div className="h-2" />
 
           {/* Submit */}
           <button
             type="submit"
-            disabled={isSubmitting || isPending}
+            disabled={isSubmitting}
             className="h-10 w-full rounded-lg bg-[var(--lc-accent)] text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-60"
           >
-            {isSubmitting || isPending ? messages.password.saving : messages.password.submit}
+            {isSubmitting ? messages.password.saving : messages.password.submit}
           </button>
           </form>
         </div>

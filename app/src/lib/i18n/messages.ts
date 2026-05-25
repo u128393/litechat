@@ -220,7 +220,7 @@ export const messagesByLocale: Record<AppLocale, AppMessages> = {
       emailLabel: "Email",
       passwordLabel: "Password",
       invalidCredentials: "Invalid email or password.",
-      passwordChanged: "Password updated. Sign in again with your new password.",
+      passwordChanged: "Password updated. Please sign in again.",
       submit: "Sign in",
     },
     password: {
@@ -369,7 +369,7 @@ export const messagesByLocale: Record<AppLocale, AppMessages> = {
       emailLabel: "邮箱",
       passwordLabel: "密码",
       invalidCredentials: "邮箱或密码不正确。",
-      passwordChanged: "密码已更新。请使用新密码重新登录。",
+      passwordChanged: "密码已更新，请重新登录。",
       submit: "登录",
     },
     password: {

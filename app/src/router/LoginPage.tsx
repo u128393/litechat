@@ -15,7 +15,7 @@ type LoginResponse = {
 export function LoginPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { currentUser, refreshCurrentUser } = useAuth();
+  const { currentUser, refreshCurrentUser, setCurrentUser } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -26,10 +26,16 @@ export function LoginPage() {
   const showPasswordChanged = searchParams.get("password_changed") === "1";
 
   useEffect(() => {
-    if (currentUser) {
+    if (currentUser && !showPasswordChanged) {
       navigate(nextPath, { replace: true });
     }
-  }, [currentUser, navigate, nextPath]);
+  }, [currentUser, navigate, nextPath, showPasswordChanged]);
+
+  useEffect(() => {
+    if (currentUser && showPasswordChanged) {
+      setCurrentUser(null);
+    }
+  }, [currentUser, setCurrentUser, showPasswordChanged]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
