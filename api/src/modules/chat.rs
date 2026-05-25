@@ -24,6 +24,7 @@ use crate::{
 };
 
 const DEFAULT_OPENAI_BASE_URL: &str = "https://api.openai.com/v1/";
+const DEFAULT_CHAT_SYSTEM_PROMPT: &str = "You are a helpful assistant.";
 const TITLE_SYSTEM_PROMPT: &str = "Generate a short title for the conversation. Return only the title, with no explanation and no surrounding quotes. Use the same language as the conversation when possible. Keep it concise: 3 to 8 words, maximum 60 characters.";
 
 #[derive(Debug, Deserialize)]
@@ -91,16 +92,13 @@ impl ChatService {
             .await?;
         let personalization = self.get_personalization(user_id).await?;
         let mut messages = payload.messages;
-
-        if !personalization.is_empty() {
-            messages.insert(
-                0,
-                ChatRequestMessage {
-                    role: "system".to_string(),
-                    content: personalization,
-                },
-            );
-        }
+        messages.insert(
+            0,
+            ChatRequestMessage {
+                role: "system".to_string(),
+                content: build_chat_system_prompt(&personalization),
+            },
+        );
 
         let upstream = build_responses_request(&model, messages, true);
         let response = Client::new()
@@ -399,6 +397,16 @@ fn build_responses_url(base_url: Option<&str>) -> String {
         format!("{base}/")
     };
     format!("{}responses", normalized)
+}
+
+fn build_chat_system_prompt(personalization: &str) -> String {
+    let personalization = personalization.trim();
+
+    if personalization.is_empty() {
+        return DEFAULT_CHAT_SYSTEM_PROMPT.to_string();
+    }
+
+    format!("{DEFAULT_CHAT_SYSTEM_PROMPT}\n\n{personalization}")
 }
 
 fn filter_sse_text_deltas(bytes: &[u8]) -> Bytes {
