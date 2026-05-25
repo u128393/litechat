@@ -23,6 +23,7 @@ import type { UserSelectableModel } from "@/shared/types";
 const conversationPageSize = 25;
 const conversationWindowNewerSize = 12;
 const conversationWindowOlderSize = 12;
+const defaultDocumentTitle = "LiteChat";
 
 type ChatFailureState = {
   code: string;
@@ -86,6 +87,12 @@ export function ChatWorkspaceProvider({ userId, children }: { userId: string; ch
   const hasSendingMessage = sendingConversationIds.length > 0;
   const isSendingMessage = activeConversationId !== null && sendingConversationIds.includes(activeConversationId);
   const chatError = chatErrorsByConversationId[getChatErrorKey(activeConversationId)] ?? null;
+  const activeConversation = activeConversationId
+    ? conversations.find((conversation) => conversation.id === activeConversationId) ?? null
+    : null;
+  const activeConversationTitle = activeConversation
+    ? getConversationDisplayTitle(activeConversation, { branchTitlePrefix: i18nMessages.chat.branchTitlePrefix })
+    : null;
 
   activeConversationIdRef.current = activeConversationId;
 
@@ -151,6 +158,14 @@ export function ChatWorkspaceProvider({ userId, children }: { userId: string; ch
   function removeSendingConversation(conversationId: string) {
     setSendingConversationIds((currentIds) => currentIds.filter((currentId) => currentId !== conversationId));
   }
+
+  useEffect(() => {
+    document.title = activeConversationTitle || defaultDocumentTitle;
+
+    return () => {
+      document.title = defaultDocumentTitle;
+    };
+  }, [activeConversationTitle]);
 
   useEffect(() => {
     let active = true;
