@@ -6,7 +6,11 @@ mod modules;
 mod routes;
 mod support;
 
-use std::{collections::BTreeMap, fs, path::PathBuf};
+use std::{
+    collections::BTreeMap,
+    fs,
+    path::{Path, PathBuf},
+};
 
 use axum::serve;
 use clap::{CommandFactory, Parser, Subcommand};
@@ -156,6 +160,8 @@ async fn init_command() -> Result<(), Box<dyn std::error::Error>> {
     let admin_email = prompt_admin_email()?;
     let admin_password = prompt_password()?;
 
+    ensure_sqlite_database_parent_dir(&database_url)?;
+
     let merged = vec![
         ("DATABASE_URL", database_url),
         ("DATABASE_TYPE", String::new()),
@@ -234,6 +240,43 @@ fn prompt_password() -> Result<String, Box<dyn std::error::Error>> {
         .with_prompt("Admin password")
         .with_confirmation("Confirm admin password", "Passwords did not match.")
         .interact()?)
+}
+
+fn ensure_sqlite_database_parent_dir(url: &str) -> Result<(), Box<dyn std::error::Error>> {
+    let Some(database_path) = sqlite_database_path(url) else {
+        return Ok(());
+    };
+
+    let parent = Path::new(database_path).parent();
+    if let Some(parent) = parent.filter(|path| !path.as_os_str().is_empty()) {
+        fs::create_dir_all(parent).map_err(|error| {
+            std::io::Error::other(format!(
+                "Failed to create SQLite database directory {}: {error}",
+                parent.display()
+            ))
+        })?;
+    }
+
+    Ok(())
+}
+
+fn sqlite_database_path(url: &str) -> Option<&str> {
+    if !url.starts_with("sqlite:") || url.contains("mode=memory") {
+        return None;
+    }
+
+    let path_with_query = url
+        .strip_prefix("sqlite://")
+        .or_else(|| url.strip_prefix("sqlite:"))?;
+    let path = path_with_query
+        .split_once('?')
+        .map_or(path_with_query, |(path, _)| path);
+
+    if path.is_empty() || path == ":memory:" {
+        None
+    } else {
+        Some(path)
+    }
 }
 
 fn generate_secret() -> String {
