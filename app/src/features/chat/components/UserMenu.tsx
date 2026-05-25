@@ -5,6 +5,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLinkItem,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
   DropdownMenuSeparator,
@@ -151,35 +152,35 @@ export function UserMenu({ currentUser, collapsed = false }: UserMenuProps) {
         <DropdownMenuSeparator className="my-1 h-px bg-[var(--lc-border)]" />
 
         {/* Personalization */}
-        <DropdownMenuItem
+        <DropdownMenuLinkItem
+          render={<Link to="/account/personalization" />}
+          closeOnClick
           className="flex items-center gap-2 rounded-[4px] px-3 py-2 text-[14px] text-[var(--lc-text-primary)]"
         >
-          <Link to="/account/personalization" className="flex w-full items-center gap-2">
-            <SlidersHorizontal className="size-4" />
-            {messages.shell.personalizationSettings}
-          </Link>
-        </DropdownMenuItem>
+          <SlidersHorizontal className="size-4" />
+          {messages.shell.personalizationSettings}
+        </DropdownMenuLinkItem>
 
         {/* Change password */}
-        <DropdownMenuItem
+        <DropdownMenuLinkItem
+          render={<Link to="/account/password" />}
+          closeOnClick
           className="flex items-center gap-2 rounded-[4px] px-3 py-2 text-[14px] text-[var(--lc-text-primary)]"
         >
-          <Link to="/account/password" className="flex w-full items-center gap-2">
-            <Lock className="size-4" />
-            {messages.shell.passwordSettings}
-          </Link>
-        </DropdownMenuItem>
+          <Lock className="size-4" />
+          {messages.shell.passwordSettings}
+        </DropdownMenuLinkItem>
 
         {/* Admin panel (conditional) */}
         {isAdminUser({ role: currentUser.role }) ? (
-          <DropdownMenuItem
+          <DropdownMenuLinkItem
+            render={<Link to="/admin" />}
+            closeOnClick
             className="flex items-center gap-2 rounded-[4px] px-3 py-2 text-[14px] text-[var(--lc-text-primary)]"
           >
-            <Link to="/admin" className="flex w-full items-center gap-2">
-              <Shield className="size-4" />
-              {messages.shell.adminArea}
-            </Link>
-          </DropdownMenuItem>
+            <Shield className="size-4" />
+            {messages.shell.adminArea}
+          </DropdownMenuLinkItem>
         ) : null}
 
         <DropdownMenuSeparator className="my-1 h-px bg-[var(--lc-border)]" />
