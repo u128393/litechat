@@ -90,7 +90,10 @@ export function UserMenu({ currentUser, collapsed = false }: UserMenuProps) {
         align="start"
         side="top"
         sideOffset={8}
-        className="w-[220px] rounded-lg border border-[var(--lc-border)] bg-[var(--lc-bg-primary)] p-1 shadow-lg"
+        className={cn(
+          "rounded-lg border border-[var(--lc-border)] bg-[var(--lc-bg-primary)] p-1 shadow-lg",
+          collapsed && "w-[220px]"
+        )}
       >
         {/* Appearance */}
         <DropdownMenuSub>
