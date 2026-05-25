@@ -1,5 +1,0 @@
-import { ChatPage } from "@/app/(protected)/components/ChatPage";
-
-export default function HomePage() {
-  return <ChatPage />;
-}

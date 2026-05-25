@@ -1,0 +1,409 @@
+use sea_orm_migration::prelude::*;
+
+#[derive(DeriveMigrationName)]
+pub struct Migration;
+
+#[derive(DeriveIden)]
+enum Users {
+    Table,
+    Id,
+    Email,
+    PasswordHash,
+    Role,
+    Enabled,
+    CreatedAt,
+    UpdatedAt,
+}
+
+#[derive(DeriveIden)]
+enum Sessions {
+    Table,
+    Id,
+    UserId,
+    TokenHash,
+    ExpiresAt,
+    CreatedAt,
+    InvalidatedAt,
+}
+
+#[derive(DeriveIden)]
+enum ProviderConfigs {
+    Table,
+    Id,
+    Name,
+    ProviderType,
+    BaseUrl,
+    ApiKeyEncrypted,
+    Enabled,
+    CreatedAt,
+    UpdatedAt,
+}
+
+#[derive(DeriveIden)]
+enum ModelConfigs {
+    Table,
+    Id,
+    ProviderConfigId,
+    ModelId,
+    DisplayName,
+    Visible,
+    SupportsWebSearch,
+    SortOrder,
+    CreatedAt,
+    UpdatedAt,
+}
+
+#[derive(DeriveIden)]
+enum UserSettings {
+    Table,
+    UserId,
+    Personalization,
+    CreatedAt,
+    UpdatedAt,
+}
+
+#[derive(DeriveIden)]
+enum AppSettings {
+    Table,
+    Id,
+    TitleGenerationModelConfigId,
+    CreatedAt,
+    UpdatedAt,
+}
+
+#[async_trait::async_trait]
+impl MigrationTrait for Migration {
+    async fn up(&self, manager: &SchemaManager) -> Result<(), DbErr> {
+        manager
+            .create_table(
+                Table::create()
+                    .table(Users::Table)
+                    .if_not_exists()
+                    .col(
+                        ColumnDef::new(Users::Id)
+                            .string_len(191)
+                            .not_null()
+                            .primary_key(),
+                    )
+                    .col(ColumnDef::new(Users::Email).string_len(320).not_null())
+                    .col(
+                        ColumnDef::new(Users::PasswordHash)
+                            .string_len(512)
+                            .not_null(),
+                    )
+                    .col(ColumnDef::new(Users::Role).string_len(32).not_null())
+                    .col(
+                        ColumnDef::new(Users::Enabled)
+                            .boolean()
+                            .not_null()
+                            .default(true),
+                    )
+                    .col(
+                        ColumnDef::new(Users::CreatedAt)
+                            .timestamp_with_time_zone()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(Users::UpdatedAt)
+                            .timestamp_with_time_zone()
+                            .not_null(),
+                    )
+                    .to_owned(),
+            )
+            .await?;
+        manager
+            .create_index(
+                Index::create()
+                    .name("users_email_idx")
+                    .table(Users::Table)
+                    .col(Users::Email)
+                    .unique()
+                    .to_owned(),
+            )
+            .await?;
+
+        manager
+            .create_table(
+                Table::create()
+                    .table(Sessions::Table)
+                    .if_not_exists()
+                    .col(
+                        ColumnDef::new(Sessions::Id)
+                            .string_len(191)
+                            .not_null()
+                            .primary_key(),
+                    )
+                    .col(ColumnDef::new(Sessions::UserId).string_len(191).not_null())
+                    .col(
+                        ColumnDef::new(Sessions::TokenHash)
+                            .string_len(128)
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(Sessions::ExpiresAt)
+                            .timestamp_with_time_zone()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(Sessions::CreatedAt)
+                            .timestamp_with_time_zone()
+                            .not_null(),
+                    )
+                    .col(ColumnDef::new(Sessions::InvalidatedAt).timestamp_with_time_zone())
+                    .foreign_key(
+                        ForeignKey::create()
+                            .name("fk-sessions-user-id")
+                            .from(Sessions::Table, Sessions::UserId)
+                            .to(Users::Table, Users::Id)
+                            .on_delete(ForeignKeyAction::Cascade)
+                            .on_update(ForeignKeyAction::Cascade),
+                    )
+                    .to_owned(),
+            )
+            .await?;
+        manager
+            .create_index(
+                Index::create()
+                    .name("sessions_token_hash_idx")
+                    .table(Sessions::Table)
+                    .col(Sessions::TokenHash)
+                    .unique()
+                    .to_owned(),
+            )
+            .await?;
+        manager
+            .create_index(
+                Index::create()
+                    .name("sessions_user_id_idx")
+                    .table(Sessions::Table)
+                    .col(Sessions::UserId)
+                    .to_owned(),
+            )
+            .await?;
+
+        manager
+            .create_table(
+                Table::create()
+                    .table(ProviderConfigs::Table)
+                    .if_not_exists()
+                    .col(
+                        ColumnDef::new(ProviderConfigs::Id)
+                            .string_len(191)
+                            .not_null()
+                            .primary_key(),
+                    )
+                    .col(
+                        ColumnDef::new(ProviderConfigs::Name)
+                            .string_len(191)
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(ProviderConfigs::ProviderType)
+                            .string_len(64)
+                            .not_null(),
+                    )
+                    .col(ColumnDef::new(ProviderConfigs::BaseUrl).string_len(2048))
+                    .col(
+                        ColumnDef::new(ProviderConfigs::ApiKeyEncrypted)
+                            .string_len(4096)
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(ProviderConfigs::Enabled)
+                            .boolean()
+                            .not_null()
+                            .default(true),
+                    )
+                    .col(
+                        ColumnDef::new(ProviderConfigs::CreatedAt)
+                            .timestamp_with_time_zone()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(ProviderConfigs::UpdatedAt)
+                            .timestamp_with_time_zone()
+                            .not_null(),
+                    )
+                    .to_owned(),
+            )
+            .await?;
+        manager
+            .create_index(
+                Index::create()
+                    .name("provider_configs_enabled_idx")
+                    .table(ProviderConfigs::Table)
+                    .col(ProviderConfigs::Enabled)
+                    .to_owned(),
+            )
+            .await?;
+
+        manager
+            .create_table(
+                Table::create()
+                    .table(ModelConfigs::Table)
+                    .if_not_exists()
+                    .col(
+                        ColumnDef::new(ModelConfigs::Id)
+                            .string_len(191)
+                            .not_null()
+                            .primary_key(),
+                    )
+                    .col(
+                        ColumnDef::new(ModelConfigs::ProviderConfigId)
+                            .string_len(191)
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(ModelConfigs::ModelId)
+                            .string_len(191)
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(ModelConfigs::DisplayName)
+                            .string_len(191)
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(ModelConfigs::Visible)
+                            .boolean()
+                            .not_null()
+                            .default(true),
+                    )
+                    .col(
+                        ColumnDef::new(ModelConfigs::SupportsWebSearch)
+                            .boolean()
+                            .not_null()
+                            .default(false),
+                    )
+                    .col(ColumnDef::new(ModelConfigs::SortOrder).integer().not_null())
+                    .col(
+                        ColumnDef::new(ModelConfigs::CreatedAt)
+                            .timestamp_with_time_zone()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(ModelConfigs::UpdatedAt)
+                            .timestamp_with_time_zone()
+                            .not_null(),
+                    )
+                    .foreign_key(
+                        ForeignKey::create()
+                            .name("fk-model-configs-provider-config-id")
+                            .from(ModelConfigs::Table, ModelConfigs::ProviderConfigId)
+                            .to(ProviderConfigs::Table, ProviderConfigs::Id)
+                            .on_delete(ForeignKeyAction::Cascade)
+                            .on_update(ForeignKeyAction::Cascade),
+                    )
+                    .to_owned(),
+            )
+            .await?;
+        manager
+            .create_index(
+                Index::create()
+                    .name("model_configs_provider_config_id_idx")
+                    .table(ModelConfigs::Table)
+                    .col(ModelConfigs::ProviderConfigId)
+                    .to_owned(),
+            )
+            .await?;
+        manager
+            .create_index(
+                Index::create()
+                    .name("model_configs_visible_sort_order_idx")
+                    .table(ModelConfigs::Table)
+                    .col(ModelConfigs::Visible)
+                    .col(ModelConfigs::SortOrder)
+                    .to_owned(),
+            )
+            .await?;
+
+        manager
+            .create_table(
+                Table::create()
+                    .table(UserSettings::Table)
+                    .if_not_exists()
+                    .col(
+                        ColumnDef::new(UserSettings::UserId)
+                            .string_len(191)
+                            .not_null()
+                            .primary_key(),
+                    )
+                    .col(
+                        ColumnDef::new(UserSettings::Personalization)
+                            .text()
+                            .not_null()
+                            .default(""),
+                    )
+                    .col(
+                        ColumnDef::new(UserSettings::CreatedAt)
+                            .timestamp_with_time_zone()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(UserSettings::UpdatedAt)
+                            .timestamp_with_time_zone()
+                            .not_null(),
+                    )
+                    .foreign_key(
+                        ForeignKey::create()
+                            .name("fk-user-settings-user-id")
+                            .from(UserSettings::Table, UserSettings::UserId)
+                            .to(Users::Table, Users::Id)
+                            .on_delete(ForeignKeyAction::Cascade)
+                            .on_update(ForeignKeyAction::Cascade),
+                    )
+                    .to_owned(),
+            )
+            .await?;
+
+        manager
+            .create_table(
+                Table::create()
+                    .table(AppSettings::Table)
+                    .if_not_exists()
+                    .col(
+                        ColumnDef::new(AppSettings::Id)
+                            .integer()
+                            .not_null()
+                            .primary_key(),
+                    )
+                    .col(ColumnDef::new(AppSettings::TitleGenerationModelConfigId).string_len(191))
+                    .col(
+                        ColumnDef::new(AppSettings::CreatedAt)
+                            .timestamp_with_time_zone()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(AppSettings::UpdatedAt)
+                            .timestamp_with_time_zone()
+                            .not_null(),
+                    )
+                    .to_owned(),
+            )
+            .await?;
+
+        Ok(())
+    }
+
+    async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
+        manager
+            .drop_table(Table::drop().table(AppSettings::Table).to_owned())
+            .await?;
+        manager
+            .drop_table(Table::drop().table(UserSettings::Table).to_owned())
+            .await?;
+        manager
+            .drop_table(Table::drop().table(ModelConfigs::Table).to_owned())
+            .await?;
+        manager
+            .drop_table(Table::drop().table(ProviderConfigs::Table).to_owned())
+            .await?;
+        manager
+            .drop_table(Table::drop().table(Sessions::Table).to_owned())
+            .await?;
+        manager
+            .drop_table(Table::drop().table(Users::Table).to_owned())
+            .await?;
+        Ok(())
+    }
+}
