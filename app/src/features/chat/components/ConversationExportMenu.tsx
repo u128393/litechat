@@ -35,7 +35,8 @@ export function ConversationExportMenu({ className }: ConversationExportMenuProp
   } = useChatWorkspace();
   const [isExporting, setIsExporting] = useState(false);
   const exportableMessages = messages.filter((message) => message.content.trim() !== "");
-  const disabled = isExporting || isSendingMessage || exportableMessages.length === 0;
+  const hasExportableMessages = exportableMessages.length > 0;
+  const disabled = isExporting || isSendingMessage;
 
   async function handleExport(format: ConversationExportFormat) {
     if (disabled) {
@@ -92,6 +93,10 @@ export function ConversationExportMenu({ className }: ConversationExportMenuProp
       },
       messages: exportableMessages
     };
+  }
+
+  if (!hasExportableMessages) {
+    return null;
   }
 
   return (
