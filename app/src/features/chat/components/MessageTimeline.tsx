@@ -458,7 +458,7 @@ export function MessageTimeline({ composerOverlayHeight = 0 }: { composerOverlay
   return (
     <div
       ref={scrollContainerRef}
-      className="flex min-w-0 flex-1 flex-col overflow-y-auto pt-4"
+      className="flex min-w-0 flex-1 flex-col overflow-y-auto pt-8"
       style={{ paddingBottom: Math.max(128, composerOverlayHeight + timelineBottomExtraPadding) }}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
