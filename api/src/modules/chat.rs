@@ -26,6 +26,7 @@ use crate::{
 const DEFAULT_OPENAI_BASE_URL: &str = "https://api.openai.com/v1/";
 const DEFAULT_CHAT_SYSTEM_PROMPT: &str = "You are a helpful assistant.";
 const TITLE_SYSTEM_PROMPT: &str = "Generate a short title for the conversation. Return only the title, with no explanation and no surrounding quotes. Use the same language as the conversation when possible. Keep it concise: 3 to 8 words, maximum 60 characters.";
+const MODEL_PROVIDER_USER_AGENT: &str = concat!("litechat/", env!("CARGO_PKG_VERSION"));
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -104,6 +105,7 @@ impl ChatService {
         let response = Client::new()
             .post(build_responses_url(model.base_url.as_deref()))
             .bearer_auth(model.api_key)
+            .header(header::USER_AGENT, MODEL_PROVIDER_USER_AGENT)
             .json(&upstream)
             .send()
             .await
@@ -186,6 +188,7 @@ impl ChatService {
         let response = Client::new()
             .post(build_responses_url(model.base_url.as_deref()))
             .bearer_auth(model.api_key)
+            .header(header::USER_AGENT, MODEL_PROVIDER_USER_AGENT)
             .json(&upstream)
             .send()
             .await
