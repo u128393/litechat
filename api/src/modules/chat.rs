@@ -25,7 +25,7 @@ use crate::{
 
 const DEFAULT_OPENAI_BASE_URL: &str = "https://api.openai.com/v1/";
 const DEFAULT_CHAT_SYSTEM_PROMPT: &str = "You are a helpful assistant.";
-const TITLE_SYSTEM_PROMPT: &str = "Generate a short title for the conversation. Return only the title, with no explanation and no surrounding quotes. Use the same language as the conversation when possible. Keep it concise: 3 to 8 words, maximum 60 characters.";
+const TITLE_USER_PROMPT: &str = "Create a concise conversation title for the chat history above.\n\nThe title will be displayed in the chat sidebar as the conversation name. It should summarize the user's main topic or task, not answer the latest message.\n\nRequirements:\n- Return only the title.\n- Use plain text only.\n- Do not use Markdown, backticks, bold, italic, bullets, quotes, or code formatting.\n- Use the same language as the conversation when possible.\n- Keep it specific and readable.\n- Keep it 3 to 8 words and no more than 60 characters.";
 const MODEL_PROVIDER_USER_AGENT: &str = concat!("litechat/", env!("CARGO_PKG_VERSION"));
 
 #[derive(Debug, Deserialize)]
@@ -150,6 +150,7 @@ impl ChatService {
 
     pub async fn chat_title(
         &self,
+        user_id: &str,
         payload: CreateChatTitleRequest,
     ) -> Result<ChatTitleResponse, HttpError> {
         validate_messages(&payload.messages)?;
@@ -170,9 +171,10 @@ impl ChatService {
                 .await?
         };
 
+        let personalization = self.get_personalization(user_id).await?;
         let mut messages = vec![ChatRequestMessage {
             role: "system".to_string(),
-            content: TITLE_SYSTEM_PROMPT.to_string(),
+            content: build_chat_system_prompt(&personalization),
         }];
         messages.extend(
             payload
@@ -183,6 +185,10 @@ impl ChatService {
                     content: message.content.chars().take(4000).collect(),
                 }),
         );
+        messages.push(ChatRequestMessage {
+            role: "user".to_string(),
+            content: TITLE_USER_PROMPT.to_string(),
+        });
 
         let upstream = build_responses_request(&model, messages, true);
         let response = Client::new()
@@ -324,8 +330,13 @@ pub async fn chat_title(
     cookies: Cookies,
     Json(payload): Json<CreateChatTitleRequest>,
 ) -> Result<Json<ChatTitleResponse>, HttpError> {
-    let _ = state.auth_service.require_current_user(&cookies).await?;
-    Ok(Json(state.chat_service.chat_title(payload).await?))
+    let user = state.auth_service.require_current_user(&cookies).await?;
+    Ok(Json(
+        state
+            .chat_service
+            .chat_title(&user.user_id, payload)
+            .await?,
+    ))
 }
 
 fn validate_messages(messages: &[ChatRequestMessage]) -> Result<(), HttpError> {
