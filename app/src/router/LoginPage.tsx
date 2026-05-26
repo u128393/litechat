@@ -5,6 +5,7 @@ import { getMessages } from "@/lib/i18n/messages";
 import { detectBrowserLocale } from "@/lib/i18n/locales";
 import { apiFetch, readJson } from "@/shared/api-client";
 import { useAuth } from "@/shared/auth/auth-context";
+import { BrandLogo } from "@/components/brand-logo";
 
 type LoginResponse = {
   error?: string;
@@ -68,7 +69,11 @@ export function LoginPage() {
     <main className="flex min-h-screen items-center justify-center bg-background font-sans">
       <div className="flex w-[400px] flex-col">
         <div className="flex flex-col gap-2">
-          <span className="text-2xl font-semibold text-[var(--lc-text-primary)]">LiteChat</span>
+          <BrandLogo
+            label={messages.shell.brand}
+            markClassName="size-8"
+            textClassName="text-2xl font-semibold tracking-[-0.02em] text-[var(--lc-text-primary)]"
+          />
           <span className="text-sm font-normal text-[var(--lc-text-secondary)]">{messages.login.tagline}</span>
         </div>
 
