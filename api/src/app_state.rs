@@ -5,8 +5,8 @@ use sea_orm::DatabaseConnection;
 use crate::{
     config::AppConfig,
     modules::{
-        auth::AuthService, chat::ChatService, models::ModelsService, providers::ProvidersService,
-        settings::SettingsService, users::UsersService,
+        auth::AuthService, chat::ChatService, files::FilesService, models::ModelsService,
+        providers::ProvidersService, settings::SettingsService, users::UsersService,
     },
 };
 
@@ -14,6 +14,7 @@ use crate::{
 pub struct AppState {
     pub auth_service: AuthService,
     pub chat_service: ChatService,
+    pub files_service: FilesService,
     pub models_service: ModelsService,
     pub providers_service: ProvidersService,
     pub settings_service: SettingsService,
@@ -28,11 +29,13 @@ impl AppState {
         let providers_service = ProvidersService::new(database.clone(), config.clone());
         let models_service = ModelsService::new(database.clone());
         let settings_service = SettingsService::new(database.clone());
+        let files_service = FilesService::new(database.clone(), config.clone());
         let chat_service = ChatService::new(database, config.clone());
 
         Self {
             auth_service,
             chat_service,
+            files_service,
             models_service,
             providers_service,
             settings_service,

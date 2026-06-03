@@ -5,7 +5,7 @@ use axum::{
 
 use crate::{
     app_state::AppState,
-    modules::{auth, chat, models, providers, settings, users},
+    modules::{auth, chat, files, models, providers, settings, users},
 };
 
 pub fn create_router(state: AppState) -> Router {
@@ -15,6 +15,15 @@ pub fn create_router(state: AppState) -> Router {
         .route("/api/auth/me", get(auth::me))
         .route("/api/auth/password", post(auth::change_password))
         .route("/api/models", get(models::list_models))
+        .route("/api/files/capabilities", get(files::capabilities))
+        .route(
+            "/api/files/upload-intent",
+            post(files::create_upload_intent),
+        )
+        .route(
+            "/api/files/{file_id}/complete",
+            post(files::complete_upload),
+        )
         .route("/api/chat", post(chat::chat))
         .route("/api/chat/title", post(chat::chat_title))
         .route(

@@ -1,4 +1,5 @@
 pub mod app_settings;
+pub mod files;
 pub mod model_configs;
 pub mod provider_configs;
 pub mod sessions;

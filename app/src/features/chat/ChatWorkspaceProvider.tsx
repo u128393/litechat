@@ -18,12 +18,16 @@ import {
 } from "@/lib/chat/local-store";
 import { createBrowserPreferencesStore } from "@/lib/preferences";
 import { getConversationDisplayTitle } from "@/lib/chat/presentation";
-import type { UserSelectableModel } from "@/shared/types";
+import type { ChatMessageAttachment, FileUploadCapabilities, UserSelectableModel } from "@/shared/types";
 
 const conversationPageSize = 25;
 const conversationWindowNewerSize = 12;
 const conversationWindowOlderSize = 12;
 const defaultDocumentTitle = "LiteChat";
+const disabledFileUploadCapabilities: FileUploadCapabilities = {
+  enabled: false,
+  maxFileSizeBytes: null
+};
 
 type ChatFailureState = {
   code: string;
@@ -72,6 +76,7 @@ export function ChatWorkspaceProvider({ userId, children }: { userId: string; ch
   const [branchContext, setBranchContext] = useState<ChatBranchContext | null>(null);
   const [draft, setDraft] = useState("");
   const [models, setModels] = useState<UserSelectableModel[]>([]);
+  const [fileUploadCapabilities, setFileUploadCapabilities] = useState<FileUploadCapabilities>(disabledFileUploadCapabilities);
   const [selectedModelId, setSelectedModelId] = useState<string | null>(null);
   const [hasLoadedConversations, setHasLoadedConversations] = useState(false);
   const [hasOlderConversations, setHasOlderConversations] = useState(false);
@@ -392,6 +397,39 @@ export function ChatWorkspaceProvider({ userId, children }: { userId: string; ch
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [preferencesStore]);
 
+  useEffect(() => {
+    let active = true;
+
+    async function loadFileUploadCapabilities() {
+      try {
+        const response = await fetch("/api/files/capabilities", { credentials: "same-origin" });
+        if (!response.ok) {
+          throw new Error("Unable to load file upload capabilities.");
+        }
+
+        const payload = (await response.json()) as Partial<FileUploadCapabilities>;
+        if (!active) {
+          return;
+        }
+
+        setFileUploadCapabilities({
+          enabled: payload.enabled === true,
+          maxFileSizeBytes: typeof payload.maxFileSizeBytes === "number" ? payload.maxFileSizeBytes : null
+        });
+      } catch {
+        if (active) {
+          setFileUploadCapabilities(disabledFileUploadCapabilities);
+        }
+      }
+    }
+
+    void loadFileUploadCapabilities();
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
   async function refreshModels() {
     setIsLoadingModels(true);
 
@@ -557,11 +595,11 @@ export function ChatWorkspaceProvider({ userId, children }: { userId: string; ch
     }
   }
 
-  async function sendMessage() {
+  async function sendMessage(attachments: ChatMessageAttachment[] = []) {
     const trimmedDraft = draft.trim();
 
     if (trimmedDraft === "" || isConversationSending(activeConversationId)) {
-      return;
+      return false;
     }
 
     if (!selectedModelId) {
@@ -570,7 +608,7 @@ export function ChatWorkspaceProvider({ userId, children }: { userId: string; ch
         message: i18nMessages.chat.errorModelMissing,
         canRetry: false
       });
-      return;
+      return false;
     }
 
     const conversation = await ensureConversation(trimmedDraft);
@@ -583,6 +621,7 @@ export function ChatWorkspaceProvider({ userId, children }: { userId: string; ch
       conversationId: conversation.id,
       role: "user",
       content: trimmedDraft,
+      attachments: attachments.length > 0 ? attachments : undefined,
       createdAt: now,
       updatedAt: now
     };
@@ -635,8 +674,10 @@ export function ChatWorkspaceProvider({ userId, children }: { userId: string; ch
         message: i18nMessages.chat.errorUnknown,
         canRetry: true
       });
-      return;
+      return false;
     }
+
+    return true;
   }
 
   function stopMessage() {
@@ -1236,6 +1277,7 @@ export function ChatWorkspaceProvider({ userId, children }: { userId: string; ch
         draft,
         models,
         selectedModelId,
+        fileUploadCapabilities,
         hasLoadedConversations,
         hasOlderConversations,
         hasNewerConversations,
@@ -1396,7 +1438,8 @@ async function streamAssistantMessage({
       modelConfigId,
       messages: messageHistory.map((message) => ({
         role: message.role,
-        content: message.content
+        content: message.content,
+        attachments: message.attachments?.map((attachment) => ({ id: attachment.id })) ?? []
       }))
     })
   });

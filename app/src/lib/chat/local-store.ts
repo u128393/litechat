@@ -1,5 +1,5 @@
 const DATABASE_NAME = "litechat-browser-store";
-const DATABASE_VERSION = 2;
+const DATABASE_VERSION = 3;
 
 const CONVERSATIONS_STORE = "conversations";
 const MESSAGES_STORE = "messages";
@@ -60,8 +60,17 @@ export type ChatMessageRecord = {
   conversationId: string;
   role: ChatMessageRole;
   content: string;
+  attachments?: ChatMessageAttachment[];
   createdAt: string;
   updatedAt: string;
+};
+
+export type ChatMessageAttachment = {
+  id: string;
+  name: string;
+  mimeType: string;
+  size: number;
+  url: string;
 };
 
 export type ChatDraftRecord = {
@@ -657,6 +666,7 @@ function toMessageRecord(record: ScopedMessageRecord): ChatMessageRecord {
     conversationId: record.conversationId,
     role: record.role,
     content: record.content,
+    attachments: record.attachments,
     createdAt: record.createdAt,
     updatedAt: record.updatedAt
   };

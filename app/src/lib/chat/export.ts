@@ -18,11 +18,20 @@ export function buildConversationMarkdownExport(data: ConversationExportData) {
   const lines = [`# ${data.conversation.title}`, ""];
 
   for (const message of data.messages) {
+    const attachmentLines = message.attachments && message.attachments.length > 0
+      ? [
+          "Attachments:",
+          ...message.attachments.map((attachment) => `- [${attachment.name}](${attachment.url})`),
+          ""
+        ]
+      : [];
+
     lines.push(
       "---",
       "",
       `**${formatRole(message.role, data.roleLabels)}** · ${formatDateTime(message.createdAt)}`,
       "",
+      ...attachmentLines,
       withClosedMarkdownFences(normalizeLineEndings(message.content).trimEnd()),
       ""
     );
@@ -37,6 +46,7 @@ export function buildConversationJsonExport(data: ConversationExportData) {
     messages: data.messages.map((message) => ({
       role: message.role,
       content: message.content,
+      attachments: message.attachments ?? [],
       timestamp: message.createdAt
     }))
   }, null, 2)}\n`;

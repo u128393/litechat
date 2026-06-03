@@ -19,10 +19,10 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
 import { useChatWorkspace } from "@/features/chat/chat-workspace-context";
-import type { ChatMessageRecord } from "@/lib/chat";
+import type { ChatMessageAttachment, ChatMessageRecord } from "@/lib/chat";
 import { useI18n } from "@/lib/i18n/context";
 import { cn } from "@/lib/utils";
-import { Check, Copy, GitBranch, Pencil, RefreshCw } from "lucide-react";
+import { Check, Copy, FileText, GitBranch, Pencil, RefreshCw } from "lucide-react";
 
 const bottomPinThreshold = 32;
 const scrollDirectionTolerance = 1;
@@ -906,6 +906,13 @@ function UserMessage({
   return (
     <div className="group flex min-w-0 max-w-full flex-col items-end gap-1.5">
       <div className="min-w-0 max-w-full rounded-xl bg-[var(--lc-user-bubble)] px-4 py-3">
+        {message.attachments && message.attachments.length > 0 ? (
+          <div className="mb-3 flex flex-col gap-2">
+            {message.attachments.map((attachment) => (
+              <MessageAttachmentCard key={attachment.id} attachment={attachment} />
+            ))}
+          </div>
+        ) : null}
         <div className="overflow-x-auto">
           <p className="whitespace-pre-wrap text-[15px] text-[var(--lc-text-primary)]">
             {message.content}
@@ -927,6 +934,27 @@ function UserMessage({
       </div>
     </div>
   );
+}
+
+function MessageAttachmentCard({ attachment }: { attachment: ChatMessageAttachment }) {
+  return (
+    <a
+      href={attachment.url}
+      target="_blank"
+      rel="noreferrer"
+      className="flex min-w-0 items-center gap-3 rounded-lg bg-[var(--lc-bg-primary)] px-3 py-2 text-[13px] text-[var(--lc-text-secondary)] transition-colors hover:text-[var(--lc-text-primary)]"
+    >
+      <FileText className="size-4 shrink-0" />
+      <span className="min-w-0 flex-1 truncate">{attachment.name}</span>
+      <span className="shrink-0 text-[12px] text-[var(--lc-text-tertiary)]">{formatFileSize(attachment.size)}</span>
+    </a>
+  );
+}
+
+function formatFileSize(size: number) {
+  if (size < 1024) return `${size} B`;
+  if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
+  return `${(size / 1024 / 1024).toFixed(1)} MB`;
 }
 
 function extractTextContent(node: ReactNode): string {

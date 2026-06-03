@@ -150,6 +150,8 @@ export type AppMessages = {
     errorUnknown: string;
     selectModel: string;
     composerKeyboardHint: string;
+    attachFile: string;
+    fileUploadFailed: string;
   };
   admin: AdminMessages;
 };
@@ -300,7 +302,9 @@ export const messagesByLocale: Record<AppLocale, AppMessages> = {
       errorInterrupted: "The response stream was interrupted before completion. Retry to continue.",
       errorUnknown: "Something went wrong while sending the message. Retry to continue.",
       selectModel: "Select model",
-      composerKeyboardHint: "Enter to send, Shift+Enter for new line"
+      composerKeyboardHint: "Enter to send, Shift+Enter for new line",
+      attachFile: "Attach file",
+      fileUploadFailed: "Could not upload the file."
     },
     admin: adminMessagesByLocale.en
   },
@@ -449,7 +453,9 @@ export const messagesByLocale: Record<AppLocale, AppMessages> = {
       errorInterrupted: "回复流在完成前中断了。请重试继续。",
       errorUnknown: "发送消息时发生异常。请重试后继续。",
       selectModel: "选择模型",
-      composerKeyboardHint: "按 Enter 发送，按 Shift+Enter 换行"
+      composerKeyboardHint: "按 Enter 发送，按 Shift+Enter 换行",
+      attachFile: "添加文件",
+      fileUploadFailed: "文件上传失败。"
     },
     admin: adminMessagesByLocale["zh-CN"]
   }

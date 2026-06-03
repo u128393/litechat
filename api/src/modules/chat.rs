@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 
 use axum::{
     Json,
@@ -18,13 +18,14 @@ use tower_cookies::Cookies;
 use crate::{
     app_state::AppState,
     config::AppConfig,
-    db::entities::{app_settings, model_configs, provider_configs, user_settings},
+    db::entities::{app_settings, files, model_configs, provider_configs, user_settings},
     http_error::HttpError,
     support::crypto::decrypt_provider_api_key,
 };
 
 const DEFAULT_OPENAI_BASE_URL: &str = "https://api.openai.com/v1/";
 const DEFAULT_CHAT_SYSTEM_PROMPT: &str = "You are a helpful assistant.";
+const ATTACHMENTS_SYSTEM_PROMPT: &str = "User messages may begin with an <attachments> block. Each <file> entry describes a user-uploaded file and includes its URL. Treat the text after the attachments block as the user's message. Use the files when the model can access and understand them.";
 const TITLE_USER_PROMPT: &str = "Create a concise conversation title for the chat history above.\n\nThe title will be displayed in the chat sidebar as the conversation name. It should summarize the user's main topic or task, not answer the latest message.\n\nRequirements:\n- Return only the title.\n- Use plain text only.\n- Do not use Markdown, backticks, bold, italic, bullets, quotes, or code formatting.\n- Use the same language as the conversation when possible.\n- Keep it specific and readable.\n- Keep it 3 to 8 words and no more than 60 characters.";
 const MODEL_PROVIDER_USER_AGENT: &str = concat!("litechat/", env!("CARGO_PKG_VERSION"));
 
@@ -46,6 +47,13 @@ pub struct CreateChatTitleRequest {
 pub struct ChatRequestMessage {
     pub role: String,
     pub content: String,
+    #[serde(default)]
+    pub attachments: Vec<ChatRequestAttachment>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct ChatRequestAttachment {
+    pub id: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -92,12 +100,15 @@ impl ChatService {
             .resolve_chat_model(&payload.model_config_id, false)
             .await?;
         let personalization = self.get_personalization(user_id).await?;
-        let mut messages = payload.messages;
+        let mut messages = self
+            .render_message_attachments(user_id, payload.messages)
+            .await?;
         messages.insert(
             0,
             ChatRequestMessage {
                 role: "system".to_string(),
                 content: build_chat_system_prompt(&personalization),
+                attachments: Vec::new(),
             },
         );
 
@@ -175,6 +186,7 @@ impl ChatService {
         let mut messages = vec![ChatRequestMessage {
             role: "system".to_string(),
             content: build_chat_system_prompt(&personalization),
+            attachments: Vec::new(),
         }];
         messages.extend(
             payload
@@ -183,11 +195,13 @@ impl ChatService {
                 .map(|message| ChatRequestMessage {
                     role: message.role,
                     content: message.content.chars().take(4000).collect(),
+                    attachments: Vec::new(),
                 }),
         );
         messages.push(ChatRequestMessage {
             role: "user".to_string(),
             content: TITLE_USER_PROMPT.to_string(),
+            attachments: Vec::new(),
         });
 
         let upstream = build_responses_request(&model, messages, true);
@@ -314,6 +328,42 @@ impl ChatService {
             .map(|item| item.personalization.trim().to_string())
             .unwrap_or_default())
     }
+
+    async fn render_message_attachments(
+        &self,
+        user_id: &str,
+        messages: Vec<ChatRequestMessage>,
+    ) -> Result<Vec<ChatRequestMessage>, HttpError> {
+        let attachment_ids = messages
+            .iter()
+            .flat_map(|message| {
+                message
+                    .attachments
+                    .iter()
+                    .map(|attachment| attachment.id.clone())
+            })
+            .collect::<Vec<_>>();
+
+        if attachment_ids.is_empty() {
+            return Ok(messages);
+        }
+
+        let file_records = files::Entity::find()
+            .filter(files::Column::UserId.eq(user_id.to_string()))
+            .filter(files::Column::Id.is_in(attachment_ids.clone()))
+            .all(&self.database)
+            .await
+            .map_err(internal_error)?;
+        let files_by_id = file_records
+            .into_iter()
+            .map(|file| (file.id.clone(), file))
+            .collect::<HashMap<_, _>>();
+
+        messages
+            .into_iter()
+            .map(|message| render_message_attachment_block(message, &files_by_id))
+            .collect()
+    }
 }
 
 pub async fn chat(
@@ -366,9 +416,69 @@ fn validate_messages(messages: &[ChatRequestMessage]) -> Result<(), HttpError> {
                 ));
             }
         }
+
+        for attachment in &message.attachments {
+            if attachment.id.trim().is_empty() {
+                return Err(HttpError::new(
+                    StatusCode::BAD_REQUEST,
+                    "messages[].attachments[].id must be a non-empty string.",
+                    Some("invalid_request".to_string()),
+                ));
+            }
+        }
     }
 
     Ok(())
+}
+
+fn render_message_attachment_block(
+    mut message: ChatRequestMessage,
+    files_by_id: &HashMap<String, files::Model>,
+) -> Result<ChatRequestMessage, HttpError> {
+    if message.attachments.is_empty() {
+        return Ok(message);
+    }
+
+    let mut block = String::from("<attachments>\n");
+    for attachment in &message.attachments {
+        let file = files_by_id.get(&attachment.id).ok_or_else(|| {
+            HttpError::new(
+                StatusCode::BAD_REQUEST,
+                "One or more attachments are unavailable.",
+                Some("invalid_request".to_string()),
+            )
+        })?;
+
+        if file.status != "ready" {
+            return Err(HttpError::new(
+                StatusCode::BAD_REQUEST,
+                "One or more attachments are not ready.",
+                Some("invalid_request".to_string()),
+            ));
+        }
+
+        block.push_str("  <file>\n");
+        block.push_str(&format!(
+            "    <name>{}</name>\n",
+            escape_xml_text(&file.name)
+        ));
+        block.push_str(&format!(
+            "    <mime_type>{}</mime_type>\n",
+            escape_xml_text(&file.mime_type)
+        ));
+        block.push_str(&format!(
+            "    <size_bytes>{}</size_bytes>\n",
+            file.size_bytes
+        ));
+        block.push_str(&format!("    <url>{}</url>\n", escape_xml_text(&file.url)));
+        block.push_str("  </file>\n");
+    }
+    block.push_str("</attachments>\n\n");
+    block.push_str(&message.content);
+
+    message.content = block;
+    message.attachments.clear();
+    Ok(message)
 }
 
 fn build_responses_request(
@@ -415,12 +525,22 @@ fn build_responses_url(base_url: Option<&str>) -> String {
 
 fn build_chat_system_prompt(personalization: &str) -> String {
     let personalization = personalization.trim();
+    let base_prompt = format!("{DEFAULT_CHAT_SYSTEM_PROMPT}\n\n{ATTACHMENTS_SYSTEM_PROMPT}");
 
     if personalization.is_empty() {
-        return DEFAULT_CHAT_SYSTEM_PROMPT.to_string();
+        return base_prompt;
     }
 
-    format!("{DEFAULT_CHAT_SYSTEM_PROMPT}\n\n{personalization}")
+    format!("{base_prompt}\n\n{personalization}")
+}
+
+fn escape_xml_text(value: &str) -> String {
+    value
+        .replace('&', "&amp;")
+        .replace('<', "&lt;")
+        .replace('>', "&gt;")
+        .replace('"', "&quot;")
+        .replace('\'', "&apos;")
 }
 
 fn filter_sse_text_deltas(bytes: &[u8]) -> Bytes {

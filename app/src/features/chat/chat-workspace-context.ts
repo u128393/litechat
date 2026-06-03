@@ -2,6 +2,7 @@ import { createContext, useContext } from "react";
 
 import type { ChatConversationBranchRecord, ChatConversationRecord, ChatMessageRecord } from "@/lib/chat/local-store";
 import type { UserSelectableModel } from "@/shared/types";
+import type { ChatMessageAttachment, FileUploadCapabilities } from "@/shared/types";
 
 type ChatFailureState = {
   code: string;
@@ -41,6 +42,7 @@ export type ChatWorkspaceContextValue = {
   draft: string;
   models: UserSelectableModel[];
   selectedModelId: string | null;
+  fileUploadCapabilities: FileUploadCapabilities;
   hasLoadedConversations: boolean;
   hasOlderConversations: boolean;
   hasNewerConversations: boolean;
@@ -57,7 +59,7 @@ export type ChatWorkspaceContextValue = {
   createNewConversation(): Promise<void>;
   selectConversation(conversationId: string, options?: { source?: SelectConversationSource }): Promise<void>;
   updateDraft(nextDraft: string): Promise<void>;
-  sendMessage(): Promise<void>;
+  sendMessage(attachments?: ChatMessageAttachment[]): Promise<boolean>;
   stopMessage(): void;
   retryMessage(): Promise<void>;
   regenerateMessage(messageId: string): Promise<void>;

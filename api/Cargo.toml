@@ -13,6 +13,9 @@ clap = { version = "4.5.41", features = ["derive"] }
 dialoguer = "0.11.0"
 dotenvy = "0.15.7"
 reqwest = { version = "0.13.3", default-features = false, features = ["json", "stream", "rustls"] }
+aws-config = { version = "1.8.11", default-features = false, features = ["rt-tokio", "rustls"] }
+aws-credential-types = "1.2.10"
+aws-sdk-s3 = { version = "1.117.0", default-features = false, features = ["rt-tokio", "rustls"] }
 sea-orm = { version = "1.1.20", default-features = false, features = ["macros", "runtime-tokio-rustls", "sqlx-mysql", "sqlx-postgres", "sqlx-sqlite", "with-chrono"] }
 sea-orm-migration = { version = "1.1.20", default-features = false, features = ["runtime-tokio-rustls", "sqlx-mysql", "sqlx-postgres", "sqlx-sqlite"] }
 serde = { version = "1.0.228", features = ["derive"] }
@@ -29,3 +32,4 @@ rand = "0.8.6"
 url = "2.5.8"
 bytes = "1.11.1"
 futures-util = "0.3.32"
+mime_guess = "2.0.5"

@@ -9,6 +9,7 @@ pub struct AppConfig {
     pub database: DatabaseConfig,
     pub server: ServerConfig,
     pub security: SecurityConfig,
+    pub storage: Option<StorageConfig>,
 }
 
 #[derive(Clone, Debug)]
@@ -34,6 +35,18 @@ pub struct SecurityConfig {
 pub struct DatabaseConfig {
     pub url: String,
     pub backend: DatabaseBackend,
+}
+
+#[derive(Clone, Debug)]
+pub struct StorageConfig {
+    pub bucket: String,
+    pub region: String,
+    pub endpoint: Option<String>,
+    pub access_key_id: String,
+    pub secret_access_key: String,
+    pub public_base_url: String,
+    pub force_path_style: bool,
+    pub max_file_size_bytes: u64,
 }
 
 #[derive(Clone, Debug)]
@@ -70,6 +83,7 @@ impl AppConfig {
             security: SecurityConfig {
                 provider_key_encryption_secret: required_env("PROVIDER_KEY_ENCRYPTION_SECRET")?,
             },
+            storage: load_storage_config(),
         })
     }
 }
@@ -109,4 +123,41 @@ fn required_env(key: &str) -> Result<String, String> {
                 Ok(value)
             }
         })
+}
+
+fn load_storage_config() -> Option<StorageConfig> {
+    let bucket = optional_env("STORAGE_BUCKET")?;
+    let region = optional_env("STORAGE_REGION")?;
+    let access_key_id = optional_env("STORAGE_ACCESS_KEY_ID")?;
+    let secret_access_key = optional_env("STORAGE_SECRET_ACCESS_KEY")?;
+    let public_base_url = optional_env("STORAGE_PUBLIC_BASE_URL")?;
+
+    Some(StorageConfig {
+        bucket,
+        region,
+        endpoint: optional_env("STORAGE_ENDPOINT"),
+        access_key_id,
+        secret_access_key,
+        public_base_url: public_base_url.trim_end_matches('/').to_string(),
+        force_path_style: env::var("STORAGE_FORCE_PATH_STYLE")
+            .ok()
+            .map(|value| {
+                matches!(
+                    value.trim().to_ascii_lowercase().as_str(),
+                    "1" | "true" | "yes"
+                )
+            })
+            .unwrap_or(false),
+        max_file_size_bytes: env::var("STORAGE_MAX_FILE_SIZE_BYTES")
+            .ok()
+            .and_then(|value| value.parse::<u64>().ok())
+            .unwrap_or(50 * 1024 * 1024),
+    })
+}
+
+fn optional_env(key: &str) -> Option<String> {
+    env::var(key)
+        .ok()
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty())
 }

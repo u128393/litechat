@@ -41,6 +41,28 @@ export type UserSelectableModel = {
   supportsWebSearch: boolean;
 };
 
+export type FileUploadCapabilities = {
+  enabled: boolean;
+  maxFileSizeBytes: number | null;
+};
+
+export type ChatMessageAttachment = {
+  id: string;
+  name: string;
+  mimeType: string;
+  size: number;
+  url: string;
+};
+
+export type CreateUploadIntentResponse = {
+  file: ChatMessageAttachment;
+  upload: {
+    method: string;
+    url: string;
+    headers: Record<string, string>;
+  };
+};
+
 export type ManagedUser = {
   id: string;
   email: string;

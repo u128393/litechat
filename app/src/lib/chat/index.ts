@@ -12,6 +12,7 @@ export type {
   ChatConversationRecord,
   ChatConversationWindow,
   ChatDraftRecord,
+  ChatMessageAttachment,
   ChatMessageRecord,
   ChatMessageRole,
   ChatPreferenceKey,
