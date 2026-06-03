@@ -38,7 +38,13 @@ pub struct DatabaseConfig {
 }
 
 #[derive(Clone, Debug)]
-pub struct StorageConfig {
+pub enum StorageConfig {
+    S3(S3StorageConfig),
+    Oss(OssStorageConfig),
+}
+
+#[derive(Clone, Debug)]
+pub struct S3StorageConfig {
     pub bucket: String,
     pub region: String,
     pub endpoint: Option<String>,
@@ -46,6 +52,16 @@ pub struct StorageConfig {
     pub secret_access_key: String,
     pub public_base_url: String,
     pub force_path_style: bool,
+    pub max_file_size_bytes: u64,
+}
+
+#[derive(Clone, Debug)]
+pub struct OssStorageConfig {
+    pub bucket: String,
+    pub endpoint: String,
+    pub access_key_id: String,
+    pub access_key_secret: String,
+    pub public_base_url: String,
     pub max_file_size_bytes: u64,
 }
 
@@ -83,7 +99,7 @@ impl AppConfig {
             security: SecurityConfig {
                 provider_key_encryption_secret: required_env("PROVIDER_KEY_ENCRYPTION_SECRET")?,
             },
-            storage: load_storage_config(),
+            storage: load_storage_config()?,
         })
     }
 }
@@ -125,21 +141,50 @@ fn required_env(key: &str) -> Result<String, String> {
         })
 }
 
-fn load_storage_config() -> Option<StorageConfig> {
-    let bucket = optional_env("STORAGE_BUCKET")?;
-    let region = optional_env("STORAGE_REGION")?;
-    let access_key_id = optional_env("STORAGE_ACCESS_KEY_ID")?;
-    let secret_access_key = optional_env("STORAGE_SECRET_ACCESS_KEY")?;
-    let public_base_url = optional_env("STORAGE_PUBLIC_BASE_URL")?;
+fn load_storage_config() -> Result<Option<StorageConfig>, String> {
+    let s3 = load_s3_storage_config()?;
+    let oss = load_oss_storage_config()?;
 
-    Some(StorageConfig {
+    match (s3, oss) {
+        (None, None) => Ok(None),
+        (Some(config), None) => Ok(Some(StorageConfig::S3(config))),
+        (None, Some(config)) => Ok(Some(StorageConfig::Oss(config))),
+        (Some(_), Some(_)) => Err(
+            "Configure only one file storage backend: STORAGE_S3_* or STORAGE_OSS_*.".to_string(),
+        ),
+    }
+}
+
+fn load_s3_storage_config() -> Result<Option<S3StorageConfig>, String> {
+    let keys = [
+        "STORAGE_S3_BUCKET",
+        "STORAGE_S3_REGION",
+        "STORAGE_S3_ACCESS_KEY_ID",
+        "STORAGE_S3_SECRET_ACCESS_KEY",
+        "STORAGE_S3_PUBLIC_BASE_URL",
+        "STORAGE_S3_ENDPOINT",
+        "STORAGE_S3_FORCE_PATH_STYLE",
+        "STORAGE_S3_MAX_FILE_SIZE_BYTES",
+    ];
+
+    if !has_any_env(&keys) {
+        return Ok(None);
+    }
+
+    let bucket = required_storage_env("STORAGE_S3_BUCKET")?;
+    let region = required_storage_env("STORAGE_S3_REGION")?;
+    let access_key_id = required_storage_env("STORAGE_S3_ACCESS_KEY_ID")?;
+    let secret_access_key = required_storage_env("STORAGE_S3_SECRET_ACCESS_KEY")?;
+    let public_base_url = required_storage_env("STORAGE_S3_PUBLIC_BASE_URL")?;
+
+    Ok(Some(S3StorageConfig {
         bucket,
         region,
-        endpoint: optional_env("STORAGE_ENDPOINT"),
+        endpoint: optional_env("STORAGE_S3_ENDPOINT"),
         access_key_id,
         secret_access_key,
-        public_base_url: public_base_url.trim_end_matches('/').to_string(),
-        force_path_style: env::var("STORAGE_FORCE_PATH_STYLE")
+        public_base_url: normalize_public_base_url(&public_base_url),
+        force_path_style: env::var("STORAGE_S3_FORCE_PATH_STYLE")
             .ok()
             .map(|value| {
                 matches!(
@@ -148,11 +193,60 @@ fn load_storage_config() -> Option<StorageConfig> {
                 )
             })
             .unwrap_or(false),
-        max_file_size_bytes: env::var("STORAGE_MAX_FILE_SIZE_BYTES")
+        max_file_size_bytes: env::var("STORAGE_S3_MAX_FILE_SIZE_BYTES")
             .ok()
             .and_then(|value| value.parse::<u64>().ok())
             .unwrap_or(50 * 1024 * 1024),
-    })
+    }))
+}
+
+fn load_oss_storage_config() -> Result<Option<OssStorageConfig>, String> {
+    let keys = [
+        "STORAGE_OSS_BUCKET",
+        "STORAGE_OSS_ENDPOINT",
+        "STORAGE_OSS_ACCESS_KEY_ID",
+        "STORAGE_OSS_ACCESS_KEY_SECRET",
+        "STORAGE_OSS_PUBLIC_BASE_URL",
+        "STORAGE_OSS_MAX_FILE_SIZE_BYTES",
+    ];
+
+    if !has_any_env(&keys) {
+        return Ok(None);
+    }
+
+    let bucket = required_storage_env("STORAGE_OSS_BUCKET")?;
+    let endpoint = required_storage_env("STORAGE_OSS_ENDPOINT")?;
+    let access_key_id = required_storage_env("STORAGE_OSS_ACCESS_KEY_ID")?;
+    let access_key_secret = required_storage_env("STORAGE_OSS_ACCESS_KEY_SECRET")?;
+    let public_base_url = required_storage_env("STORAGE_OSS_PUBLIC_BASE_URL")?;
+
+    Ok(Some(OssStorageConfig {
+        bucket,
+        endpoint: normalize_endpoint(&endpoint),
+        access_key_id,
+        access_key_secret,
+        public_base_url: normalize_public_base_url(&public_base_url),
+        max_file_size_bytes: env::var("STORAGE_OSS_MAX_FILE_SIZE_BYTES")
+            .ok()
+            .and_then(|value| value.parse::<u64>().ok())
+            .unwrap_or(50 * 1024 * 1024),
+    }))
+}
+
+fn has_any_env(keys: &[&str]) -> bool {
+    keys.iter().any(|key| optional_env(key).is_some())
+}
+
+fn required_storage_env(key: &str) -> Result<String, String> {
+    optional_env(key).ok_or_else(|| format!("{key} is required when file storage is configured"))
+}
+
+fn normalize_public_base_url(value: &str) -> String {
+    value.trim_end_matches('/').to_string()
+}
+
+fn normalize_endpoint(value: &str) -> String {
+    value.trim_end_matches('/').to_string()
 }
 
 fn optional_env(key: &str) -> Option<String> {

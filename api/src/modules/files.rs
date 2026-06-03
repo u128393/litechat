@@ -8,15 +8,19 @@ use axum::{
     extract::{Path, State},
     http::StatusCode,
 };
+use base64::{Engine as _, engine::general_purpose};
 use chrono::Utc;
+use hmac::{Hmac, Mac};
+use percent_encoding::{AsciiSet, CONTROLS, utf8_percent_encode};
 use sea_orm::{ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Set};
 use serde::{Deserialize, Serialize};
+use sha1::Sha1;
 use tower_cookies::Cookies;
 use uuid::Uuid;
 
 use crate::{
     app_state::AppState,
-    config::{AppConfig, StorageConfig},
+    config::{AppConfig, OssStorageConfig, S3StorageConfig, StorageConfig},
     db::entities::files,
     http_error::HttpError,
 };
@@ -24,6 +28,21 @@ use crate::{
 const FILE_STATUS_PENDING: &str = "pending";
 const FILE_STATUS_READY: &str = "ready";
 const UPLOAD_PRESIGN_TTL_SECONDS: u64 = 15 * 60;
+const QUERY_ENCODE_SET: &AsciiSet = &CONTROLS
+    .add(b' ')
+    .add(b'"')
+    .add(b'#')
+    .add(b'%')
+    .add(b'&')
+    .add(b'+')
+    .add(b'<')
+    .add(b'>')
+    .add(b'?')
+    .add(b'[')
+    .add(b']')
+    .add(b'`')
+    .add(b'{')
+    .add(b'}');
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -72,30 +91,35 @@ pub struct CompleteUploadResponse {
 }
 
 #[derive(Clone)]
+enum StorageBackend {
+    S3 {
+        config: S3StorageConfig,
+        client: S3Client,
+    },
+    Oss {
+        config: OssStorageConfig,
+    },
+}
+
+#[derive(Clone)]
 pub struct FilesService {
     database: DatabaseConnection,
-    config: Arc<AppConfig>,
-    s3_client: Option<S3Client>,
+    storage: Option<StorageBackend>,
 }
 
 impl FilesService {
     pub fn new(database: DatabaseConnection, config: Arc<AppConfig>) -> Self {
-        let s3_client = config.storage.as_ref().map(build_s3_client);
-        Self {
-            database,
-            config,
-            s3_client,
-        }
+        let storage = config.storage.as_ref().map(build_storage_backend);
+        Self { database, storage }
     }
 
     pub fn capabilities(&self) -> FileCapabilitiesResponse {
         FileCapabilitiesResponse {
-            enabled: self.config.storage.is_some() && self.s3_client.is_some(),
+            enabled: self.storage.is_some(),
             max_file_size_bytes: self
-                .config
                 .storage
                 .as_ref()
-                .map(|storage| storage.max_file_size_bytes),
+                .map(StorageBackend::max_file_size_bytes),
         }
     }
 
@@ -104,10 +128,9 @@ impl FilesService {
         user_id: &str,
         payload: CreateUploadIntentRequest,
     ) -> Result<CreateUploadIntentResponse, HttpError> {
-        let storage = self.storage_config()?;
-        let s3_client = self.s3_client()?;
+        let storage = self.storage_backend()?;
 
-        if payload.size == 0 || payload.size > storage.max_file_size_bytes {
+        if payload.size == 0 || payload.size > storage.max_file_size_bytes() {
             return Err(HttpError::new(
                 StatusCode::BAD_REQUEST,
                 "File size is not allowed.",
@@ -125,7 +148,7 @@ impl FilesService {
             .map(str::to_string)
             .unwrap_or_else(|| guess_mime_type(&name));
         let object_key = format!("uploads/{id}/{name}");
-        let url = format!("{}/{}", storage.public_base_url, object_key);
+        let url = storage.public_url(&object_key);
         let now = Utc::now();
         let size_bytes = i64::try_from(payload.size).map_err(|_| {
             HttpError::new(
@@ -151,29 +174,13 @@ impl FilesService {
         .await
         .map_err(internal_error)?;
 
-        let presigned = s3_client
-            .put_object()
-            .bucket(&storage.bucket)
-            .key(&object_key)
-            .content_type(&mime_type)
-            .content_length(size_bytes)
-            .presigned(
-                PresigningConfig::expires_in(Duration::from_secs(UPLOAD_PRESIGN_TTL_SECONDS))
-                    .map_err(|_| HttpError::internal("Failed to create upload request."))?,
-            )
-            .await
-            .map_err(|_| HttpError::internal("Failed to create upload request."))?;
+        let upload = storage
+            .create_upload_request(&object_key, &mime_type, size_bytes)
+            .await?;
 
         Ok(CreateUploadIntentResponse {
             file: to_file_attachment_payload(item)?,
-            upload: UploadRequestPayload {
-                method: presigned.method().to_string(),
-                url: presigned.uri().to_string(),
-                headers: presigned
-                    .headers()
-                    .map(|(name, value)| (name.to_string(), value.to_string()))
-                    .collect(),
-            },
+            upload,
         })
     }
 
@@ -200,18 +207,8 @@ impl FilesService {
         })
     }
 
-    fn storage_config(&self) -> Result<&StorageConfig, HttpError> {
-        self.config.storage.as_ref().ok_or_else(|| {
-            HttpError::new(
-                StatusCode::SERVICE_UNAVAILABLE,
-                "File upload is not configured.",
-                Some("file_upload_disabled".to_string()),
-            )
-        })
-    }
-
-    fn s3_client(&self) -> Result<&S3Client, HttpError> {
-        self.s3_client.as_ref().ok_or_else(|| {
+    fn storage_backend(&self) -> Result<&StorageBackend, HttpError> {
+        self.storage.as_ref().ok_or_else(|| {
             HttpError::new(
                 StatusCode::SERVICE_UNAVAILABLE,
                 "File upload is not configured.",
@@ -253,7 +250,75 @@ pub async fn complete_upload(
     ))
 }
 
-fn build_s3_client(storage: &StorageConfig) -> S3Client {
+impl StorageBackend {
+    fn max_file_size_bytes(&self) -> u64 {
+        match self {
+            StorageBackend::S3 { config, .. } => config.max_file_size_bytes,
+            StorageBackend::Oss { config } => config.max_file_size_bytes,
+        }
+    }
+
+    fn public_url(&self, object_key: &str) -> String {
+        match self {
+            StorageBackend::S3 { config, .. } => {
+                format!("{}/{}", config.public_base_url, object_key)
+            }
+            StorageBackend::Oss { config } => format!("{}/{}", config.public_base_url, object_key),
+        }
+    }
+
+    async fn create_upload_request(
+        &self,
+        object_key: &str,
+        mime_type: &str,
+        size_bytes: i64,
+    ) -> Result<UploadRequestPayload, HttpError> {
+        match self {
+            StorageBackend::S3 { config, client } => {
+                let presigned = client
+                    .put_object()
+                    .bucket(&config.bucket)
+                    .key(object_key)
+                    .content_type(mime_type)
+                    .content_length(size_bytes)
+                    .presigned(
+                        PresigningConfig::expires_in(Duration::from_secs(
+                            UPLOAD_PRESIGN_TTL_SECONDS,
+                        ))
+                        .map_err(|_| HttpError::internal("Failed to create upload request."))?,
+                    )
+                    .await
+                    .map_err(|_| HttpError::internal("Failed to create upload request."))?;
+
+                Ok(UploadRequestPayload {
+                    method: presigned.method().to_string(),
+                    url: presigned.uri().to_string(),
+                    headers: presigned
+                        .headers()
+                        .map(|(name, value)| (name.to_string(), value.to_string()))
+                        .collect(),
+                })
+            }
+            StorageBackend::Oss { config } => {
+                create_oss_upload_request(config, object_key, mime_type)
+            }
+        }
+    }
+}
+
+fn build_storage_backend(storage: &StorageConfig) -> StorageBackend {
+    match storage {
+        StorageConfig::S3(config) => StorageBackend::S3 {
+            config: config.clone(),
+            client: build_s3_client(config),
+        },
+        StorageConfig::Oss(config) => StorageBackend::Oss {
+            config: config.clone(),
+        },
+    }
+}
+
+fn build_s3_client(storage: &S3StorageConfig) -> S3Client {
     let credentials = Credentials::new(
         storage.access_key_id.clone(),
         storage.secret_access_key.clone(),
@@ -272,6 +337,49 @@ fn build_s3_client(storage: &StorageConfig) -> S3Client {
     }
 
     S3Client::from_conf(builder.build())
+}
+
+fn create_oss_upload_request(
+    config: &OssStorageConfig,
+    object_key: &str,
+    mime_type: &str,
+) -> Result<UploadRequestPayload, HttpError> {
+    let expires = Utc::now().timestamp() + UPLOAD_PRESIGN_TTL_SECONDS as i64;
+    let canonical_resource = format!("/{}/{}", config.bucket, object_key);
+    let string_to_sign = format!("PUT\n\n{mime_type}\n{expires}\n{canonical_resource}");
+    let signature = sign_oss_request(&config.access_key_secret, &string_to_sign)?;
+    let encoded_access_key_id = percent_encode_query(&config.access_key_id);
+    let encoded_signature = percent_encode_query(&signature);
+    let encoded_object_key = percent_encode_object_key(object_key);
+    let url = format!(
+        "{}/{encoded_object_key}?OSSAccessKeyId={encoded_access_key_id}&Expires={expires}&Signature={encoded_signature}",
+        config.endpoint
+    );
+
+    Ok(UploadRequestPayload {
+        method: "PUT".to_string(),
+        url,
+        headers: BTreeMap::from([("Content-Type".to_string(), mime_type.to_string())]),
+    })
+}
+
+fn sign_oss_request(access_key_secret: &str, string_to_sign: &str) -> Result<String, HttpError> {
+    let mut mac = Hmac::<Sha1>::new_from_slice(access_key_secret.as_bytes())
+        .map_err(|_| HttpError::internal("Failed to create upload request."))?;
+    mac.update(string_to_sign.as_bytes());
+    Ok(general_purpose::STANDARD.encode(mac.finalize().into_bytes()))
+}
+
+fn percent_encode_query(value: &str) -> String {
+    utf8_percent_encode(value, QUERY_ENCODE_SET).to_string()
+}
+
+fn percent_encode_object_key(value: &str) -> String {
+    value
+        .split('/')
+        .map(percent_encode_query)
+        .collect::<Vec<_>>()
+        .join("/")
 }
 
 fn sanitize_file_name(value: &str) -> String {
