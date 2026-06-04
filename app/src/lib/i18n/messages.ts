@@ -151,7 +151,19 @@ export type AppMessages = {
     selectModel: string;
     composerKeyboardHint: string;
     attachFile: string;
+    removeAttachment: string;
+    retryFileUpload: string;
+    fileUploadPending: string;
+    fileUploading: string;
     fileUploadFailed: string;
+    fileUploadPrepareFailed: string;
+    fileUploadDisabled: string;
+    fileUploadUnauthorized: string;
+    fileUploadStorageNetworkFailed: string;
+    fileUploadStorageRejected: string;
+    fileUploadCompleteFailed: string;
+    fileUploadFileNotFound: string;
+    fileTooLarge: string;
   };
   admin: AdminMessages;
 };
@@ -304,7 +316,19 @@ export const messagesByLocale: Record<AppLocale, AppMessages> = {
       selectModel: "Select model",
       composerKeyboardHint: "Enter to send, Shift+Enter for new line",
       attachFile: "Attach file",
-      fileUploadFailed: "Could not upload the file."
+      removeAttachment: "Remove attachment",
+      retryFileUpload: "Retry upload",
+      fileUploadPending: "Waiting to upload",
+      fileUploading: "Uploading...",
+      fileUploadFailed: "Upload failed",
+      fileUploadPrepareFailed: "Could not prepare the upload. Try again in a moment.",
+      fileUploadDisabled: "File upload is not configured.",
+      fileUploadUnauthorized: "Your session has expired. Sign in again before uploading files.",
+      fileUploadStorageNetworkFailed: "Could not connect to file storage. Check your network and try again.",
+      fileUploadStorageRejected: "File storage rejected the upload. Try again in a moment.",
+      fileUploadCompleteFailed: "The file was uploaded, but the attachment could not be saved. Try again.",
+      fileUploadFileNotFound: "The uploaded file record could not be found. Remove it and upload again.",
+      fileTooLarge: "This file is too large to upload."
     },
     admin: adminMessagesByLocale.en
   },
@@ -455,7 +479,19 @@ export const messagesByLocale: Record<AppLocale, AppMessages> = {
       selectModel: "选择模型",
       composerKeyboardHint: "按 Enter 发送，按 Shift+Enter 换行",
       attachFile: "添加文件",
-      fileUploadFailed: "文件上传失败。"
+      removeAttachment: "移除附件",
+      retryFileUpload: "重试上传",
+      fileUploadPending: "等待上传",
+      fileUploading: "上传中...",
+      fileUploadFailed: "上传失败",
+      fileUploadPrepareFailed: "无法准备上传，请稍后重试。",
+      fileUploadDisabled: "文件上传功能未配置。",
+      fileUploadUnauthorized: "登录状态已失效，请重新登录后再上传文件。",
+      fileUploadStorageNetworkFailed: "无法连接到文件存储，请检查网络后重试。",
+      fileUploadStorageRejected: "文件存储拒绝了上传，请稍后重试。",
+      fileUploadCompleteFailed: "文件已上传，但附件状态保存失败，请重试。",
+      fileUploadFileNotFound: "找不到已上传的文件记录，请移除后重新上传。",
+      fileTooLarge: "文件过大，无法上传。"
     },
     admin: adminMessagesByLocale["zh-CN"]
   }

@@ -2,13 +2,43 @@ import { useRef, useEffect, useLayoutEffect, useState, type ChangeEvent, type Ke
 
 import { useChatWorkspace } from "@/features/chat/chat-workspace-context";
 import { useI18n } from "@/lib/i18n/context";
-import { ArrowUp, CircleAlert, FileText, Paperclip, X } from "lucide-react";
+import { ArrowUp, CircleAlert, FileText, LoaderCircle, Paperclip, RotateCcw, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ChatMessageAttachment, CreateUploadIntentResponse } from "@/shared/types";
 
 type ComposerProps = {
   placement?: "bottom" | "center";
 };
+
+type ComposerAttachmentStatus = "pending" | "uploading" | "uploaded" | "failed";
+
+type ComposerAttachment = {
+  localId: string;
+  name: string;
+  size: number;
+  status: ComposerAttachmentStatus;
+  file?: File;
+  attachment?: ChatMessageAttachment;
+  error?: string;
+};
+
+type UploadAttachmentErrorCode =
+  | "create_failed"
+  | "disabled"
+  | "unauthorized"
+  | "storage_network_failed"
+  | "storage_rejected"
+  | "complete_failed"
+  | "file_not_found";
+
+class UploadAttachmentError extends Error {
+  readonly code: UploadAttachmentErrorCode;
+
+  constructor(code: UploadAttachmentErrorCode) {
+    super(code);
+    this.code = code;
+  }
+}
 
 export function Composer({ placement = "bottom" }: ComposerProps) {
   const { messages } = useI18n();
@@ -28,9 +58,7 @@ export function Composer({ placement = "bottom" }: ComposerProps) {
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [attachments, setAttachments] = useState<ChatMessageAttachment[]>([]);
-  const [isUploadingFile, setIsUploadingFile] = useState(false);
-  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [attachments, setAttachments] = useState<ComposerAttachment[]>([]);
 
   // Auto-resize textarea
   useEffect(() => {
@@ -73,25 +101,57 @@ export function Composer({ placement = "bottom" }: ComposerProps) {
       return;
     }
 
-    setIsUploadingFile(true);
-    setUploadError(null);
-    try {
-      const uploadedAttachments = [] as ChatMessageAttachment[];
+    const queuedAttachments = files.map((file) => createComposerAttachment(file));
+    setAttachments((currentAttachments) => [...currentAttachments, ...queuedAttachments]);
+    void uploadQueuedAttachments(queuedAttachments);
+  }
 
-      for (const file of files) {
-        if (fileUploadCapabilities.maxFileSizeBytes !== null && file.size > fileUploadCapabilities.maxFileSizeBytes) {
-          continue;
-        }
-
-        uploadedAttachments.push(await uploadAttachment(file));
+  async function uploadQueuedAttachments(queuedAttachments: ComposerAttachment[]) {
+    for (const attachment of queuedAttachments) {
+      if (!attachment.file) {
+        continue;
       }
 
-      setAttachments((currentAttachments) => [...currentAttachments, ...uploadedAttachments]);
-    } catch {
-      setUploadError(messages.chat.fileUploadFailed);
-    } finally {
-      setIsUploadingFile(false);
+      await uploadSingleAttachment(attachment.localId, attachment.file);
     }
+  }
+
+  async function uploadSingleAttachment(localId: string, file: File) {
+    if (fileUploadCapabilities.maxFileSizeBytes !== null && file.size > fileUploadCapabilities.maxFileSizeBytes) {
+      setAttachmentFailed(localId, messages.chat.fileTooLarge);
+      return;
+    }
+
+    setAttachments((currentAttachments) => updateAttachmentStatus(currentAttachments, localId, { status: "uploading", error: undefined }));
+
+    try {
+      const uploadedAttachment = await uploadAttachment(file);
+      setAttachments((currentAttachments) =>
+        updateAttachmentStatus(currentAttachments, localId, {
+          status: "uploaded",
+          attachment: uploadedAttachment,
+          file: undefined,
+          name: uploadedAttachment.name,
+          size: uploadedAttachment.size,
+          error: undefined
+        })
+      );
+    } catch (error) {
+      setAttachmentFailed(localId, getUploadAttachmentErrorMessage(error, messages.chat));
+    }
+  }
+
+  function setAttachmentFailed(localId: string, error: string) {
+    setAttachments((currentAttachments) => updateAttachmentStatus(currentAttachments, localId, { status: "failed", error }));
+  }
+
+  function retryAttachment(localId: string) {
+    const attachment = attachments.find((item) => item.localId === localId);
+    if (!attachment?.file) {
+      return;
+    }
+
+    void uploadSingleAttachment(localId, attachment.file);
   }
 
   async function handleSend() {
@@ -99,15 +159,19 @@ export function Composer({ placement = "bottom" }: ComposerProps) {
       return;
     }
 
-    const attachmentsToSend = attachments;
+    const currentAttachments = attachments;
+    const attachmentsToSend = currentAttachments.flatMap((attachment) =>
+      attachment.status === "uploaded" && attachment.attachment ? [attachment.attachment] : []
+    );
     setAttachments([]);
     const sent = await sendMessage(attachmentsToSend);
     if (!sent) {
-      setAttachments(attachmentsToSend);
+      setAttachments(currentAttachments);
     }
   }
 
-  const canSend = draft.trim() !== "" && selectedModelId && !isSendingMessage && !isUploadingFile;
+  const hasUnsentAttachments = attachments.some((attachment) => attachment.status !== "uploaded");
+  const canSend = draft.trim() !== "" && Boolean(selectedModelId) && !isSendingMessage && !hasUnsentAttachments;
   const actionButtonClass =
     "flex size-9 shrink-0 items-center justify-center rounded-full transition-colors outline-none focus-visible:ring-2 focus-visible:ring-[var(--lc-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--lc-bg-tertiary)]";
   const enabledActionButtonClass =
@@ -150,28 +214,16 @@ export function Composer({ placement = "bottom" }: ComposerProps) {
           </div>
         ) : null}
 
-        {uploadError ? (
-          <div className="flex items-center gap-2 rounded-lg border border-[#FECACA] bg-[#FEF2F2] px-3 py-2.5 text-[13px] text-[#991B1B] dark:border-[#7F1D1D] dark:bg-[#450A0A] dark:text-[#FCA5A5]">
-            <CircleAlert className="size-4 shrink-0" />
-            <span className="flex-1">{uploadError}</span>
-            <button
-              type="button"
-              className="shrink-0 rounded-md px-2 py-0.5 text-[13px] font-medium text-[#991B1B] transition-colors hover:bg-[#FEE2E2] dark:text-[#FCA5A5] dark:hover:bg-[#7F1D1D]"
-              onClick={() => setUploadError(null)}
-            >
-              {messages.common.dismiss}
-            </button>
-          </div>
-        ) : null}
-
         <div className="flex flex-col gap-2 rounded-[20px] bg-[var(--lc-bg-tertiary)] px-3 py-2">
           {attachments.length > 0 ? (
             <div className="flex flex-wrap gap-2 px-1 pt-1">
               {attachments.map((attachment) => (
                 <AttachmentChip
-                  key={attachment.id}
+                  key={attachment.localId}
                   attachment={attachment}
-                  onRemove={() => setAttachments((currentAttachments) => currentAttachments.filter((item) => item.id !== attachment.id))}
+                  messages={messages.chat}
+                  onRetry={() => retryAttachment(attachment.localId)}
+                  onRemove={() => setAttachments((currentAttachments) => currentAttachments.filter((item) => item.localId !== attachment.localId))}
                 />
               ))}
             </div>
@@ -192,7 +244,7 @@ export function Composer({ placement = "bottom" }: ComposerProps) {
                 <button
                   type="button"
                   className="flex size-9 shrink-0 items-center justify-center rounded-full text-[var(--lc-text-tertiary)] transition-colors hover:bg-[var(--lc-bg-primary)] hover:text-[var(--lc-text-primary)] disabled:cursor-not-allowed disabled:opacity-50"
-                  disabled={isSendingMessage || isUploadingFile}
+                  disabled={isSendingMessage}
                   onClick={() => fileInputRef.current?.click()}
                   aria-label={messages.chat.attachFile}
                   title={messages.chat.attachFile}
@@ -251,20 +303,151 @@ export function Composer({ placement = "bottom" }: ComposerProps) {
   );
 }
 
-function AttachmentChip({ attachment, onRemove }: { attachment: ChatMessageAttachment; onRemove: () => void }) {
+function AttachmentChip({
+  attachment,
+  messages,
+  onRetry,
+  onRemove,
+}: {
+  attachment: ComposerAttachment;
+  messages: ReturnType<typeof useI18n>["messages"]["chat"];
+  onRetry: () => void;
+  onRemove: () => void;
+}) {
+  const isFailed = attachment.status === "failed";
+  const errorTooltipId = `${attachment.localId}-upload-error`;
+  const statusLabel = getAttachmentStatusLabel(attachment, messages);
+  const hasSpecificError = isFailed && Boolean(attachment.error) && attachment.error !== messages.fileUploadFailed;
+
   return (
-    <div className="flex max-w-full items-center gap-2 rounded-full bg-[var(--lc-bg-primary)] px-3 py-1.5 text-[13px] text-[var(--lc-text-secondary)]">
+    <div
+      className={cn(
+        "group relative flex max-w-full items-center gap-2 rounded-full bg-[var(--lc-bg-primary)] px-3 py-1.5 text-[13px] text-[var(--lc-text-secondary)] outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[var(--lc-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--lc-bg-tertiary)]",
+        isFailed && "bg-[#FEF2F2] text-[#991B1B] dark:bg-[#450A0A] dark:text-[#FCA5A5]"
+      )}
+      tabIndex={isFailed ? 0 : undefined}
+      aria-describedby={hasSpecificError ? errorTooltipId : undefined}
+    >
       <FileText className="size-4 shrink-0" />
-      <span className="truncate">{attachment.name}</span>
-      <button
-        type="button"
-        className="text-[var(--lc-text-tertiary)] transition-colors hover:text-[var(--lc-text-primary)]"
-        onClick={onRemove}
-      >
-        <X className="size-3.5" />
-      </button>
+      <span className="min-w-0 truncate">{attachment.name}</span>
+      <span className={cn("shrink-0 text-[12px] text-[var(--lc-text-tertiary)]", isFailed && "text-[#B91C1C] dark:text-[#FCA5A5]")}>{statusLabel}</span>
+
+      {attachment.status === "uploading" ? <LoaderCircle className="size-3.5 shrink-0 animate-spin text-[var(--lc-text-tertiary)]" /> : null}
+
+      {isFailed ? (
+        <>
+          {hasSpecificError ? (
+            <span
+              id={errorTooltipId}
+              role="tooltip"
+              className="pointer-events-none absolute bottom-full left-3 z-20 mb-2 hidden max-w-[280px] rounded-md bg-[#111111] px-2 py-1 text-[12px] leading-4 whitespace-normal text-white shadow-lg group-hover:block group-focus:block group-focus-within:block dark:bg-white dark:text-[#111111]"
+            >
+              {attachment.error}
+            </span>
+          ) : null}
+        </>
+      ) : null}
+
+      {attachment.status === "uploaded" ? (
+        <button
+          type="button"
+          className="flex size-6 shrink-0 items-center justify-center rounded-full text-[var(--lc-text-tertiary)] transition-colors hover:bg-[var(--lc-bg-tertiary)] hover:text-[var(--lc-text-primary)]"
+          onClick={onRemove}
+          aria-label={`${messages.removeAttachment}: ${attachment.name}`}
+          title={messages.removeAttachment}
+        >
+          <X className="size-3.5" />
+        </button>
+      ) : null}
+
+      {isFailed ? (
+        <span className="ml-0.5 flex shrink-0 items-center">
+          <button
+            type="button"
+            className="flex size-6 items-center justify-center rounded-full text-[var(--lc-text-tertiary)] transition-colors hover:bg-[var(--lc-bg-tertiary)] hover:text-[var(--lc-text-primary)]"
+            onClick={onRetry}
+            aria-label={`${messages.retryFileUpload}: ${attachment.name}`}
+            title={messages.retryFileUpload}
+          >
+            <RotateCcw className="size-3.5" />
+          </button>
+          <button
+            type="button"
+            className="flex size-6 items-center justify-center rounded-full text-[var(--lc-text-tertiary)] transition-colors hover:bg-[var(--lc-bg-tertiary)] hover:text-[var(--lc-text-primary)]"
+            onClick={onRemove}
+            aria-label={`${messages.removeAttachment}: ${attachment.name}`}
+            title={messages.removeAttachment}
+          >
+            <X className="size-3.5" />
+          </button>
+        </span>
+      ) : null}
     </div>
   );
+}
+
+function createComposerAttachment(file: File): ComposerAttachment {
+  return {
+    localId: createLocalAttachmentId(),
+    name: file.name,
+    size: file.size,
+    status: "pending",
+    file
+  };
+}
+
+function createLocalAttachmentId() {
+  return `attachment-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+function updateAttachmentStatus(
+  attachments: ComposerAttachment[],
+  localId: string,
+  updates: Partial<ComposerAttachment>
+) {
+  return attachments.map((attachment) => (attachment.localId === localId ? { ...attachment, ...updates } : attachment));
+}
+
+function getAttachmentStatusLabel(
+  attachment: ComposerAttachment,
+  messages: ReturnType<typeof useI18n>["messages"]["chat"]
+) {
+  if (attachment.status === "pending") return messages.fileUploadPending;
+  if (attachment.status === "uploading") return messages.fileUploading;
+  if (attachment.status === "failed") return messages.fileUploadFailed;
+  return formatFileSize(attachment.size);
+}
+
+function formatFileSize(size: number) {
+  if (size < 1024) return `${size} B`;
+  if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
+  return `${(size / 1024 / 1024).toFixed(1)} MB`;
+}
+
+function getUploadAttachmentErrorMessage(
+  error: unknown,
+  messages: ReturnType<typeof useI18n>["messages"]["chat"]
+) {
+  if (!(error instanceof UploadAttachmentError)) {
+    return messages.fileUploadFailed;
+  }
+
+  switch (error.code) {
+    case "disabled":
+      return messages.fileUploadDisabled;
+    case "unauthorized":
+      return messages.fileUploadUnauthorized;
+    case "storage_network_failed":
+      return messages.fileUploadStorageNetworkFailed;
+    case "storage_rejected":
+      return messages.fileUploadStorageRejected;
+    case "complete_failed":
+      return messages.fileUploadCompleteFailed;
+    case "file_not_found":
+      return messages.fileUploadFileNotFound;
+    case "create_failed":
+      return messages.fileUploadPrepareFailed;
+  }
 }
 
 async function uploadAttachment(file: File): Promise<ChatMessageAttachment> {
@@ -280,7 +463,7 @@ async function uploadAttachment(file: File): Promise<ChatMessageAttachment> {
   });
 
   if (!intentResponse.ok) {
-    throw new Error("Unable to create file upload.");
+    throw await createUploadIntentError(intentResponse);
   }
 
   const intent = (await intentResponse.json()) as CreateUploadIntentResponse;
@@ -296,7 +479,7 @@ async function uploadAttachment(file: File): Promise<ChatMessageAttachment> {
       error,
       upload: toUploadLogPayload(intent.upload)
     });
-    throw new Error("Unable to upload file.", { cause: error });
+    throw new UploadAttachmentError("storage_network_failed");
   }
 
   if (!uploadResponse.ok) {
@@ -316,7 +499,7 @@ async function uploadAttachment(file: File): Promise<ChatMessageAttachment> {
       upload: toUploadLogPayload(intent.upload)
     });
 
-    throw new Error("Unable to upload file.");
+    throw new UploadAttachmentError("storage_rejected");
   }
 
   const completeResponse = await fetch(`/api/files/${encodeURIComponent(intent.file.id)}/complete`, {
@@ -325,11 +508,51 @@ async function uploadAttachment(file: File): Promise<ChatMessageAttachment> {
   });
 
   if (!completeResponse.ok) {
-    throw new Error("Unable to complete file upload.");
+    throw await createCompleteUploadError(completeResponse);
   }
 
   const complete = (await completeResponse.json()) as { file: ChatMessageAttachment };
   return complete.file;
+}
+
+async function createUploadIntentError(response: Response) {
+  const payload = await readApiErrorPayload(response);
+
+  if (response.status === 401 || response.status === 403) {
+    return new UploadAttachmentError("unauthorized");
+  }
+
+  if (response.status === 503 || payload?.code === "file_upload_disabled") {
+    return new UploadAttachmentError("disabled");
+  }
+
+  return new UploadAttachmentError("create_failed");
+}
+
+async function createCompleteUploadError(response: Response) {
+  if (response.status === 401 || response.status === 403) {
+    return new UploadAttachmentError("unauthorized");
+  }
+
+  if (response.status === 404) {
+    return new UploadAttachmentError("file_not_found");
+  }
+
+  return new UploadAttachmentError("complete_failed");
+}
+
+async function readApiErrorPayload(response: Response): Promise<{ code?: string } | null> {
+  try {
+    const payload = (await response.clone().json()) as unknown;
+    if (!payload || typeof payload !== "object" || !("code" in payload)) {
+      return null;
+    }
+
+    const code = (payload as { code?: unknown }).code;
+    return typeof code === "string" ? { code } : null;
+  } catch {
+    return null;
+  }
 }
 
 function toUploadLogPayload(upload: CreateUploadIntentResponse["upload"]) {
