@@ -12,6 +12,7 @@ import {
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
   type UIEvent,
+  type WheelEvent,
 } from "react";
 import { Link } from "react-router-dom";
 import rehypeHighlight from "rehype-highlight";
@@ -24,12 +25,15 @@ import { useI18n } from "@/lib/i18n/context";
 import { cn } from "@/lib/utils";
 import { Check, Copy, FileText, GitBranch, Pencil, RefreshCw } from "lucide-react";
 
-const bottomPinThreshold = 32;
+const bottomResumeThreshold = 2;
+const userLeaveBottomThreshold = 4;
 const scrollDirectionTolerance = 1;
 const hashTargetBottomPadding = 32;
 const timelineBottomExtraPadding = 24;
 const selectionMoveThreshold = 4;
 const selectionUnlockDelayMs = 150;
+const userScrollIntentWindowMs = 300;
+const scrollKeys = new Set(["ArrowUp", "ArrowDown", "PageUp", "PageDown", "Home", "End", " "]);
 
 type ScrollMode = "follow" | "manual" | "selecting" | "anchored";
 type SelectionPhase = "idle" | "armed" | "locked";
@@ -61,6 +65,8 @@ export function MessageTimeline({ composerOverlayHeight = 0 }: { composerOverlay
   const previousTimelineScrollRequestTokenRef = useRef<number | null>(null);
   const previousScrollTopRef = useRef(0);
   const unlockTimeoutRef = useRef<number | null>(null);
+  const userScrollIntentTimeoutRef = useRef<number | null>(null);
+  const hasRecentUserScrollIntentRef = useRef(false);
   const pointerStateRef = useRef<{ pointerId: number | null; x: number; y: number }>({ pointerId: null, x: 0, y: 0 });
   const selectionPhaseRef = useRef<SelectionPhase>("idle");
   const selectionSnapshotRef = useRef<SelectionSnapshot | null>(null);
@@ -142,7 +148,7 @@ export function MessageTimeline({ composerOverlayHeight = 0 }: { composerOverlay
         }
 
         setScrollMode((currentMode) => {
-          if (currentMode === "selecting" || currentMode === "anchored") {
+          if (currentMode === "selecting" || currentMode === "anchored" || currentMode === "manual") {
             return currentMode;
           }
 
@@ -223,13 +229,49 @@ export function MessageTimeline({ composerOverlayHeight = 0 }: { composerOverlay
       if (unlockTimeoutRef.current !== null) {
         window.clearTimeout(unlockTimeoutRef.current);
       }
+
+      if (userScrollIntentTimeoutRef.current !== null) {
+        window.clearTimeout(userScrollIntentTimeoutRef.current);
+      }
     };
   }, []);
+
+  function markUserScrollIntent() {
+    hasRecentUserScrollIntentRef.current = true;
+
+    if (userScrollIntentTimeoutRef.current !== null) {
+      window.clearTimeout(userScrollIntentTimeoutRef.current);
+    }
+
+    userScrollIntentTimeoutRef.current = window.setTimeout(() => {
+      hasRecentUserScrollIntentRef.current = false;
+      userScrollIntentTimeoutRef.current = null;
+    }, userScrollIntentWindowMs);
+  }
+
+  function handleWheel(event: WheelEvent<HTMLDivElement>) {
+    if (event.deltaY !== 0) {
+      markUserScrollIntent();
+    }
+  }
+
+  function handleTouchMove() {
+    markUserScrollIntent();
+  }
+
+  function handleKeyDown(event: KeyboardEvent<HTMLDivElement>) {
+    if (scrollKeys.has(event.key)) {
+      markUserScrollIntent();
+    }
+  }
 
   function handleScroll(event: UIEvent<HTMLDivElement>) {
     const scrollContainer = event.currentTarget;
     const scrollDelta = scrollContainer.scrollTop - previousScrollTopRef.current;
     const distanceFromBottom = scrollContainer.scrollHeight - scrollContainer.scrollTop - scrollContainer.clientHeight;
+    const isUserLeavingBottom =
+      distanceFromBottom > userLeaveBottomThreshold &&
+      (hasRecentUserScrollIntentRef.current || scrollDelta < -scrollDirectionTolerance);
 
     previousScrollTopRef.current = scrollContainer.scrollTop;
 
@@ -238,23 +280,23 @@ export function MessageTimeline({ composerOverlayHeight = 0 }: { composerOverlay
     }
 
     setScrollMode((currentMode) => {
+      if (distanceFromBottom <= bottomResumeThreshold) {
+        return "follow";
+      }
+
       if (currentMode === "anchored") {
-        if (scrollDelta < -scrollDirectionTolerance) {
+        if (isUserLeavingBottom) {
           return "manual";
         }
 
         return currentMode;
       }
 
-      if (scrollDelta < -scrollDirectionTolerance) {
+      if (isUserLeavingBottom) {
         return "manual";
       }
 
-      if (distanceFromBottom <= bottomPinThreshold) {
-        return "follow";
-      }
-
-      return currentMode === "follow" ? "manual" : currentMode;
+      return currentMode;
     });
   }
 
@@ -464,6 +506,9 @@ export function MessageTimeline({ composerOverlayHeight = 0 }: { composerOverlay
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
       onPointerCancel={handlePointerCancel}
+      onWheel={handleWheel}
+      onTouchMove={handleTouchMove}
+      onKeyDown={handleKeyDown}
       onScroll={handleScroll}
     >
       <div className="mx-auto flex min-w-0 w-full max-w-[768px] flex-col gap-6 px-4">
