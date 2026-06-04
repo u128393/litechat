@@ -125,6 +125,7 @@ impl FilesService {
 
         let id = Uuid::new_v4().to_string();
         let name = sanitize_file_name(&payload.file_name);
+        let now = Utc::now();
         let mime_type = payload
             .mime_type
             .as_deref()
@@ -132,9 +133,8 @@ impl FilesService {
             .filter(|value| !value.is_empty())
             .map(str::to_string)
             .unwrap_or_else(|| guess_mime_type(&name));
-        let object_key = format!("uploads/{id}/{name}");
+        let object_key = format!("uploads/{}/{id}/{name}", now.format("%Y/%m/%d"));
         let url = storage.public_url(&object_key);
-        let now = Utc::now();
         let size_bytes = i64::try_from(payload.size).map_err(|_| {
             HttpError::new(
                 StatusCode::BAD_REQUEST,
