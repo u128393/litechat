@@ -22,6 +22,13 @@ type ComposerAttachment = {
   error?: string;
 };
 
+type PendingAttachmentUpload = {
+  localId: string;
+  file: File;
+};
+
+const maxConcurrentFileUploads = 3;
+
 type UploadAttachmentErrorCode =
   | "create_failed"
   | "disabled"
@@ -58,6 +65,8 @@ export function Composer({ placement = "bottom" }: ComposerProps) {
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const pendingUploadQueueRef = useRef<PendingAttachmentUpload[]>([]);
+  const activeUploadCountRef = useRef(0);
   const [attachments, setAttachments] = useState<ComposerAttachment[]>([]);
 
   // Auto-resize textarea
@@ -103,16 +112,28 @@ export function Composer({ placement = "bottom" }: ComposerProps) {
 
     const queuedAttachments = files.map((file) => createComposerAttachment(file));
     setAttachments((currentAttachments) => [...currentAttachments, ...queuedAttachments]);
-    void uploadQueuedAttachments(queuedAttachments);
+    enqueueAttachmentUploads(
+      queuedAttachments.flatMap((attachment) => (attachment.file ? [{ localId: attachment.localId, file: attachment.file }] : []))
+    );
   }
 
-  async function uploadQueuedAttachments(queuedAttachments: ComposerAttachment[]) {
-    for (const attachment of queuedAttachments) {
-      if (!attachment.file) {
-        continue;
+  function enqueueAttachmentUploads(uploads: PendingAttachmentUpload[]) {
+    pendingUploadQueueRef.current.push(...uploads);
+    startNextAttachmentUploads();
+  }
+
+  function startNextAttachmentUploads() {
+    while (activeUploadCountRef.current < maxConcurrentFileUploads) {
+      const nextUpload = pendingUploadQueueRef.current.shift();
+      if (!nextUpload) {
+        return;
       }
 
-      await uploadSingleAttachment(attachment.localId, attachment.file);
+      activeUploadCountRef.current += 1;
+      void uploadSingleAttachment(nextUpload.localId, nextUpload.file).finally(() => {
+        activeUploadCountRef.current -= 1;
+        startNextAttachmentUploads();
+      });
     }
   }
 
@@ -151,7 +172,8 @@ export function Composer({ placement = "bottom" }: ComposerProps) {
       return;
     }
 
-    void uploadSingleAttachment(localId, attachment.file);
+    setAttachments((currentAttachments) => updateAttachmentStatus(currentAttachments, localId, { status: "pending", error: undefined }));
+    enqueueAttachmentUploads([{ localId, file: attachment.file }]);
   }
 
   async function handleSend() {
