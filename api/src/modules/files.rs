@@ -133,7 +133,12 @@ impl FilesService {
             .filter(|value| !value.is_empty())
             .map(str::to_string)
             .unwrap_or_else(|| guess_mime_type(&name));
-        let object_key = format!("uploads/{}/{id}/{name}", now.format("%Y/%m/%d"));
+        let object_key = build_object_key(
+            storage.upload_prefix(),
+            &now.format("%Y/%m/%d").to_string(),
+            &id,
+            &name,
+        );
         let url = storage.public_url(&object_key);
         let size_bytes = i64::try_from(payload.size).map_err(|_| {
             HttpError::new(
@@ -240,6 +245,13 @@ impl StorageBackend {
         match self {
             StorageBackend::S3 { config, .. } => config.max_file_size_bytes,
             StorageBackend::Oss { config } => config.max_file_size_bytes,
+        }
+    }
+
+    fn upload_prefix(&self) -> &str {
+        match self {
+            StorageBackend::S3 { config, .. } => &config.upload_prefix,
+            StorageBackend::Oss { config } => &config.upload_prefix,
         }
     }
 
@@ -558,6 +570,10 @@ fn sanitize_file_name(value: &str) -> String {
     }
 }
 
+fn build_object_key(upload_prefix: &str, date_path: &str, id: &str, name: &str) -> String {
+    format!("{upload_prefix}/{date_path}/{id}/{name}")
+}
+
 fn guess_mime_type(file_name: &str) -> String {
     mime_guess::from_path(file_name)
         .first_raw()
@@ -578,4 +594,23 @@ fn to_file_attachment_payload(item: files::Model) -> Result<FileAttachmentPayloa
 
 fn internal_error(error: sea_orm::DbErr) -> HttpError {
     HttpError::internal(format!("Database error: {error}"))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::build_object_key;
+
+    #[test]
+    fn build_object_key_uses_s3_upload_prefix() {
+        let object_key = build_object_key("s3-dev/uploads", "2026/06/04", "file-id", "note.txt");
+
+        assert_eq!(object_key, "s3-dev/uploads/2026/06/04/file-id/note.txt");
+    }
+
+    #[test]
+    fn build_object_key_uses_oss_upload_prefix() {
+        let object_key = build_object_key("oss-prod/uploads", "2026/06/04", "file-id", "note.txt");
+
+        assert_eq!(object_key, "oss-prod/uploads/2026/06/04/file-id/note.txt");
+    }
 }
