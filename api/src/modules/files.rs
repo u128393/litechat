@@ -1,4 +1,4 @@
-use std::{collections::BTreeMap, sync::Arc, time::Duration};
+use std::{collections::BTreeMap, env, sync::Arc, time::Duration};
 
 use aws_config::BehaviorVersion;
 use aws_credential_types::Credentials;
@@ -8,14 +8,14 @@ use axum::{
     extract::{Path, State},
     http::StatusCode,
 };
-use base64::{Engine as _, engine::general_purpose};
 use chrono::Utc;
 use hmac::{Hmac, Mac};
-use percent_encoding::{AsciiSet, CONTROLS, utf8_percent_encode};
 use sea_orm::{ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Set};
 use serde::{Deserialize, Serialize};
-use sha1::Sha1;
+use sha2::{Digest, Sha256};
 use tower_cookies::Cookies;
+use tracing::info;
+use url::Url;
 use uuid::Uuid;
 
 use crate::{
@@ -28,21 +28,6 @@ use crate::{
 const FILE_STATUS_PENDING: &str = "pending";
 const FILE_STATUS_READY: &str = "ready";
 const UPLOAD_PRESIGN_TTL_SECONDS: u64 = 15 * 60;
-const QUERY_ENCODE_SET: &AsciiSet = &CONTROLS
-    .add(b' ')
-    .add(b'"')
-    .add(b'#')
-    .add(b'%')
-    .add(b'&')
-    .add(b'+')
-    .add(b'<')
-    .add(b'>')
-    .add(b'?')
-    .add(b'[')
-    .add(b']')
-    .add(b'`')
-    .add(b'{')
-    .add(b'}');
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -263,7 +248,7 @@ impl StorageBackend {
             StorageBackend::S3 { config, .. } => {
                 format!("{}/{}", config.public_base_url, object_key)
             }
-            StorageBackend::Oss { config } => format!("{}/{}", config.public_base_url, object_key),
+            StorageBackend::Oss { config } => format!("{}/{}", config.public_endpoint, object_key),
         }
     }
 
@@ -344,17 +329,54 @@ fn create_oss_upload_request(
     object_key: &str,
     mime_type: &str,
 ) -> Result<UploadRequestPayload, HttpError> {
-    let expires = Utc::now().timestamp() + UPLOAD_PRESIGN_TTL_SECONDS as i64;
-    let canonical_resource = format!("/{}/{}", config.bucket, object_key);
-    let string_to_sign = format!("PUT\n\n{mime_type}\n{expires}\n{canonical_resource}");
-    let signature = sign_oss_request(&config.access_key_secret, &string_to_sign)?;
-    let encoded_access_key_id = percent_encode_query(&config.access_key_id);
-    let encoded_signature = percent_encode_query(&signature);
-    let encoded_object_key = percent_encode_object_key(object_key);
-    let url = format!(
-        "{}/{encoded_object_key}?OSSAccessKeyId={encoded_access_key_id}&Expires={expires}&Signature={encoded_signature}",
-        config.endpoint
+    let now = Utc::now();
+    let date = now.format("%Y%m%d").to_string();
+    let date_time = now.format("%Y%m%dT%H%M%SZ").to_string();
+    let credential_scope = format!("{date}/{}/oss/aliyun_v4_request", config.region);
+    let credential = format!("{}/{}", config.access_key_id, credential_scope);
+    let additional_headers = "host";
+    let host = oss_host(config)?;
+    let canonical_uri = build_oss_canonical_uri(config, object_key)?;
+    let expires = UPLOAD_PRESIGN_TTL_SECONDS.to_string();
+    let canonical_query =
+        build_oss_v4_canonical_query(additional_headers, &credential, &date_time, &expires);
+    let canonical_headers = format!("content-type:{mime_type}\nhost:{host}\n");
+    let canonical_request = format!(
+        "PUT\n{canonical_uri}\n{canonical_query}\n{canonical_headers}\n{additional_headers}\nUNSIGNED-PAYLOAD"
     );
+    let canonical_request_sha256 = hex_sha256(&canonical_request);
+    let string_to_sign = format!(
+        "OSS4-HMAC-SHA256\n{date_time}\n{credential_scope}\n{}",
+        canonical_request_sha256
+    );
+    let signature = sign_oss_v4_request(
+        &config.access_key_secret,
+        &date,
+        &config.region,
+        &string_to_sign,
+    )?;
+    log_oss_v4_signature_debug(OssV4SignatureDebugLog {
+        object_key,
+        host: &host,
+        credential: &credential,
+        additional_headers,
+        canonical_uri: &canonical_uri,
+        canonical_query: &canonical_query,
+        canonical_headers: &canonical_headers,
+        canonical_request: &canonical_request,
+        canonical_request_sha256: &canonical_request_sha256,
+        string_to_sign: &string_to_sign,
+        signature: &signature,
+    });
+    let url = build_oss_upload_url(
+        config,
+        object_key,
+        additional_headers,
+        &credential,
+        &date_time,
+        &expires,
+        &signature,
+    )?;
 
     Ok(UploadRequestPayload {
         method: "PUT".to_string(),
@@ -363,23 +385,155 @@ fn create_oss_upload_request(
     })
 }
 
-fn sign_oss_request(access_key_secret: &str, string_to_sign: &str) -> Result<String, HttpError> {
-    let mut mac = Hmac::<Sha1>::new_from_slice(access_key_secret.as_bytes())
+struct OssV4SignatureDebugLog<'a> {
+    object_key: &'a str,
+    host: &'a str,
+    credential: &'a str,
+    additional_headers: &'a str,
+    canonical_uri: &'a str,
+    canonical_query: &'a str,
+    canonical_headers: &'a str,
+    canonical_request: &'a str,
+    canonical_request_sha256: &'a str,
+    string_to_sign: &'a str,
+    signature: &'a str,
+}
+
+fn log_oss_v4_signature_debug(payload: OssV4SignatureDebugLog<'_>) {
+    if !oss_signature_debug_enabled() {
+        return;
+    }
+
+    info!(
+        target: "litechat::oss_signature",
+        object_key = payload.object_key,
+        host = payload.host,
+        credential = payload.credential,
+        additional_headers = payload.additional_headers,
+        canonical_uri = payload.canonical_uri,
+        canonical_query = payload.canonical_query,
+        canonical_headers = payload.canonical_headers,
+        canonical_request = payload.canonical_request,
+        canonical_request_sha256 = payload.canonical_request_sha256,
+        string_to_sign = payload.string_to_sign,
+        signature = payload.signature,
+        "OSS V4 upload signature debug"
+    );
+}
+
+fn oss_signature_debug_enabled() -> bool {
+    cfg!(debug_assertions)
+        || env::var("STORAGE_OSS_DEBUG_SIGNATURE")
+            .ok()
+            .map(|value| {
+                matches!(
+                    value.trim().to_ascii_lowercase().as_str(),
+                    "1" | "true" | "yes"
+                )
+            })
+            .unwrap_or(false)
+}
+
+fn sign_oss_v4_request(
+    access_key_secret: &str,
+    date: &str,
+    region: &str,
+    string_to_sign: &str,
+) -> Result<String, HttpError> {
+    let date_key = hmac_sha256(format!("aliyun_v4{access_key_secret}").as_bytes(), date)?;
+    let region_key = hmac_sha256(&date_key, region)?;
+    let service_key = hmac_sha256(&region_key, "oss")?;
+    let signing_key = hmac_sha256(&service_key, "aliyun_v4_request")?;
+    Ok(hex_encode(&hmac_sha256(&signing_key, string_to_sign)?))
+}
+
+fn hmac_sha256(key: &[u8], data: &str) -> Result<Vec<u8>, HttpError> {
+    let mut mac = Hmac::<Sha256>::new_from_slice(key)
         .map_err(|_| HttpError::internal("Failed to create upload request."))?;
-    mac.update(string_to_sign.as_bytes());
-    Ok(general_purpose::STANDARD.encode(mac.finalize().into_bytes()))
+    mac.update(data.as_bytes());
+    Ok(mac.finalize().into_bytes().to_vec())
 }
 
-fn percent_encode_query(value: &str) -> String {
-    utf8_percent_encode(value, QUERY_ENCODE_SET).to_string()
+fn hex_sha256(value: &str) -> String {
+    hex_encode(&Sha256::digest(value.as_bytes()))
 }
 
-fn percent_encode_object_key(value: &str) -> String {
-    value
-        .split('/')
-        .map(percent_encode_query)
-        .collect::<Vec<_>>()
-        .join("/")
+fn hex_encode(bytes: &[u8]) -> String {
+    bytes.iter().map(|byte| format!("{byte:02x}")).collect()
+}
+
+fn build_oss_v4_canonical_query(
+    additional_headers: &str,
+    credential: &str,
+    date_time: &str,
+    expires: &str,
+) -> String {
+    let mut query = vec![
+        ("x-oss-additional-headers", additional_headers),
+        ("x-oss-credential", credential),
+        ("x-oss-date", date_time),
+        ("x-oss-expires", expires),
+        ("x-oss-signature-version", "OSS4-HMAC-SHA256"),
+    ];
+    query.sort_by(|left, right| left.0.cmp(right.0));
+
+    let mut url = Url::parse("https://example.com/").expect("static URL is valid");
+    {
+        let mut pairs = url.query_pairs_mut();
+        for (key, value) in query {
+            pairs.append_pair(key, value);
+        }
+    }
+    url.query().unwrap_or_default().to_string()
+}
+
+fn build_oss_canonical_uri(
+    config: &OssStorageConfig,
+    object_key: &str,
+) -> Result<String, HttpError> {
+    let url = build_oss_object_url(
+        "https://example.com",
+        &format!("{}/{}", config.bucket, object_key),
+    )?;
+    Ok(url.path().to_string())
+}
+
+fn oss_host(config: &OssStorageConfig) -> Result<String, HttpError> {
+    Url::parse(&config.endpoint)
+        .map_err(|_| HttpError::internal("Failed to create upload request."))?
+        .host_str()
+        .map(str::to_string)
+        .ok_or_else(|| HttpError::internal("Failed to create upload request."))
+}
+
+fn build_oss_upload_url(
+    config: &OssStorageConfig,
+    object_key: &str,
+    additional_headers: &str,
+    credential: &str,
+    date_time: &str,
+    expires: &str,
+    signature: &str,
+) -> Result<String, HttpError> {
+    let mut url = build_oss_object_url(&config.endpoint, object_key)?;
+    url.query_pairs_mut()
+        .append_pair("x-oss-additional-headers", additional_headers)
+        .append_pair("x-oss-credential", credential)
+        .append_pair("x-oss-date", date_time)
+        .append_pair("x-oss-expires", expires)
+        .append_pair("x-oss-signature", signature)
+        .append_pair("x-oss-signature-version", "OSS4-HMAC-SHA256");
+    Ok(url.to_string())
+}
+
+fn build_oss_object_url(endpoint: &str, object_key: &str) -> Result<Url, HttpError> {
+    let mut url = Url::parse(endpoint)
+        .map_err(|_| HttpError::internal("Failed to create upload request."))?;
+    url.set_path("");
+    url.path_segments_mut()
+        .map_err(|_| HttpError::internal("Failed to create upload request."))?
+        .extend(object_key.split('/'));
+    Ok(url)
 }
 
 fn sanitize_file_name(value: &str) -> String {

@@ -284,13 +284,38 @@ async function uploadAttachment(file: File): Promise<ChatMessageAttachment> {
   }
 
   const intent = (await intentResponse.json()) as CreateUploadIntentResponse;
-  const uploadResponse = await fetch(intent.upload.url, {
-    method: intent.upload.method,
-    headers: intent.upload.headers,
-    body: file
-  });
+  let uploadResponse: Response;
+  try {
+    uploadResponse = await fetch(intent.upload.url, {
+      method: intent.upload.method,
+      headers: intent.upload.headers,
+      body: file
+    });
+  } catch (error) {
+    console.error("File upload request failed", {
+      error,
+      upload: toUploadLogPayload(intent.upload)
+    });
+    throw new Error("Unable to upload file.", { cause: error });
+  }
 
   if (!uploadResponse.ok) {
+    const body = await uploadResponse.text().catch((error) => {
+      console.error("File upload error response is not readable", {
+        error,
+        upload: toUploadLogPayload(intent.upload)
+      });
+      return "";
+    });
+
+    console.error("File upload failed", {
+      status: uploadResponse.status,
+      statusText: uploadResponse.statusText,
+      headers: Object.fromEntries(uploadResponse.headers.entries()),
+      body,
+      upload: toUploadLogPayload(intent.upload)
+    });
+
     throw new Error("Unable to upload file.");
   }
 
@@ -305,4 +330,22 @@ async function uploadAttachment(file: File): Promise<ChatMessageAttachment> {
 
   const complete = (await completeResponse.json()) as { file: ChatMessageAttachment };
   return complete.file;
+}
+
+function toUploadLogPayload(upload: CreateUploadIntentResponse["upload"]) {
+  return {
+    method: upload.method,
+    url: redactUploadUrl(upload.url),
+    headers: upload.headers
+  };
+}
+
+function redactUploadUrl(value: string) {
+  try {
+    const url = new URL(value);
+    url.search = url.searchParams.size > 0 ? "?REDACTED" : "";
+    return url.toString();
+  } catch {
+    return "[invalid upload url]";
+  }
 }
