@@ -907,7 +907,7 @@ function UserMessage({
     <div className="group flex min-w-0 max-w-full flex-col items-end gap-1.5">
       <div className="min-w-0 max-w-full rounded-xl bg-[var(--lc-user-bubble)] px-4 py-3">
         {message.attachments && message.attachments.length > 0 ? (
-          <div className="mb-3 flex flex-col gap-2">
+          <div className="mb-3 flex flex-wrap gap-2">
             {message.attachments.map((attachment) => (
               <MessageAttachmentCard key={attachment.id} attachment={attachment} />
             ))}
@@ -942,10 +942,10 @@ function MessageAttachmentCard({ attachment }: { attachment: ChatMessageAttachme
       href={attachment.url}
       target="_blank"
       rel="noreferrer"
-      className="flex min-w-0 items-center gap-3 rounded-lg bg-[var(--lc-bg-primary)] px-3 py-2 text-[13px] text-[var(--lc-text-secondary)] transition-colors hover:text-[var(--lc-text-primary)]"
+      className="flex min-w-0 max-w-full items-center gap-3 rounded-lg bg-[var(--lc-bg-primary)] px-3 py-2 text-[13px] text-[var(--lc-text-secondary)] transition-colors hover:text-[var(--lc-text-primary)] sm:max-w-[240px]"
     >
       <FileText className="size-4 shrink-0" />
-      <span className="min-w-0 flex-1 truncate">{attachment.name}</span>
+      <span className="min-w-0 flex-1 truncate" title={attachment.name}>{attachment.name}</span>
       <span className="shrink-0 text-[12px] text-[var(--lc-text-tertiary)]">{formatFileSize(attachment.size)}</span>
     </a>
   );

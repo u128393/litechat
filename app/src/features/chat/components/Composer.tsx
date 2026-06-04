@@ -315,38 +315,21 @@ function AttachmentChip({
   onRemove: () => void;
 }) {
   const isFailed = attachment.status === "failed";
-  const errorTooltipId = `${attachment.localId}-upload-error`;
   const statusLabel = getAttachmentStatusLabel(attachment, messages);
-  const hasSpecificError = isFailed && Boolean(attachment.error) && attachment.error !== messages.fileUploadFailed;
+  const statusTitle = isFailed ? attachment.error : undefined;
 
   return (
     <div
       className={cn(
-        "group relative flex max-w-full items-center gap-2 rounded-full bg-[var(--lc-bg-primary)] px-3 py-1.5 text-[13px] text-[var(--lc-text-secondary)] outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[var(--lc-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--lc-bg-tertiary)]",
+        "flex max-w-full items-center gap-2 rounded-full bg-[var(--lc-bg-primary)] px-3 py-1.5 text-[13px] text-[var(--lc-text-secondary)] outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[var(--lc-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--lc-bg-tertiary)]",
         isFailed && "bg-[#FEF2F2] text-[#991B1B] dark:bg-[#450A0A] dark:text-[#FCA5A5]"
       )}
-      tabIndex={isFailed ? 0 : undefined}
-      aria-describedby={hasSpecificError ? errorTooltipId : undefined}
     >
       <FileText className="size-4 shrink-0" />
-      <span className="min-w-0 truncate">{attachment.name}</span>
-      <span className={cn("shrink-0 text-[12px] text-[var(--lc-text-tertiary)]", isFailed && "text-[#B91C1C] dark:text-[#FCA5A5]")}>{statusLabel}</span>
+      <span className="min-w-0 truncate" title={attachment.name}>{attachment.name}</span>
+      <span className={cn("shrink-0 text-[12px] text-[var(--lc-text-tertiary)]", isFailed && "text-[#B91C1C] dark:text-[#FCA5A5]")} title={statusTitle}>{statusLabel}</span>
 
       {attachment.status === "uploading" ? <LoaderCircle className="size-3.5 shrink-0 animate-spin text-[var(--lc-text-tertiary)]" /> : null}
-
-      {isFailed ? (
-        <>
-          {hasSpecificError ? (
-            <span
-              id={errorTooltipId}
-              role="tooltip"
-              className="pointer-events-none absolute bottom-full left-3 z-20 mb-2 hidden max-w-[280px] rounded-md bg-[#111111] px-2 py-1 text-[12px] leading-4 whitespace-normal text-white shadow-lg group-hover:block group-focus:block group-focus-within:block dark:bg-white dark:text-[#111111]"
-            >
-              {attachment.error}
-            </span>
-          ) : null}
-        </>
-      ) : null}
 
       {attachment.status === "uploaded" ? (
         <button
