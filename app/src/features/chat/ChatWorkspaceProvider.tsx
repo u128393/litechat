@@ -702,7 +702,9 @@ export function ChatWorkspaceProvider({ userId, children }: { userId: string; ch
     clearChatErrorForConversation(retryState.conversation.id);
 
     try {
+      await restoreRetryMessageHistory(retryState);
       await loadConversationState(retryState.conversation.id);
+      updateActiveConversationMessages(retryState.conversation.id, retryState.messageHistory);
       requestTimelineScrollToBottom();
       await continueAssistantResponse({
         assistantMessageId: crypto.randomUUID(),
@@ -717,6 +719,16 @@ export function ChatWorkspaceProvider({ userId, children }: { userId: string; ch
         message: i18nMessages.chat.errorUnknown,
         canRetry: true
       });
+    }
+  }
+
+  async function restoreRetryMessageHistory(retryState: ChatRetryState) {
+    const historyMessageIds = new Set(retryState.messageHistory.map((message) => message.id));
+    const storedMessages = await conversationStore.listMessages(retryState.conversation.id);
+    const staleMessages = storedMessages.filter((message) => !historyMessageIds.has(message.id));
+
+    if (staleMessages.length > 0) {
+      await Promise.all(staleMessages.map((message) => conversationStore.deleteMessage(message.id)));
     }
   }
 
@@ -958,11 +970,9 @@ export function ChatWorkspaceProvider({ userId, children }: { userId: string; ch
         return;
       }
 
-      if (streamResult.assistantMessage) {
-        await persistFinalAssistantMessage(updatedConversation, streamResult.assistantMessage);
-      }
-
       if (streamResult.status === "success") {
+        await persistFinalAssistantMessage(updatedConversation, streamResult.assistantMessage);
+
         if (shouldGenerateConversationTitle(messageHistory)) {
           void generateAndPersistConversationTitle({
             conversationId: conversation.id,
@@ -976,6 +986,10 @@ export function ChatWorkspaceProvider({ userId, children }: { userId: string; ch
       }
 
       if (streamResult.status === "aborted") {
+        if (streamResult.assistantMessage) {
+          await conversationStore.deleteMessage(streamResult.assistantMessage.id);
+        }
+
         setChatErrorForConversation(conversation.id, {
           code: "aborted",
           message: i18nMessages.chat.stopped,
@@ -991,6 +1005,10 @@ export function ChatWorkspaceProvider({ userId, children }: { userId: string; ch
           canRetry: true
         });
         return;
+      }
+
+      if (streamResult.assistantMessage) {
+        await conversationStore.deleteMessage(streamResult.assistantMessage.id);
       }
 
       setChatErrorForConversation(conversation.id, resolveChatFailure(streamResult.error, i18nMessages.chat));
@@ -1499,24 +1517,12 @@ async function streamAssistantMessage({
     const assistantMessage = finalizeAssistantMessage(initialAssistantMessage, content);
 
     if (isAbortError(error)) {
-      if (!assistantMessage) {
-        setMessages((currentMessages) => currentMessages.filter((message) => message.id !== assistantMessageId));
-      } else {
-        setMessages((currentMessages) =>
-          currentMessages.map((message) => (message.id === assistantMessageId ? assistantMessage : message))
-        );
-      }
+      setMessages((currentMessages) => currentMessages.filter((message) => message.id !== assistantMessageId));
 
       return { status: "aborted", assistantMessage };
     }
 
-    if (!assistantMessage) {
-      setMessages((currentMessages) => currentMessages.filter((message) => message.id !== assistantMessageId));
-    } else {
-      setMessages((currentMessages) =>
-        currentMessages.map((message) => (message.id === assistantMessageId ? assistantMessage : message))
-      );
-    }
+    setMessages((currentMessages) => currentMessages.filter((message) => message.id !== assistantMessageId));
 
     return { status: "failed", assistantMessage, error };
   } finally {
