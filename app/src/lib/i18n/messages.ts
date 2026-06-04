@@ -127,6 +127,7 @@ export type AppMessages = {
     composerNoModel: string;
     stop: string;
     retry: string;
+    regenerateMessage: string;
     clearError: string;
     copyMessage: string;
     copyCode: string;
@@ -292,11 +293,12 @@ export const messagesByLocale: Record<AppLocale, AppMessages> = {
       composerNoModel: "Select a model to start chatting.",
       stop: "Stop",
       retry: "Retry",
+      regenerateMessage: "Regenerate",
       clearError: "Clear error",
       copyMessage: "Copy message",
       copyCode: "Copy code",
       editMessage: "Edit message",
-      branchMessage: "New branch from here",
+      branchMessage: "New branch",
       branchTitlePrefix: "Branch · ",
       branchDividerStart: "Branch from ",
       branchDividerEnd: "",
@@ -455,11 +457,12 @@ export const messagesByLocale: Record<AppLocale, AppMessages> = {
       composerNoModel: "请选择一个模型后再开始聊天。",
       stop: "停止",
       retry: "重试",
+      regenerateMessage: "重新生成",
       clearError: "清除错误",
       copyMessage: "复制消息",
       copyCode: "复制代码",
       editMessage: "编辑消息",
-      branchMessage: "从这里新建分支",
+      branchMessage: "新建分支",
       branchTitlePrefix: "分支 · ",
       branchDividerStart: "从 ",
       branchDividerEnd: " 建立的分支",

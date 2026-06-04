@@ -63,6 +63,7 @@ export type ChatWorkspaceContextValue = {
   stopMessage(): void;
   retryMessage(): Promise<void>;
   regenerateMessage(messageId: string): Promise<void>;
+  regenerateFromUserMessage(messageId: string): Promise<void>;
   editUserMessage(messageId: string, nextContent: string): Promise<void>;
   openConversationBranch(messageId: string): Promise<void>;
   clearChatError(): void;

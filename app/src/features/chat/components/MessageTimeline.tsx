@@ -79,6 +79,7 @@ export function MessageTimeline({ composerOverlayHeight = 0 }: { composerOverlay
     isSendingMessage,
     timelineScrollRequestToken,
     regenerateMessage,
+    regenerateFromUserMessage,
     editUserMessage,
     openConversationBranch,
   } = useChatWorkspace();
@@ -530,6 +531,9 @@ export function MessageTimeline({ composerOverlayHeight = 0 }: { composerOverlay
                   disabled={isSendingMessage || isBranchPrefixMessage}
                   onCopy={() => setEditingMessageId(null)}
                   onEdit={() => setEditingMessageId(message.id)}
+                  onRegenerate={() => {
+                    void regenerateFromUserMessage(message.id);
+                  }}
                   onCancelEdit={() => setEditingMessageId(null)}
                   onSubmitEdit={async (nextContent) => {
                     setEditingMessageId(null);
@@ -568,6 +572,8 @@ export function MessageTimeline({ composerOverlayHeight = 0 }: { composerOverlay
                       type="button"
                       className="flex size-8 items-center justify-center rounded-[6px] text-[var(--lc-text-tertiary)] transition-colors hover:bg-[var(--lc-bg-tertiary)]"
                       disabled={isSendingMessage || isBranchPrefixMessage}
+                      aria-label={i18nMessages.chat.regenerateMessage}
+                      title={i18nMessages.chat.regenerateMessage}
                       onClick={() => {
                         void regenerateMessage(message.id);
                       }}
@@ -846,6 +852,7 @@ function UserMessage({
   disabled,
   onCopy,
   onEdit,
+  onRegenerate,
   onCancelEdit,
   onSubmitEdit,
 }: {
@@ -854,6 +861,7 @@ function UserMessage({
   disabled: boolean;
   onCopy: () => void;
   onEdit: () => void;
+  onRegenerate: () => void;
   onCancelEdit: () => void;
   onSubmitEdit: (nextContent: string) => Promise<void>;
 }) {
@@ -966,6 +974,16 @@ function UserMessage({
       </div>
       <div className="flex gap-1 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
         <CopyButton text={message.content} onCopied={onCopy} label={messages.chat.copyMessage} />
+        <button
+          type="button"
+          className="flex size-8 items-center justify-center rounded-[6px] text-[var(--lc-text-tertiary)] transition-colors hover:bg-[var(--lc-bg-tertiary)] hover:text-[var(--lc-text-primary)] disabled:cursor-not-allowed disabled:opacity-40"
+          disabled={disabled}
+          aria-label={messages.chat.regenerateMessage}
+          title={messages.chat.regenerateMessage}
+          onClick={onRegenerate}
+        >
+          <RefreshCw className="size-4" />
+        </button>
         <button
           type="button"
           className="flex size-8 items-center justify-center rounded-[6px] text-[var(--lc-text-tertiary)] transition-colors hover:bg-[var(--lc-bg-tertiary)] hover:text-[var(--lc-text-primary)] disabled:cursor-not-allowed disabled:opacity-40"
