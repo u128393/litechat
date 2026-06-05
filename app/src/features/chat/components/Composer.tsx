@@ -34,9 +34,7 @@ type UploadAttachmentErrorCode =
   | "disabled"
   | "unauthorized"
   | "storage_network_failed"
-  | "storage_rejected"
-  | "complete_failed"
-  | "file_not_found";
+  | "storage_rejected";
 
 class UploadAttachmentError extends Error {
   readonly code: UploadAttachmentErrorCode;
@@ -446,10 +444,6 @@ function getUploadAttachmentErrorMessage(
       return messages.fileUploadStorageNetworkFailed;
     case "storage_rejected":
       return messages.fileUploadStorageRejected;
-    case "complete_failed":
-      return messages.fileUploadCompleteFailed;
-    case "file_not_found":
-      return messages.fileUploadFileNotFound;
     case "create_failed":
       return messages.fileUploadPrepareFailed;
   }
@@ -507,17 +501,7 @@ async function uploadAttachment(file: File): Promise<ChatMessageAttachment> {
     throw new UploadAttachmentError("storage_rejected");
   }
 
-  const completeResponse = await fetch(`/api/files/${encodeURIComponent(intent.file.id)}/complete`, {
-    method: "POST",
-    credentials: "same-origin"
-  });
-
-  if (!completeResponse.ok) {
-    throw await createCompleteUploadError(completeResponse);
-  }
-
-  const complete = (await completeResponse.json()) as { file: ChatMessageAttachment };
-  return complete.file;
+  return intent.file;
 }
 
 async function createUploadIntentError(response: Response) {
@@ -532,18 +516,6 @@ async function createUploadIntentError(response: Response) {
   }
 
   return new UploadAttachmentError("create_failed");
-}
-
-async function createCompleteUploadError(response: Response) {
-  if (response.status === 401 || response.status === 403) {
-    return new UploadAttachmentError("unauthorized");
-  }
-
-  if (response.status === 404) {
-    return new UploadAttachmentError("file_not_found");
-  }
-
-  return new UploadAttachmentError("complete_failed");
 }
 
 async function readApiErrorPayload(response: Response): Promise<{ code?: string } | null> {

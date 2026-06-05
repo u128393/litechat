@@ -3,14 +3,9 @@ use std::{collections::BTreeMap, env, sync::Arc, time::Duration};
 use aws_config::BehaviorVersion;
 use aws_credential_types::Credentials;
 use aws_sdk_s3::{Client as S3Client, config::Region, presigning::PresigningConfig};
-use axum::{
-    Json,
-    extract::{Path, State},
-    http::StatusCode,
-};
+use axum::{Json, extract::State, http::StatusCode};
 use chrono::Utc;
 use hmac::{Hmac, Mac};
-use sea_orm::{ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Set};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use tower_cookies::Cookies;
@@ -21,12 +16,9 @@ use uuid::Uuid;
 use crate::{
     app_state::AppState,
     config::{AppConfig, OssStorageConfig, S3StorageConfig, StorageConfig},
-    db::entities::files,
     http_error::HttpError,
 };
 
-const FILE_STATUS_PENDING: &str = "pending";
-const FILE_STATUS_READY: &str = "ready";
 const UPLOAD_PRESIGN_TTL_SECONDS: u64 = 15 * 60;
 
 #[derive(Debug, Deserialize)]
@@ -69,12 +61,6 @@ pub struct CreateUploadIntentResponse {
     pub upload: UploadRequestPayload,
 }
 
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct CompleteUploadResponse {
-    pub file: FileAttachmentPayload,
-}
-
 #[derive(Clone)]
 enum StorageBackend {
     S3 {
@@ -88,14 +74,13 @@ enum StorageBackend {
 
 #[derive(Clone)]
 pub struct FilesService {
-    database: DatabaseConnection,
     storage: Option<StorageBackend>,
 }
 
 impl FilesService {
-    pub fn new(database: DatabaseConnection, config: Arc<AppConfig>) -> Self {
+    pub fn new(config: Arc<AppConfig>) -> Self {
         let storage = config.storage.as_ref().map(build_storage_backend);
-        Self { database, storage }
+        Self { storage }
     }
 
     pub fn capabilities(&self) -> FileCapabilitiesResponse {
@@ -110,7 +95,6 @@ impl FilesService {
 
     pub async fn create_upload_intent(
         &self,
-        user_id: &str,
         payload: CreateUploadIntentRequest,
     ) -> Result<CreateUploadIntentResponse, HttpError> {
         let storage = self.storage_backend()?;
@@ -148,52 +132,19 @@ impl FilesService {
             )
         })?;
 
-        let item = files::ActiveModel {
-            id: Set(id),
-            user_id: Set(user_id.to_string()),
-            object_key: Set(object_key.clone()),
-            name: Set(name),
-            mime_type: Set(mime_type.clone()),
-            size_bytes: Set(size_bytes),
-            url: Set(url),
-            status: Set(FILE_STATUS_PENDING.to_string()),
-            created_at: Set(now),
-            updated_at: Set(now),
-        }
-        .insert(&self.database)
-        .await
-        .map_err(internal_error)?;
-
         let upload = storage
             .create_upload_request(&object_key, &mime_type, size_bytes)
             .await?;
 
         Ok(CreateUploadIntentResponse {
-            file: to_file_attachment_payload(item)?,
+            file: FileAttachmentPayload {
+                id,
+                name,
+                mime_type,
+                size: payload.size,
+                url,
+            },
             upload,
-        })
-    }
-
-    pub async fn complete_upload(
-        &self,
-        user_id: &str,
-        file_id: String,
-    ) -> Result<CompleteUploadResponse, HttpError> {
-        let item = files::Entity::find_by_id(file_id)
-            .filter(files::Column::UserId.eq(user_id.to_string()))
-            .one(&self.database)
-            .await
-            .map_err(internal_error)?
-            .ok_or_else(|| HttpError::new(StatusCode::NOT_FOUND, "File not found.", None))?;
-
-        let mut model: files::ActiveModel = item.into();
-        model.status = Set(FILE_STATUS_READY.to_string());
-        model.updated_at = Set(Utc::now());
-
-        Ok(CompleteUploadResponse {
-            file: to_file_attachment_payload(
-                model.update(&self.database).await.map_err(internal_error)?,
-            )?,
         })
     }
 
@@ -217,26 +168,9 @@ pub async fn create_upload_intent(
     cookies: Cookies,
     Json(payload): Json<CreateUploadIntentRequest>,
 ) -> Result<Json<CreateUploadIntentResponse>, HttpError> {
-    let user = state.auth_service.require_current_user(&cookies).await?;
+    state.auth_service.require_current_user(&cookies).await?;
     Ok(Json(
-        state
-            .files_service
-            .create_upload_intent(&user.user_id, payload)
-            .await?,
-    ))
-}
-
-pub async fn complete_upload(
-    State(state): State<AppState>,
-    cookies: Cookies,
-    Path(file_id): Path<String>,
-) -> Result<Json<CompleteUploadResponse>, HttpError> {
-    let user = state.auth_service.require_current_user(&cookies).await?;
-    Ok(Json(
-        state
-            .files_service
-            .complete_upload(&user.user_id, file_id)
-            .await?,
+        state.files_service.create_upload_intent(payload).await?,
     ))
 }
 
@@ -579,21 +513,6 @@ fn guess_mime_type(file_name: &str) -> String {
         .first_raw()
         .unwrap_or("application/octet-stream")
         .to_string()
-}
-
-fn to_file_attachment_payload(item: files::Model) -> Result<FileAttachmentPayload, HttpError> {
-    Ok(FileAttachmentPayload {
-        id: item.id,
-        name: item.name,
-        mime_type: item.mime_type,
-        size: u64::try_from(item.size_bytes)
-            .map_err(|_| HttpError::internal("Invalid file size."))?,
-        url: item.url,
-    })
-}
-
-fn internal_error(error: sea_orm::DbErr) -> HttpError {
-    HttpError::internal(format!("Database error: {error}"))
 }
 
 #[cfg(test)]

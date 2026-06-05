@@ -162,8 +162,6 @@ export type AppMessages = {
     fileUploadUnauthorized: string;
     fileUploadStorageNetworkFailed: string;
     fileUploadStorageRejected: string;
-    fileUploadCompleteFailed: string;
-    fileUploadFileNotFound: string;
     fileTooLarge: string;
   };
   admin: AdminMessages;
@@ -328,8 +326,6 @@ export const messagesByLocale: Record<AppLocale, AppMessages> = {
       fileUploadUnauthorized: "Your session has expired. Sign in again before uploading files.",
       fileUploadStorageNetworkFailed: "Could not connect to file storage. Check your network and try again.",
       fileUploadStorageRejected: "File storage rejected the upload. Try again in a moment.",
-      fileUploadCompleteFailed: "The file was uploaded, but the attachment could not be saved. Try again.",
-      fileUploadFileNotFound: "The uploaded file record could not be found. Remove it and upload again.",
       fileTooLarge: "This file is too large to upload."
     },
     admin: adminMessagesByLocale.en
@@ -492,8 +488,6 @@ export const messagesByLocale: Record<AppLocale, AppMessages> = {
       fileUploadUnauthorized: "登录状态已失效，请重新登录后再上传文件。",
       fileUploadStorageNetworkFailed: "无法连接到文件存储，请检查网络后重试。",
       fileUploadStorageRejected: "文件存储拒绝了上传，请稍后重试。",
-      fileUploadCompleteFailed: "文件已上传，但附件状态保存失败，请重试。",
-      fileUploadFileNotFound: "找不到已上传的文件记录，请移除后重新上传。",
       fileTooLarge: "文件过大，无法上传。"
     },
     admin: adminMessagesByLocale["zh-CN"]

@@ -1533,7 +1533,7 @@ async function streamAssistantMessage({
       messages: messageHistory.map((message) => ({
         role: message.role,
         content: message.content,
-        attachments: message.attachments?.map((attachment) => ({ id: attachment.id })) ?? []
+        attachments: message.attachments ?? []
       }))
     })
   });

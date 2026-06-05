@@ -20,10 +20,6 @@ pub fn create_router(state: AppState) -> Router {
             "/api/files/upload-intent",
             post(files::create_upload_intent),
         )
-        .route(
-            "/api/files/{file_id}/complete",
-            post(files::complete_upload),
-        )
         .route("/api/chat", post(chat::chat))
         .route("/api/chat/title", post(chat::chat_title))
         .route(

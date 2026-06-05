@@ -29,7 +29,7 @@ impl AppState {
         let providers_service = ProvidersService::new(database.clone(), config.clone());
         let models_service = ModelsService::new(database.clone());
         let settings_service = SettingsService::new(database.clone());
-        let files_service = FilesService::new(database.clone(), config.clone());
+        let files_service = FilesService::new(config.clone());
         let chat_service = ChatService::new(database, config.clone());
 
         Self {
