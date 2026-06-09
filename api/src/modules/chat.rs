@@ -165,7 +165,7 @@ impl ChatService {
             .status(StatusCode::OK)
             .header(header::CACHE_CONTROL, "no-store")
             .header("X-Accel-Buffering", "no")
-            .header(header::CONTENT_TYPE, "application/x-ndjson; charset=utf-8")
+            .header(header::CONTENT_TYPE, "text/event-stream; charset=utf-8")
             .body(Body::from_stream(stream))
             .map_err(|_| {
                 HttpError::new(
@@ -512,8 +512,7 @@ fn build_responses_request(
     }
 }
 
-#[derive(Debug, Serialize)]
-#[serde(tag = "type", rename_all = "snake_case", rename_all_fields = "camelCase")]
+#[derive(Debug)]
 enum ChatStreamEvent {
     PartAdded { part: ChatStreamPart },
     TextDelta { part_id: String, delta: String },
@@ -582,7 +581,7 @@ fn build_chat_response_stream(
                         if next.iter().any(|event| matches!(event, ChatStreamEvent::Done)) {
                             state.finished = true;
                         }
-                        state.pending.extend(next.into_iter().map(|event| to_ndjson_bytes(&event)));
+                        state.pending.extend(next.into_iter().map(|event| to_sse_bytes(&event)));
                     }
 
                     if !state.pending.is_empty() {
@@ -590,10 +589,10 @@ fn build_chat_response_stream(
                     }
 
                     for event in state.mapper.finish_unresolved_images() {
-                        state.pending.push_back(to_ndjson_bytes(&event));
+                        state.pending.push_back(to_sse_bytes(&event));
                     }
 
-                    state.pending.push_back(to_ndjson_bytes(&ChatStreamEvent::Done));
+                    state.pending.push_back(to_sse_bytes(&ChatStreamEvent::Done));
                     state.finished = true;
                     continue;
                 };
@@ -601,7 +600,7 @@ fn build_chat_response_stream(
                 let chunk = match chunk {
                     Ok(bytes) => bytes,
                     Err(error) => {
-                        state.pending.push_back(to_ndjson_bytes(&ChatStreamEvent::Error {
+                        state.pending.push_back(to_sse_bytes(&ChatStreamEvent::Error {
                             code: "upstream_stream_failed".to_string(),
                             message: error.to_string(),
                         }));
@@ -616,7 +615,7 @@ fn build_chat_response_stream(
                     if next.iter().any(|event| matches!(event, ChatStreamEvent::Done)) {
                         state.finished = true;
                     }
-                    state.pending.extend(next.into_iter().map(|event| to_ndjson_bytes(&event)));
+                    state.pending.extend(next.into_iter().map(|event| to_sse_bytes(&event)));
                 }
             }
         },
@@ -875,10 +874,38 @@ fn create_part_id() -> String {
     format!("part-{}", Uuid::new_v4())
 }
 
-fn to_ndjson_bytes(event: &ChatStreamEvent) -> Result<Bytes, std::io::Error> {
-    serde_json::to_string(event)
-        .map(|line| Bytes::from(format!("{line}\n")))
-        .map_err(std::io::Error::other)
+fn to_sse_bytes(event: &ChatStreamEvent) -> Result<Bytes, std::io::Error> {
+    let (event_name, data) = match event {
+        ChatStreamEvent::PartAdded { part } => ("part_added", serde_json::json!({ "part": part })),
+        ChatStreamEvent::TextDelta { part_id, delta } => (
+            "text_delta",
+            serde_json::json!({ "partId": part_id, "delta": delta }),
+        ),
+        ChatStreamEvent::ImageCompleted { part_id, image, revised_prompt } => (
+            "image_completed",
+            serde_json::json!({ "partId": part_id, "image": image, "revisedPrompt": revised_prompt }),
+        ),
+        ChatStreamEvent::ImageFailed { part_id, message } => (
+            "image_failed",
+            serde_json::json!({ "partId": part_id, "message": message }),
+        ),
+        ChatStreamEvent::Done => ("done", serde_json::json!({})),
+        ChatStreamEvent::Error { code, message } => (
+            "error",
+            serde_json::json!({ "code": code, "message": message }),
+        ),
+    };
+    let json = serde_json::to_string(&data).map_err(std::io::Error::other)?;
+    let mut output = format!("event: {event_name}\n");
+
+    for line in json.lines() {
+        output.push_str("data: ");
+        output.push_str(line);
+        output.push('\n');
+    }
+    output.push('\n');
+
+    Ok(Bytes::from(output))
 }
 
 fn build_responses_url(base_url: Option<&str>) -> String {

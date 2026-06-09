@@ -1589,7 +1589,7 @@ async function streamAssistantMessage({
       }
 
       buffer += decoder.decode(value, { stream: true });
-      const result = parseNdjsonEvents(buffer);
+      const result = parseSseEvents(buffer);
       buffer = result.remainder;
 
       for (const event of result.events) {
@@ -1598,7 +1598,7 @@ async function streamAssistantMessage({
     }
 
     buffer += decoder.decode();
-    const result = parseNdjsonEvents(`${buffer}\n`);
+    const result = parseSseEvents(`${buffer}\n\n`);
     buffer = result.remainder;
 
     for (const event of result.events) {
@@ -1688,38 +1688,71 @@ type ChatStreamPart =
   | { id: string; type: "text"; text: string }
   | { id: string; type: "image"; status: "generating" };
 
-function parseNdjsonEvents(buffer: string) {
-  const lines = buffer.split("\n");
-  const remainder = lines.pop() ?? "";
+function parseSseEvents(buffer: string) {
+  const normalizedBuffer = buffer.replace(/\r\n/g, "\n");
+  const frames = normalizedBuffer.split("\n\n");
+  const remainder = frames.pop() ?? "";
   const events: ChatStreamEvent[] = [];
 
-  for (const line of lines) {
-    const trimmedLine = line.trim();
-    if (trimmedLine === "") {
+  for (const frame of frames) {
+    const event = parseSseFrame(frame);
+
+    if (!event) {
       continue;
     }
 
-    const parsed = normalizeChatStreamEvent(JSON.parse(trimmedLine)) as ChatStreamEvent;
-    events.push(parsed);
+    events.push(event);
   }
 
   return { events, remainder };
 }
 
-function normalizeChatStreamEvent(value: unknown): unknown {
-  if (!value || typeof value !== "object") {
-    return value;
+function parseSseFrame(frame: string): ChatStreamEvent | null {
+  let eventName = "";
+  const dataLines: string[] = [];
+
+  for (const line of frame.split("\n")) {
+    if (line === "" || line.startsWith(":")) {
+      continue;
+    }
+
+    if (line.startsWith("event:")) {
+      eventName = line.slice("event:".length).trimStart();
+      continue;
+    }
+
+    if (line.startsWith("data:")) {
+      dataLines.push(line.slice("data:".length).trimStart());
+    }
   }
 
-  const event = value as Record<string, unknown>;
-  if (typeof event.part_id === "string" && typeof event.partId !== "string") {
-    event.partId = event.part_id;
-  }
-  if (typeof event.revised_prompt === "string" && typeof event.revisedPrompt !== "string") {
-    event.revisedPrompt = event.revised_prompt;
+  if (eventName === "") {
+    return null;
   }
 
-  return event;
+  const data = dataLines.length > 0 ? JSON.parse(dataLines.join("\n")) as Record<string, unknown> : {};
+
+  switch (eventName) {
+    case "part_added":
+      return { type: eventName, part: data.part as ChatStreamPart };
+    case "text_delta":
+      return { type: eventName, partId: data.partId as string, delta: data.delta as string };
+    case "image_completed":
+      return {
+        type: eventName,
+        partId: data.partId as string,
+        image: data.image as ChatMessageAttachment,
+        revisedPrompt: data.revisedPrompt as string | null | undefined
+      };
+    case "image_failed":
+      return { type: eventName, partId: data.partId as string, message: data.message as string | undefined };
+    case "done":
+      return { type: eventName };
+    case "error":
+      return { type: eventName, code: data.code as string | undefined, message: data.message as string | undefined };
+    default:
+      return null;
+  }
 }
 
 function applyChatStreamEvent(message: ChatMessageRecord, event: ChatStreamEvent): ChatMessageRecord {
