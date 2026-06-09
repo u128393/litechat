@@ -17,6 +17,7 @@ export type AdminMessages = {
   listSortOrderPrefix: string;
   defaultValue: string;
   webSearchShortLabel: string;
+  imageGenerationShortLabel: string;
   actionsLabel: string;
   users: {
     newAction: string;
@@ -109,6 +110,7 @@ export type AdminMessages = {
     displayNameLabel: string;
     visibleLabel: string;
     supportsWebSearchLabel: string;
+    supportsImageGenerationLabel: string;
     dragHandleLabel: string;
     successCreate: string;
     successUpdate: string;
@@ -143,6 +145,7 @@ export const adminMessagesByLocale: Record<AppLocale, AdminMessages> = {
     listSortOrderPrefix: "sort",
     defaultValue: "Default",
     webSearchShortLabel: "Web",
+    imageGenerationShortLabel: "Image",
     actionsLabel: "Actions",
     users: {
       newAction: "New user",
@@ -236,6 +239,7 @@ export const adminMessagesByLocale: Record<AppLocale, AdminMessages> = {
       displayNameLabel: "Display name",
       visibleLabel: "Visible",
       supportsWebSearchLabel: "Supports web search",
+      supportsImageGenerationLabel: "Supports image generation",
       dragHandleLabel: "Reorder model",
       successCreate: "Model created.",
       successUpdate: "Model updated.",
@@ -268,6 +272,7 @@ export const adminMessagesByLocale: Record<AppLocale, AdminMessages> = {
     listSortOrderPrefix: "排序",
     defaultValue: "默认",
     webSearchShortLabel: "联网",
+    imageGenerationShortLabel: "图片",
     actionsLabel: "操作",
     users: {
       newAction: "新建用户",
@@ -360,6 +365,7 @@ export const adminMessagesByLocale: Record<AppLocale, AdminMessages> = {
       displayNameLabel: "显示名称",
       visibleLabel: "可见",
       supportsWebSearchLabel: "支持网页搜索",
+      supportsImageGenerationLabel: "支持图片生成",
       dragHandleLabel: "调整模型顺序",
       successCreate: "模型已创建。",
       successUpdate: "模型已更新。",

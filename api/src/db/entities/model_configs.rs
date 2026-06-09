@@ -11,6 +11,7 @@ pub struct Model {
     pub display_name: String,
     pub visible: bool,
     pub supports_web_search: bool,
+    pub supports_image_generation: bool,
     pub sort_order: i32,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,

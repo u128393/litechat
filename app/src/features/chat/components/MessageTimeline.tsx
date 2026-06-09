@@ -547,9 +547,11 @@ export function MessageTimeline({ composerOverlayHeight = 0 }: { composerOverlay
             );
           }
 
+          const hasRenderableParts = message.parts && message.parts.length > 0;
+
           return (
             <div id={getMessageAnchorId(message.id)} key={message.id} className="flex min-w-0 w-full flex-col gap-3">
-              {isStreaming && message.content === "" ? (
+              {isStreaming && message.content === "" && !hasRenderableParts ? (
                 <div
                   className="flex min-h-[1.6em] items-center"
                   aria-label={i18nMessages.chat.streamingStatus}
@@ -620,6 +622,9 @@ function AssistantMessage({
   frozenBlockSignature: string | null;
   pendingStreamingContent: string | null;
 }) {
+  const parts = message.parts && message.parts.length > 0
+    ? message.parts
+    : [{ id: `${message.id}:content`, type: "text" as const, text: message.content }];
   const visibleBlocks = useMemo(
     () => buildMarkdownBlocks(message.id, message.content),
     [message.content, message.id]
@@ -645,14 +650,58 @@ function AssistantMessage({
 
   return (
     <div className="flex min-w-0 flex-col gap-3">
-      {renderBlocks.map((block) => (
-        <MemoizedMarkdownBlock
-          key={block.key}
-          block={block}
-          copyCodeLabel={copyCodeLabel}
-        />
-      ))}
+      {parts.map((part) => {
+        if (part.type === "image") {
+          return <GeneratedImagePart key={part.id} part={part} />;
+        }
+
+        const blocks = part.id === `${message.id}:content`
+          ? renderBlocks
+          : buildMarkdownBlocks(part.id, part.text);
+
+        return blocks.map((block) => (
+          <MemoizedMarkdownBlock
+            key={block.key}
+            block={block}
+            copyCodeLabel={copyCodeLabel}
+          />
+        ));
+      })}
     </div>
+  );
+}
+
+function GeneratedImagePart({ part }: { part: Extract<NonNullable<ChatMessageRecord["parts"]>[number], { type: "image" }> }) {
+  if (part.status !== "completed" || !part.image) {
+    return (
+      <div className="flex h-56 w-full max-w-[420px] items-center justify-center rounded-xl border border-[var(--lc-border)] bg-[var(--lc-bg-tertiary)] text-[13px] text-[var(--lc-text-tertiary)]">
+        <span className={part.status === "generating" ? "animate-pulse" : undefined}>
+          {part.status === "generating" ? "Generating image..." : "Image generation failed."}
+        </span>
+      </div>
+    );
+  }
+
+  return (
+    <figure className="flex max-w-[520px] flex-col gap-2">
+      <a
+        href={part.image.url}
+        target="_blank"
+        rel="noreferrer"
+        className="group overflow-hidden rounded-xl border border-[var(--lc-border)] bg-[var(--lc-bg-tertiary)]"
+      >
+        <img
+          src={part.image.url}
+          alt={part.revisedPrompt || part.image.name}
+          className="max-h-[520px] w-full object-contain transition-transform duration-200 group-hover:scale-[1.01]"
+          loading="lazy"
+        />
+      </a>
+      <figcaption className="flex items-center gap-2 text-[12px] text-[var(--lc-text-tertiary)]">
+        <span className="truncate" title={part.image.name}>{part.image.name}</span>
+        <span>{formatFileSize(part.image.size)}</span>
+      </figcaption>
+    </figure>
   );
 }
 

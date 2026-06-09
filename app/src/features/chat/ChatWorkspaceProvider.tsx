@@ -1515,6 +1515,7 @@ async function streamAssistantMessage({
     conversationId,
     role: "assistant",
     content: "",
+    parts: [],
     createdAt,
     updatedAt: createdAt
   };
@@ -1545,18 +1546,38 @@ async function streamAssistantMessage({
 
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
-  let content = "";
-  let lastPersistedContent = "";
+  let buffer = "";
+  let assistantMessage = initialAssistantMessage;
+  let lastPersistedSignature = "";
 
   async function persistPartialAssistantMessage() {
-    const assistantMessage = finalizeAssistantMessage(initialAssistantMessage, content);
+    const finalizedMessage = finalizeAssistantMessage(assistantMessage);
 
-    if (!assistantMessage || assistantMessage.content === lastPersistedContent) {
+    if (!finalizedMessage) {
       return;
     }
 
-    lastPersistedContent = assistantMessage.content;
-    await savePartialMessage(assistantMessage);
+    const signature = getMessagePersistSignature(finalizedMessage);
+    if (signature === lastPersistedSignature) {
+      return;
+    }
+
+    lastPersistedSignature = signature;
+    await savePartialMessage(finalizedMessage);
+  }
+
+  async function applyStreamEvent(event: ChatStreamEvent) {
+    assistantMessage = applyChatStreamEvent(assistantMessage, event);
+
+    if (event.type === "done") {
+      return;
+    }
+
+    const nextMessage = assistantMessage;
+    setMessages((currentMessages) =>
+      currentMessages.map((message) => (message.id === assistantMessageId ? nextMessage : message))
+    );
+    await persistPartialAssistantMessage();
   }
 
   try {
@@ -1567,61 +1588,51 @@ async function streamAssistantMessage({
         break;
       }
 
-      content += decoder.decode(value, { stream: true });
+      buffer += decoder.decode(value, { stream: true });
+      const result = parseNdjsonEvents(buffer);
+      buffer = result.remainder;
 
-      if (content === "") {
-        continue;
+      for (const event of result.events) {
+        await applyStreamEvent(event);
       }
-
-      const updatedAt = new Date().toISOString();
-      setMessages((currentMessages) =>
-        currentMessages.map((message) =>
-          message.id === assistantMessageId
-            ? {
-                ...message,
-                content,
-                updatedAt
-              }
-            : message
-        )
-      );
-      await persistPartialAssistantMessage();
     }
 
-    content += decoder.decode();
+    buffer += decoder.decode();
+    const result = parseNdjsonEvents(`${buffer}\n`);
+    buffer = result.remainder;
+
+    for (const event of result.events) {
+      await applyStreamEvent(event);
+    }
   } catch (error) {
-    const assistantMessage = finalizeAssistantMessage(initialAssistantMessage, content);
+    const partialMessage = finalizeAssistantMessage(assistantMessage);
 
     if (isAbortError(error)) {
       setMessages((currentMessages) => currentMessages.filter((message) => message.id !== assistantMessageId));
 
-      return { status: "aborted", assistantMessage };
+      return { status: "aborted", assistantMessage: partialMessage };
     }
 
     setMessages((currentMessages) => currentMessages.filter((message) => message.id !== assistantMessageId));
 
-    return { status: "failed", assistantMessage, error };
+    return { status: "failed", assistantMessage: partialMessage, error };
   } finally {
     reader.releaseLock();
   }
 
-  if (content === "") {
+  const finalAssistantMessage = finalizeAssistantMessage(assistantMessage);
+
+  if (!finalAssistantMessage) {
     setMessages((currentMessages) => currentMessages.filter((message) => message.id !== assistantMessageId));
     return { status: "empty", assistantMessage: null };
   }
 
-  const assistantMessage = finalizeAssistantMessage(initialAssistantMessage, content);
-
-  if (!assistantMessage) {
-    return { status: "empty", assistantMessage: null };
-  }
-
   setMessages((currentMessages) =>
-    currentMessages.map((message) => (message.id === assistantMessageId ? assistantMessage : message))
+    currentMessages.map((message) => (message.id === assistantMessageId ? finalAssistantMessage : message))
   );
-  await savePartialMessage(assistantMessage);
+  await savePartialMessage(finalAssistantMessage);
 
-  return { status: "success", assistantMessage };
+  return { status: "success", assistantMessage: finalAssistantMessage };
 }
 
 async function generateConversationTitle({
@@ -1665,16 +1676,142 @@ async function createChatRequestError(response: Response) {
   return new ChatRequestError(code, message);
 }
 
-function finalizeAssistantMessage(initialAssistantMessage: ChatMessageRecord, content: string) {
-  if (content === "") {
+type ChatStreamEvent =
+  | { type: "part_added"; part: ChatStreamPart }
+  | { type: "text_delta"; partId: string; delta: string }
+  | { type: "image_completed"; partId: string; image: ChatMessageAttachment; revisedPrompt?: string | null }
+  | { type: "image_failed"; partId: string; message?: string }
+  | { type: "done" }
+  | { type: "error"; code?: string; message?: string };
+
+type ChatStreamPart =
+  | { id: string; type: "text"; text: string }
+  | { id: string; type: "image"; status: "generating" };
+
+function parseNdjsonEvents(buffer: string) {
+  const lines = buffer.split("\n");
+  const remainder = lines.pop() ?? "";
+  const events: ChatStreamEvent[] = [];
+
+  for (const line of lines) {
+    const trimmedLine = line.trim();
+    if (trimmedLine === "") {
+      continue;
+    }
+
+    const parsed = normalizeChatStreamEvent(JSON.parse(trimmedLine)) as ChatStreamEvent;
+    events.push(parsed);
+  }
+
+  return { events, remainder };
+}
+
+function normalizeChatStreamEvent(value: unknown): unknown {
+  if (!value || typeof value !== "object") {
+    return value;
+  }
+
+  const event = value as Record<string, unknown>;
+  if (typeof event.part_id === "string" && typeof event.partId !== "string") {
+    event.partId = event.part_id;
+  }
+  if (typeof event.revised_prompt === "string" && typeof event.revisedPrompt !== "string") {
+    event.revisedPrompt = event.revised_prompt;
+  }
+
+  return event;
+}
+
+function applyChatStreamEvent(message: ChatMessageRecord, event: ChatStreamEvent): ChatMessageRecord {
+  switch (event.type) {
+    case "part_added":
+      return updateMessageParts(message, (parts) => {
+        if (parts.some((part) => part.id === event.part.id)) {
+          return parts;
+        }
+
+        if (event.part.type === "text") {
+          return [...parts, { id: event.part.id, type: "text", text: event.part.text }];
+        }
+
+        return [...parts, { id: event.part.id, type: "image", status: event.part.status }];
+      });
+    case "text_delta":
+      return updateMessageParts(message, (parts) => {
+        const hasPart = parts.some((part) => part.id === event.partId);
+        const nextParts = hasPart ? parts : [...parts, { id: event.partId, type: "text" as const, text: "" }];
+
+        return nextParts.map((part) =>
+          part.id === event.partId && part.type === "text"
+            ? { ...part, text: part.text + event.delta }
+            : part
+        );
+      });
+    case "image_completed":
+      return updateMessageParts(message, (parts) => {
+        const hasPart = parts.some((part) => part.id === event.partId);
+        const nextParts = hasPart ? parts : [...parts, { id: event.partId, type: "image" as const, status: "generating" as const }];
+
+        return nextParts.map((part) =>
+          part.id === event.partId && part.type === "image"
+            ? {
+                ...part,
+                status: "completed" as const,
+                image: event.image,
+                revisedPrompt: event.revisedPrompt ?? undefined
+          }
+            : part
+        );
+      });
+    case "image_failed":
+      return updateMessageParts(message, (parts) =>
+        parts.map((part) =>
+          part.id === event.partId && part.type === "image"
+            ? { ...part, status: "failed" as const }
+            : part
+        )
+      );
+    case "error":
+      throw new ChatRequestError(event.code ?? "upstream_stream_failed", event.message ?? "Request failed.");
+    case "done":
+      return message;
+  }
+}
+
+function updateMessageParts(
+  message: ChatMessageRecord,
+  updater: (parts: NonNullable<ChatMessageRecord["parts"]>) => NonNullable<ChatMessageRecord["parts"]>
+): ChatMessageRecord {
+  const parts = updater(message.parts ?? []);
+  return {
+    ...message,
+    parts,
+    content: getTextContentFromParts(parts),
+    updatedAt: new Date().toISOString()
+  };
+}
+
+function getTextContentFromParts(parts: NonNullable<ChatMessageRecord["parts"]>) {
+  return parts
+    .filter((part) => part.type === "text")
+    .map((part) => part.text)
+    .join("\n\n");
+}
+
+function finalizeAssistantMessage(message: ChatMessageRecord) {
+  if (message.content === "" && (!message.parts || message.parts.length === 0)) {
     return null;
   }
 
   return {
-    ...initialAssistantMessage,
-    content,
+    ...message,
+    content: getTextContentFromParts(message.parts ?? []),
     updatedAt: new Date().toISOString()
   } satisfies ChatMessageRecord;
+}
+
+function getMessagePersistSignature(message: ChatMessageRecord) {
+  return JSON.stringify({ content: message.content, parts: message.parts ?? [] });
 }
 
 function resolveChatFailure(error: unknown, chatMessages: ReturnType<typeof useI18n>["messages"]["chat"]): ChatFailureState {

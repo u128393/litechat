@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{collections::{HashMap, HashSet, VecDeque}, sync::Arc};
 
 use axum::{
     Json,
@@ -7,19 +7,22 @@ use axum::{
     http::{StatusCode, header},
     response::Response,
 };
+use base64::{Engine as _, engine::general_purpose};
 use bytes::Bytes;
-use futures_util::StreamExt;
+use futures_util::{StreamExt, stream::{self, BoxStream}};
 use reqwest::Client;
 use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tower_cookies::Cookies;
+use uuid::Uuid;
 
 use crate::{
     app_state::AppState,
     config::AppConfig,
     db::entities::{app_settings, model_configs, provider_configs, user_settings},
     http_error::HttpError,
+    modules::files::{FileAttachmentPayload, FilesService, GeneratedFileInput},
     support::crypto::decrypt_provider_api_key,
 };
 
@@ -72,6 +75,19 @@ struct ChatModelTarget {
     base_url: Option<String>,
     api_key: String,
     supports_web_search: bool,
+    supports_image_generation: bool,
+}
+
+impl ChatModelTarget {
+    fn without_tools(&self) -> Self {
+        Self {
+            model_id: self.model_id.clone(),
+            base_url: self.base_url.clone(),
+            api_key: self.api_key.clone(),
+            supports_web_search: false,
+            supports_image_generation: false,
+        }
+    }
 }
 
 #[derive(Serialize)]
@@ -87,11 +103,12 @@ struct ResponsesRequestBody {
 pub struct ChatService {
     database: DatabaseConnection,
     config: Arc<AppConfig>,
+    files_service: FilesService,
 }
 
 impl ChatService {
-    pub fn new(database: DatabaseConnection, config: Arc<AppConfig>) -> Self {
-        Self { database, config }
+    pub fn new(database: DatabaseConnection, config: Arc<AppConfig>, files_service: FilesService) -> Self {
+        Self { database, config, files_service }
     }
 
     pub async fn chat(
@@ -115,7 +132,7 @@ impl ChatService {
             },
         );
 
-        let upstream = build_responses_request(&model, messages, true);
+        let upstream = build_responses_request(&model, messages, true, true);
         let response = Client::new()
             .post(build_responses_url(model.base_url.as_deref()))
             .bearer_auth(model.api_key)
@@ -142,16 +159,13 @@ impl ChatService {
             ));
         }
 
-        let stream = response.bytes_stream().map(|chunk| {
-            chunk
-                .map(|bytes| filter_sse_text_deltas(&bytes))
-                .map_err(std::io::Error::other)
-        });
+        let stream = build_chat_response_stream(response.bytes_stream().boxed(), self.files_service.clone());
 
         Response::builder()
             .status(StatusCode::OK)
             .header(header::CACHE_CONTROL, "no-store")
-            .header(header::CONTENT_TYPE, "text/plain; charset=utf-8")
+            .header("X-Accel-Buffering", "no")
+            .header(header::CONTENT_TYPE, "application/x-ndjson; charset=utf-8")
             .body(Body::from_stream(stream))
             .map_err(|_| {
                 HttpError::new(
@@ -207,7 +221,7 @@ impl ChatService {
             attachments: Vec::new(),
         });
 
-        let upstream = build_responses_request(&model, messages, true);
+        let upstream = build_responses_request(&model.without_tools(), messages, true, false);
         let response = Client::new()
             .post(build_responses_url(model.base_url.as_deref()))
             .bearer_auth(model.api_key)
@@ -319,6 +333,7 @@ impl ChatService {
             base_url: provider_config.base_url,
             api_key,
             supports_web_search: model_config.supports_web_search,
+            supports_image_generation: model_config.supports_image_generation,
         })
     }
 
@@ -458,11 +473,22 @@ fn build_responses_request(
     model: &ChatModelTarget,
     messages: Vec<ChatRequestMessage>,
     stream: bool,
+    include_image_generation: bool,
 ) -> ResponsesRequestBody {
-    let tools = if model.supports_web_search {
-        Some(vec![serde_json::json!({ "type": "web_search" })])
-    } else {
+    let mut tools = Vec::new();
+
+    if model.supports_web_search {
+        tools.push(serde_json::json!({ "type": "web_search" }));
+    }
+
+    if include_image_generation && model.supports_image_generation {
+        tools.push(serde_json::json!({ "type": "image_generation" }));
+    }
+
+    let tools = if tools.is_empty() {
         None
+    } else {
+        Some(tools)
     };
 
     ResponsesRequestBody {
@@ -484,6 +510,375 @@ fn build_responses_request(
         stream,
         tools,
     }
+}
+
+#[derive(Debug, Serialize)]
+#[serde(tag = "type", rename_all = "snake_case", rename_all_fields = "camelCase")]
+enum ChatStreamEvent {
+    PartAdded { part: ChatStreamPart },
+    TextDelta { part_id: String, delta: String },
+    ImageCompleted { part_id: String, image: FileAttachmentPayload, revised_prompt: Option<String> },
+    ImageFailed { part_id: String, message: String },
+    Done,
+    Error { code: String, message: String },
+}
+
+#[derive(Debug, Serialize, Clone)]
+#[serde(tag = "type", rename_all = "snake_case")]
+enum ChatStreamPart {
+    Text { id: String, text: String },
+    Image { id: String, status: String },
+}
+
+struct ChatStreamState {
+    upstream: BoxStream<'static, Result<Bytes, reqwest::Error>>,
+    parser: SseParser,
+    pending: VecDeque<Result<Bytes, std::io::Error>>,
+    mapper: ResponsePartMapper,
+    files_service: FilesService,
+    finished: bool,
+}
+
+#[derive(Default)]
+struct SseParser {
+    buffer: String,
+}
+
+#[derive(Default)]
+struct ResponsePartMapper {
+    text_parts_by_output_index: HashMap<usize, String>,
+    image_parts_by_output_index: HashMap<usize, String>,
+    image_parts_by_item_id: HashMap<String, String>,
+    completed_image_item_ids: HashSet<String>,
+}
+
+fn build_chat_response_stream(
+    upstream: BoxStream<'static, Result<Bytes, reqwest::Error>>,
+    files_service: FilesService,
+) -> impl futures_util::Stream<Item = Result<Bytes, std::io::Error>> {
+    stream::unfold(
+        ChatStreamState {
+            upstream,
+            parser: SseParser::default(),
+            pending: VecDeque::new(),
+            mapper: ResponsePartMapper::default(),
+            files_service,
+            finished: false,
+        },
+        |mut state| async move {
+            loop {
+                if let Some(event) = state.pending.pop_front() {
+                    return Some((event, state));
+                }
+
+                if state.finished {
+                    return None;
+                }
+
+                let Some(chunk) = state.upstream.next().await else {
+                    let events = state.parser.finish();
+                    for event in events {
+                        let next = handle_upstream_event(&mut state.mapper, &state.files_service, event).await;
+                        if next.iter().any(|event| matches!(event, ChatStreamEvent::Done)) {
+                            state.finished = true;
+                        }
+                        state.pending.extend(next.into_iter().map(|event| to_ndjson_bytes(&event)));
+                    }
+
+                    if !state.pending.is_empty() {
+                        continue;
+                    }
+
+                    for event in state.mapper.finish_unresolved_images() {
+                        state.pending.push_back(to_ndjson_bytes(&event));
+                    }
+
+                    state.pending.push_back(to_ndjson_bytes(&ChatStreamEvent::Done));
+                    state.finished = true;
+                    continue;
+                };
+
+                let chunk = match chunk {
+                    Ok(bytes) => bytes,
+                    Err(error) => {
+                        state.pending.push_back(to_ndjson_bytes(&ChatStreamEvent::Error {
+                            code: "upstream_stream_failed".to_string(),
+                            message: error.to_string(),
+                        }));
+                        state.finished = true;
+                        continue;
+                    }
+                };
+
+                let events = state.parser.push_bytes(&chunk);
+                for event in events {
+                    let next = handle_upstream_event(&mut state.mapper, &state.files_service, event).await;
+                    if next.iter().any(|event| matches!(event, ChatStreamEvent::Done)) {
+                        state.finished = true;
+                    }
+                    state.pending.extend(next.into_iter().map(|event| to_ndjson_bytes(&event)));
+                }
+            }
+        },
+    )
+}
+
+impl SseParser {
+    fn push_bytes(&mut self, bytes: &[u8]) -> Vec<Value> {
+        self.buffer
+            .push_str(&String::from_utf8_lossy(bytes).replace("\r\n", "\n"));
+
+        let mut events = Vec::new();
+        while let Some(index) = self.buffer.find("\n\n") {
+            let raw_event = self.buffer[..index].to_string();
+            self.buffer.drain(..index + 2);
+            events.extend(self.parse_raw_event(&raw_event));
+        }
+
+        events
+    }
+
+    fn finish(&mut self) -> Vec<Value> {
+        if self.buffer.trim().is_empty() {
+            self.buffer.clear();
+            return Vec::new();
+        }
+
+        let remaining = std::mem::take(&mut self.buffer);
+        self.parse_raw_event(&remaining)
+    }
+
+    fn parse_raw_event(&self, raw_event: &str) -> Vec<Value> {
+        let data_lines = raw_event
+            .lines()
+            .filter_map(|line| line.strip_prefix("data:"))
+            .map(str::trim_start)
+            .collect::<Vec<_>>();
+
+        if data_lines.is_empty() {
+            return Vec::new();
+        }
+
+        let payload = data_lines.join("\n");
+        if payload == "[DONE]" {
+            return Vec::new();
+        }
+
+        serde_json::from_str::<Value>(&payload)
+            .map(|value| vec![value])
+            .unwrap_or_default()
+    }
+}
+
+async fn handle_upstream_event(
+    mapper: &mut ResponsePartMapper,
+    files_service: &FilesService,
+    event: Value,
+) -> Vec<ChatStreamEvent> {
+    match event.get("type").and_then(Value::as_str) {
+        Some("response.output_item.added") => handle_output_item_added(mapper, &event),
+        Some("response.output_item.done") => handle_output_item_done(mapper, files_service, &event).await,
+        Some("response.output_text.delta") => handle_output_text_delta(mapper, &event),
+        Some("response.completed") => handle_response_completed(mapper, files_service, &event).await,
+        Some("response.failed") => vec![ChatStreamEvent::Error {
+            code: "upstream_request_failed".to_string(),
+            message: "The model provider could not complete the request.".to_string(),
+        }],
+        Some("error") => vec![ChatStreamEvent::Error {
+            code: event.get("code").and_then(Value::as_str).unwrap_or("upstream_request_failed").to_string(),
+            message: event.get("message").and_then(Value::as_str).unwrap_or("The model provider could not complete the request.").to_string(),
+        }],
+        _ => Vec::new(),
+    }
+}
+
+async fn handle_output_item_done(
+    mapper: &mut ResponsePartMapper,
+    files_service: &FilesService,
+    event: &Value,
+) -> Vec<ChatStreamEvent> {
+    let output_index = event.get("output_index").and_then(Value::as_u64).map(|value| value as usize).unwrap_or(0);
+    let item = event.get("item").unwrap_or(event);
+
+    if item.get("type").and_then(Value::as_str) != Some("image_generation_call") {
+        return Vec::new();
+    }
+
+    handle_completed_image_item(mapper, files_service, output_index, item).await
+}
+
+fn handle_output_item_added(mapper: &mut ResponsePartMapper, event: &Value) -> Vec<ChatStreamEvent> {
+    let output_index = event.get("output_index").and_then(Value::as_u64).map(|value| value as usize);
+    let item = event.get("item").unwrap_or(event);
+    match item.get("type").and_then(Value::as_str) {
+        Some("message") => {
+            let part_id = create_part_id();
+            if let Some(index) = output_index {
+                mapper.text_parts_by_output_index.insert(index, part_id.clone());
+            }
+            vec![ChatStreamEvent::PartAdded { part: ChatStreamPart::Text { id: part_id, text: String::new() } }]
+        }
+        Some("image_generation_call") => {
+            let part_id = create_part_id();
+            if let Some(index) = output_index {
+                mapper.image_parts_by_output_index.insert(index, part_id.clone());
+            }
+            if let Some(item_id) = item.get("id").and_then(Value::as_str) {
+                mapper.image_parts_by_item_id.insert(item_id.to_string(), part_id.clone());
+            }
+            vec![ChatStreamEvent::PartAdded { part: ChatStreamPart::Image { id: part_id, status: "generating".to_string() } }]
+        }
+        _ => Vec::new(),
+    }
+}
+
+fn handle_output_text_delta(mapper: &mut ResponsePartMapper, event: &Value) -> Vec<ChatStreamEvent> {
+    let Some(delta) = event.get("delta").and_then(Value::as_str) else {
+        return Vec::new();
+    };
+    let output_index = event.get("output_index").and_then(Value::as_u64).map(|value| value as usize).unwrap_or(0);
+    let (part_id, should_add_part) = match mapper.text_parts_by_output_index.get(&output_index) {
+        Some(part_id) => (part_id.clone(), false),
+        None => {
+            let part_id = create_part_id();
+            mapper.text_parts_by_output_index.insert(output_index, part_id.clone());
+            (part_id, true)
+        }
+    };
+
+    let mut events = Vec::new();
+    if should_add_part {
+        events.push(ChatStreamEvent::PartAdded { part: ChatStreamPart::Text { id: part_id.clone(), text: String::new() } });
+    }
+    events.push(ChatStreamEvent::TextDelta { part_id, delta: delta.to_string() });
+    events
+}
+
+async fn handle_response_completed(
+    mapper: &mut ResponsePartMapper,
+    files_service: &FilesService,
+    event: &Value,
+) -> Vec<ChatStreamEvent> {
+    let Some(outputs) = event
+        .get("response")
+        .and_then(|response| response.get("output"))
+        .and_then(Value::as_array) else {
+        return vec![ChatStreamEvent::Done];
+    };
+
+    let mut events = Vec::new();
+    for (output_index, output) in outputs.iter().enumerate() {
+        if output.get("type").and_then(Value::as_str) != Some("image_generation_call") {
+            continue;
+        }
+
+        events.extend(handle_completed_image_item(mapper, files_service, output_index, output).await);
+    }
+
+    events.push(ChatStreamEvent::Done);
+    events
+}
+
+async fn handle_completed_image_item(
+    mapper: &mut ResponsePartMapper,
+    files_service: &FilesService,
+    output_index: usize,
+    output: &Value,
+) -> Vec<ChatStreamEvent> {
+    let item_id = output.get("id").and_then(Value::as_str).unwrap_or_default().to_string();
+    if !item_id.is_empty() && mapper.completed_image_item_ids.contains(&item_id) {
+        return Vec::new();
+    }
+
+    let part_id = resolve_image_part_id(mapper, output_index, output);
+    let mut events = Vec::new();
+
+    if !mapper.has_image_part(&part_id) {
+        events.push(ChatStreamEvent::PartAdded { part: ChatStreamPart::Image { id: part_id.clone(), status: "generating".to_string() } });
+    }
+
+    let Some(result) = output.get("result").and_then(Value::as_str) else {
+        return Vec::new();
+    };
+
+    if !item_id.is_empty() {
+        mapper.completed_image_item_ids.insert(item_id);
+    }
+
+    match store_generated_image(files_service, result).await {
+        Ok(image) => events.push(ChatStreamEvent::ImageCompleted {
+            part_id,
+            image,
+            revised_prompt: output.get("revised_prompt").and_then(Value::as_str).map(str::to_string),
+        }),
+        Err(error) => events.push(ChatStreamEvent::ImageFailed {
+            part_id,
+            message: error.message,
+        }),
+    }
+
+    events
+}
+
+impl ResponsePartMapper {
+    fn has_image_part(&self, part_id: &str) -> bool {
+        self.image_parts_by_output_index.values().any(|value| value == part_id)
+            || self.image_parts_by_item_id.values().any(|value| value == part_id)
+    }
+
+    fn finish_unresolved_images(&self) -> Vec<ChatStreamEvent> {
+        self.image_parts_by_item_id
+            .iter()
+            .filter(|(item_id, _)| !self.completed_image_item_ids.contains(*item_id))
+            .map(|(_, part_id)| ChatStreamEvent::ImageFailed {
+                part_id: part_id.clone(),
+                message: "Image generation finished without image data.".to_string(),
+            })
+            .collect()
+    }
+}
+
+fn resolve_image_part_id(mapper: &mut ResponsePartMapper, output_index: usize, output: &Value) -> String {
+    if let Some(item_id) = output.get("id").and_then(Value::as_str) {
+        if let Some(part_id) = mapper.image_parts_by_item_id.get(item_id) {
+            return part_id.clone();
+        }
+    }
+
+    if let Some(part_id) = mapper.image_parts_by_output_index.get(&output_index) {
+        return part_id.clone();
+    }
+
+    let part_id = create_part_id();
+    mapper.image_parts_by_output_index.insert(output_index, part_id.clone());
+    if let Some(item_id) = output.get("id").and_then(Value::as_str) {
+        mapper.image_parts_by_item_id.insert(item_id.to_string(), part_id.clone());
+    }
+    part_id
+}
+
+async fn store_generated_image(files_service: &FilesService, image_base64: &str) -> Result<FileAttachmentPayload, HttpError> {
+    let bytes = general_purpose::STANDARD
+        .decode(image_base64)
+        .map_err(|_| HttpError::internal("Generated image data is invalid."))?;
+
+    files_service
+        .store_generated_file(GeneratedFileInput {
+            name: "generated-image.png".to_string(),
+            mime_type: "image/png".to_string(),
+            bytes,
+        })
+        .await
+}
+
+fn create_part_id() -> String {
+    format!("part-{}", Uuid::new_v4())
+}
+
+fn to_ndjson_bytes(event: &ChatStreamEvent) -> Result<Bytes, std::io::Error> {
+    serde_json::to_string(event)
+        .map(|line| Bytes::from(format!("{line}\n")))
+        .map_err(std::io::Error::other)
 }
 
 fn build_responses_url(base_url: Option<&str>) -> String {
@@ -514,10 +909,6 @@ fn escape_xml_text(value: &str) -> String {
         .replace('>', "&gt;")
         .replace('"', "&quot;")
         .replace('\'', "&apos;")
-}
-
-fn filter_sse_text_deltas(bytes: &[u8]) -> Bytes {
-    Bytes::from(collect_sse_text(&String::from_utf8_lossy(bytes)))
 }
 
 fn collect_sse_text(body: &str) -> String {

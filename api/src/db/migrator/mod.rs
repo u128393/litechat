@@ -3,6 +3,7 @@ use sea_orm_migration::prelude::*;
 mod m20260522000000_initial_schema;
 mod m20260602000000_files;
 mod m20260605000000_drop_files;
+mod m20260605151735_model_image_generation;
 
 pub struct Migrator;
 
@@ -13,6 +14,7 @@ impl MigratorTrait for Migrator {
             Box::new(m20260522000000_initial_schema::Migration),
             Box::new(m20260602000000_files::Migration),
             Box::new(m20260605000000_drop_files::Migration),
+            Box::new(m20260605151735_model_image_generation::Migration),
         ]
     }
 }

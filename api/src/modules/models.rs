@@ -32,6 +32,8 @@ pub struct UserSelectableModel {
     pub display_name: String,
     #[serde(rename = "supportsWebSearch")]
     pub supports_web_search: bool,
+    #[serde(rename = "supportsImageGeneration")]
+    pub supports_image_generation: bool,
 }
 
 #[derive(Serialize, Clone)]
@@ -46,6 +48,8 @@ pub struct ModelConfigPayload {
     pub visible: bool,
     #[serde(rename = "supportsWebSearch")]
     pub supports_web_search: bool,
+    #[serde(rename = "supportsImageGeneration")]
+    pub supports_image_generation: bool,
     #[serde(rename = "sortOrder")]
     pub sort_order: i32,
     #[serde(rename = "createdAt")]
@@ -74,6 +78,7 @@ pub struct CreateModelConfigRequest {
     pub display_name: String,
     pub visible: Option<bool>,
     pub supports_web_search: Option<bool>,
+    pub supports_image_generation: Option<bool>,
 }
 
 #[derive(Deserialize)]
@@ -84,6 +89,7 @@ pub struct UpdateModelConfigRequest {
     pub display_name: Option<String>,
     pub visible: Option<bool>,
     pub supports_web_search: Option<bool>,
+    pub supports_image_generation: Option<bool>,
     pub sort_order: Option<i32>,
 }
 
@@ -124,6 +130,7 @@ impl ModelsService {
                     model_id: model.model_id,
                     display_name: model.display_name,
                     supports_web_search: model.supports_web_search,
+                    supports_image_generation: model.supports_image_generation,
                 });
             }
         }
@@ -165,6 +172,7 @@ impl ModelsService {
             display_name: Set(read_required_string(&payload.display_name, "displayName")?),
             visible: Set(payload.visible.unwrap_or(true)),
             supports_web_search: Set(payload.supports_web_search.unwrap_or(false)),
+            supports_image_generation: Set(payload.supports_image_generation.unwrap_or(false)),
             sort_order: Set(next_sort_order),
             created_at: Set(now),
             updated_at: Set(now),
@@ -198,6 +206,7 @@ impl ModelsService {
         let existing_display_name = item.display_name.clone();
         let existing_visible = item.visible;
         let existing_supports_web_search = item.supports_web_search;
+        let existing_supports_image_generation = item.supports_image_generation;
         let existing_sort_order = item.sort_order;
 
         let mut model: model_configs::ActiveModel = item.into();
@@ -220,6 +229,9 @@ impl ModelsService {
         model.supports_web_search = Set(payload
             .supports_web_search
             .unwrap_or(existing_supports_web_search));
+        model.supports_image_generation = Set(payload
+            .supports_image_generation
+            .unwrap_or(existing_supports_image_generation));
         model.sort_order = Set(payload.sort_order.unwrap_or(existing_sort_order));
         model.updated_at = Set(Utc::now());
 
@@ -396,6 +408,7 @@ fn to_model_config_payload(item: model_configs::Model) -> ModelConfigPayload {
         display_name: item.display_name,
         visible: item.visible,
         supports_web_search: item.supports_web_search,
+        supports_image_generation: item.supports_image_generation,
         sort_order: item.sort_order,
         created_at: to_rfc3339(item.created_at),
         updated_at: to_rfc3339(item.updated_at),

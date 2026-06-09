@@ -11,6 +11,7 @@ import {
   ArrowLeft,
   GripVertical,
   Globe,
+  Image,
   MoreHorizontal,
   Plus,
   Search,
@@ -80,6 +81,7 @@ type ModelFormState = {
   displayName: string;
   visible: boolean;
   supportsWebSearch: boolean;
+  supportsImageGeneration: boolean;
 };
 
 type DraggingModelState = {
@@ -140,6 +142,7 @@ function createDefaultModelForm(
     displayName: "",
     visible: true,
     supportsWebSearch: false,
+    supportsImageGeneration: false,
   };
 }
 
@@ -722,6 +725,7 @@ export function AdminManagementClient({
             displayName: modelForm.displayName,
             visible: modelForm.visible,
             supportsWebSearch: modelForm.supportsWebSearch,
+            supportsImageGeneration: modelForm.supportsImageGeneration,
           }),
         },
       );
@@ -1347,9 +1351,7 @@ export function AdminManagementClient({
                               {getProviderName(modelConfig.providerConfigId)}
                             </span>
                             <span className="flex w-[50px] justify-center">
-                              {modelConfig.supportsWebSearch ? (
-                                <Globe className="size-[14px] text-[var(--lc-text-tertiary)]" />
-                              ) : null}
+                              <ModelCapabilityIcons modelConfig={modelConfig} />
                             </span>
                             <span
                               className="flex w-20 justify-center"
@@ -1925,6 +1927,19 @@ export function AdminManagementClient({
                 </div>
 
                 <div className="flex items-center justify-between">
+                  <Label>{adminMessages.models.supportsImageGenerationLabel}</Label>
+                  <SwitchToggle
+                    checked={modelForm.supportsImageGeneration}
+                    onChange={() =>
+                      setModelForm((f) => ({
+                        ...f,
+                        supportsImageGeneration: !f.supportsImageGeneration,
+                      }))
+                    }
+                  />
+                </div>
+
+                <div className="flex items-center justify-between">
                   <Label>{adminMessages.models.visibleLabel}</Label>
                   <SwitchToggle
                     checked={modelForm.visible}
@@ -2340,9 +2355,7 @@ function ModelDragPreview({
         {providerName}
       </span>
       <span className="flex w-[50px] justify-center">
-        {modelConfig.supportsWebSearch ? (
-          <Globe className="size-[14px] text-[var(--lc-text-tertiary)]" />
-        ) : null}
+        <ModelCapabilityIcons modelConfig={modelConfig} />
       </span>
       <span className="flex w-20 justify-center">
         <span
@@ -2448,7 +2461,21 @@ function createModelForm(
     displayName: modelConfig.displayName,
     visible: modelConfig.visible,
     supportsWebSearch: modelConfig.supportsWebSearch,
+    supportsImageGeneration: modelConfig.supportsImageGeneration,
   };
+}
+
+function ModelCapabilityIcons({ modelConfig }: { modelConfig: ModelConfig }) {
+  return (
+    <span className="flex items-center gap-1">
+      {modelConfig.supportsWebSearch ? (
+        <Globe className="size-[14px] text-[var(--lc-text-tertiary)]" />
+      ) : null}
+      {modelConfig.supportsImageGeneration ? (
+        <Image className="size-[14px] text-[var(--lc-text-tertiary)]" />
+      ) : null}
+    </span>
+  );
 }
 
 function generateRandomPassword(): string {

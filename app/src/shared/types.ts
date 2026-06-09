@@ -29,6 +29,7 @@ export type ModelConfig = {
   displayName: string;
   visible: boolean;
   supportsWebSearch: boolean;
+  supportsImageGeneration: boolean;
   sortOrder: number;
   createdAt: string;
   updatedAt: string;
@@ -39,6 +40,7 @@ export type UserSelectableModel = {
   modelId: string;
   displayName: string;
   supportsWebSearch: boolean;
+  supportsImageGeneration: boolean;
 };
 
 export type FileUploadCapabilities = {

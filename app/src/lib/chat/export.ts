@@ -25,6 +25,7 @@ export function buildConversationMarkdownExport(data: ConversationExportData) {
           ""
         ]
       : [];
+    const body = buildMessageMarkdownBody(message);
 
     lines.push(
       "---",
@@ -32,7 +33,7 @@ export function buildConversationMarkdownExport(data: ConversationExportData) {
       `**${formatRole(message.role, data.roleLabels)}** · ${formatDateTime(message.createdAt)}`,
       "",
       ...attachmentLines,
-      withClosedMarkdownFences(normalizeLineEndings(message.content).trimEnd()),
+      body,
       ""
     );
   }
@@ -46,10 +47,36 @@ export function buildConversationJsonExport(data: ConversationExportData) {
     messages: data.messages.map((message) => ({
       role: message.role,
       content: message.content,
+      parts: message.parts ?? [],
       attachments: message.attachments ?? [],
       timestamp: message.createdAt
     }))
   }, null, 2)}\n`;
+}
+
+function buildMessageMarkdownBody(message: ChatMessageRecord) {
+  if (!message.parts || message.parts.length === 0) {
+    return withClosedMarkdownFences(normalizeLineEndings(message.content).trimEnd());
+  }
+
+  return message.parts
+    .map((part) => {
+      if (part.type === "text") {
+        return withClosedMarkdownFences(normalizeLineEndings(part.text).trimEnd());
+      }
+
+      if (part.status === "completed" && part.image) {
+        return `![${escapeMarkdownImageAlt(part.image.name)}](${part.image.url})`;
+      }
+
+      return "[Image generation in progress]";
+    })
+    .filter((part) => part.trim() !== "")
+    .join("\n\n");
+}
+
+function escapeMarkdownImageAlt(value: string) {
+  return value.replace(/[\]\\]/g, "").replace(/\[/g, "(").replace(/\]/g, ")");
 }
 
 export function downloadTextFile(fileName: string, content: string, type: string) {

@@ -46,6 +46,12 @@ pub struct FileAttachmentPayload {
     pub url: String,
 }
 
+pub struct GeneratedFileInput {
+    pub name: String,
+    pub mime_type: String,
+    pub bytes: Vec<u8>,
+}
+
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct UploadRequestPayload {
@@ -118,7 +124,7 @@ impl FilesService {
             .map(str::to_string)
             .unwrap_or_else(|| guess_mime_type(&name));
         let object_key = build_object_key(
-            storage.upload_prefix(),
+            storage.upload_path(),
             &now.format("%Y/%m/%d").to_string(),
             &id,
             &name,
@@ -157,6 +163,42 @@ impl FilesService {
             )
         })
     }
+
+    pub async fn store_generated_file(
+        &self,
+        input: GeneratedFileInput,
+    ) -> Result<FileAttachmentPayload, HttpError> {
+        let storage = self.storage_backend()?;
+        let id = Uuid::new_v4().to_string();
+        let name = sanitize_file_name(&input.name);
+        let mime_type = input.mime_type.trim().to_string();
+
+        if input.bytes.is_empty() || mime_type.is_empty() {
+            return Err(HttpError::internal("Generated file is invalid."));
+        }
+
+        let now = Utc::now();
+        let object_key = build_object_key(
+            storage.generated_path(),
+            &now.format("%Y/%m/%d").to_string(),
+            &id,
+            &name,
+        );
+        let size = u64::try_from(input.bytes.len())
+            .map_err(|_| HttpError::internal("Generated file is too large."))?;
+
+        storage
+            .put_object(&object_key, &mime_type, input.bytes)
+            .await?;
+
+        Ok(FileAttachmentPayload {
+            id,
+            name,
+            mime_type,
+            size,
+            url: storage.public_url(&object_key),
+        })
+    }
 }
 
 pub async fn capabilities(State(state): State<AppState>) -> Json<FileCapabilitiesResponse> {
@@ -182,10 +224,17 @@ impl StorageBackend {
         }
     }
 
-    fn upload_prefix(&self) -> &str {
+    fn upload_path(&self) -> &str {
         match self {
-            StorageBackend::S3 { config, .. } => &config.upload_prefix,
-            StorageBackend::Oss { config } => &config.upload_prefix,
+            StorageBackend::S3 { config, .. } => &config.upload_path,
+            StorageBackend::Oss { config } => &config.upload_path,
+        }
+    }
+
+    fn generated_path(&self) -> &str {
+        match self {
+            StorageBackend::S3 { config, .. } => &config.generated_path,
+            StorageBackend::Oss { config } => &config.generated_path,
         }
     }
 
@@ -233,6 +282,32 @@ impl StorageBackend {
             StorageBackend::Oss { config } => {
                 create_oss_upload_request(config, object_key, mime_type)
             }
+        }
+    }
+
+    async fn put_object(
+        &self,
+        object_key: &str,
+        mime_type: &str,
+        bytes: Vec<u8>,
+    ) -> Result<(), HttpError> {
+        match self {
+            StorageBackend::S3 { config, client } => {
+                client
+                    .put_object()
+                    .bucket(&config.bucket)
+                    .key(object_key)
+                    .content_type(mime_type)
+                    .body(bytes.into())
+                    .send()
+                    .await
+                    .map_err(|error| {
+                        HttpError::internal(format!("Failed to store generated file: {error}"))
+                    })?;
+
+                Ok(())
+            }
+            StorageBackend::Oss { config } => put_oss_object(config, object_key, mime_type, bytes).await,
         }
     }
 }
@@ -329,6 +404,40 @@ fn create_oss_upload_request(
         url,
         headers: BTreeMap::from([("Content-Type".to_string(), mime_type.to_string())]),
     })
+}
+
+async fn put_oss_object(
+    config: &OssStorageConfig,
+    object_key: &str,
+    mime_type: &str,
+    bytes: Vec<u8>,
+) -> Result<(), HttpError> {
+    let upload = create_oss_upload_request(config, object_key, mime_type)?;
+    let mut request = reqwest::Client::new().put(upload.url).body(bytes);
+
+    for (name, value) in upload.headers {
+        request = request.header(name, value);
+    }
+
+    let response = request
+        .send()
+        .await
+        .map_err(|error| HttpError::internal(format!("Failed to store generated file: {error}")))?;
+
+    if !response.status().is_success() {
+        let status = response.status();
+        let body = response.text().await.unwrap_or_default();
+        return Err(HttpError::internal(format!(
+            "Failed to store generated file: OSS returned {status}: {}",
+            truncate_error_body(&body)
+        )));
+    }
+
+    Ok(())
+}
+
+fn truncate_error_body(value: &str) -> String {
+    value.chars().take(500).collect()
 }
 
 struct OssV4SignatureDebugLog<'a> {
@@ -504,8 +613,8 @@ fn sanitize_file_name(value: &str) -> String {
     }
 }
 
-fn build_object_key(upload_prefix: &str, date_path: &str, id: &str, name: &str) -> String {
-    format!("{upload_prefix}/{date_path}/{id}/{name}")
+fn build_object_key(storage_path: &str, date_path: &str, id: &str, name: &str) -> String {
+    format!("{storage_path}/{date_path}/{id}/{name}")
 }
 
 fn guess_mime_type(file_name: &str) -> String {
@@ -520,16 +629,16 @@ mod tests {
     use super::build_object_key;
 
     #[test]
-    fn build_object_key_uses_s3_upload_prefix() {
+    fn build_object_key_uses_storage_path() {
         let object_key = build_object_key("s3-dev/uploads", "2026/06/04", "file-id", "note.txt");
 
         assert_eq!(object_key, "s3-dev/uploads/2026/06/04/file-id/note.txt");
     }
 
     #[test]
-    fn build_object_key_uses_oss_upload_prefix() {
-        let object_key = build_object_key("oss-prod/uploads", "2026/06/04", "file-id", "note.txt");
+    fn build_object_key_supports_generated_path() {
+        let object_key = build_object_key("oss-prod/generated", "2026/06/04", "file-id", "image.png");
 
-        assert_eq!(object_key, "oss-prod/uploads/2026/06/04/file-id/note.txt");
+        assert_eq!(object_key, "oss-prod/generated/2026/06/04/file-id/image.png");
     }
 }

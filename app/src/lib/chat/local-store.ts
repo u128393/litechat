@@ -60,9 +60,28 @@ export type ChatMessageRecord = {
   conversationId: string;
   role: ChatMessageRole;
   content: string;
+  parts?: ChatMessagePart[];
   attachments?: ChatMessageAttachment[];
   createdAt: string;
   updatedAt: string;
+};
+
+export type ChatMessagePart =
+  | ChatMessageTextPart
+  | ChatMessageImagePart;
+
+export type ChatMessageTextPart = {
+  id: string;
+  type: "text";
+  text: string;
+};
+
+export type ChatMessageImagePart = {
+  id: string;
+  type: "image";
+  status: "generating" | "completed" | "failed";
+  image?: ChatMessageAttachment;
+  revisedPrompt?: string;
 };
 
 export type ChatMessageAttachment = {
@@ -666,6 +685,7 @@ function toMessageRecord(record: ScopedMessageRecord): ChatMessageRecord {
     conversationId: record.conversationId,
     role: record.role,
     content: record.content,
+    parts: record.parts,
     attachments: record.attachments,
     createdAt: record.createdAt,
     updatedAt: record.updatedAt

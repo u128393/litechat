@@ -53,7 +53,8 @@ pub struct S3StorageConfig {
     pub access_key_id: String,
     pub secret_access_key: String,
     pub public_base_url: String,
-    pub upload_prefix: String,
+    pub upload_path: String,
+    pub generated_path: String,
     pub force_path_style: bool,
     pub max_file_size_bytes: u64,
 }
@@ -66,7 +67,8 @@ pub struct OssStorageConfig {
     pub access_key_id: String,
     pub access_key_secret: String,
     pub public_endpoint: String,
-    pub upload_prefix: String,
+    pub upload_path: String,
+    pub generated_path: String,
     pub max_file_size_bytes: u64,
 }
 
@@ -167,7 +169,8 @@ fn load_s3_storage_config() -> Result<Option<S3StorageConfig>, String> {
         "STORAGE_S3_ACCESS_KEY_ID",
         "STORAGE_S3_SECRET_ACCESS_KEY",
         "STORAGE_S3_PUBLIC_BASE_URL",
-        "STORAGE_S3_UPLOAD_PREFIX",
+        "STORAGE_S3_UPLOAD_PATH",
+        "STORAGE_S3_GENERATED_PATH",
         "STORAGE_S3_ENDPOINT",
         "STORAGE_S3_FORCE_PATH_STYLE",
         "STORAGE_S3_MAX_FILE_SIZE_BYTES",
@@ -182,9 +185,13 @@ fn load_s3_storage_config() -> Result<Option<S3StorageConfig>, String> {
     let access_key_id = required_storage_env("STORAGE_S3_ACCESS_KEY_ID")?;
     let secret_access_key = required_storage_env("STORAGE_S3_SECRET_ACCESS_KEY")?;
     let public_base_url = required_storage_env("STORAGE_S3_PUBLIC_BASE_URL")?;
-    let upload_prefix = normalize_upload_prefix(
-        &required_storage_env("STORAGE_S3_UPLOAD_PREFIX")?,
-        "STORAGE_S3_UPLOAD_PREFIX",
+    let upload_path = normalize_storage_path(
+        &required_storage_env("STORAGE_S3_UPLOAD_PATH")?,
+        "STORAGE_S3_UPLOAD_PATH",
+    )?;
+    let generated_path = normalize_storage_path(
+        &required_storage_env("STORAGE_S3_GENERATED_PATH")?,
+        "STORAGE_S3_GENERATED_PATH",
     )?;
 
     Ok(Some(S3StorageConfig {
@@ -194,7 +201,8 @@ fn load_s3_storage_config() -> Result<Option<S3StorageConfig>, String> {
         access_key_id,
         secret_access_key,
         public_base_url: normalize_public_base_url(&public_base_url),
-        upload_prefix,
+        upload_path,
+        generated_path,
         force_path_style: env::var("STORAGE_S3_FORCE_PATH_STYLE")
             .ok()
             .map(|value| {
@@ -217,7 +225,8 @@ fn load_oss_storage_config() -> Result<Option<OssStorageConfig>, String> {
         "STORAGE_OSS_ACCESS_KEY_ID",
         "STORAGE_OSS_ACCESS_KEY_SECRET",
         "STORAGE_OSS_PUBLIC_ENDPOINT",
-        "STORAGE_OSS_UPLOAD_PREFIX",
+        "STORAGE_OSS_UPLOAD_PATH",
+        "STORAGE_OSS_GENERATED_PATH",
         "STORAGE_OSS_MAX_FILE_SIZE_BYTES",
     ];
 
@@ -233,9 +242,13 @@ fn load_oss_storage_config() -> Result<Option<OssStorageConfig>, String> {
     let public_endpoint = optional_env("STORAGE_OSS_PUBLIC_ENDPOINT")
         .map(|value| normalize_endpoint(&value))
         .unwrap_or_else(|| endpoint.clone());
-    let upload_prefix = normalize_upload_prefix(
-        &required_storage_env("STORAGE_OSS_UPLOAD_PREFIX")?,
-        "STORAGE_OSS_UPLOAD_PREFIX",
+    let upload_path = normalize_storage_path(
+        &required_storage_env("STORAGE_OSS_UPLOAD_PATH")?,
+        "STORAGE_OSS_UPLOAD_PATH",
+    )?;
+    let generated_path = normalize_storage_path(
+        &required_storage_env("STORAGE_OSS_GENERATED_PATH")?,
+        "STORAGE_OSS_GENERATED_PATH",
     )?;
 
     Ok(Some(OssStorageConfig {
@@ -245,7 +258,8 @@ fn load_oss_storage_config() -> Result<Option<OssStorageConfig>, String> {
         access_key_id,
         access_key_secret,
         public_endpoint,
-        upload_prefix,
+        upload_path,
+        generated_path,
         max_file_size_bytes: env::var("STORAGE_OSS_MAX_FILE_SIZE_BYTES")
             .ok()
             .and_then(|value| value.parse::<u64>().ok())
@@ -269,13 +283,13 @@ fn normalize_endpoint(value: &str) -> String {
     value.trim_end_matches('/').to_string()
 }
 
-fn normalize_upload_prefix(value: &str, key: &str) -> Result<String, String> {
-    let prefix = value.trim().trim_matches('/');
-    if prefix.is_empty() {
+fn normalize_storage_path(value: &str, key: &str) -> Result<String, String> {
+    let path = value.trim().trim_matches('/');
+    if path.is_empty() {
         return Err(format!("{key} is required when file storage is configured"));
     }
 
-    if prefix
+    if path
         .split('/')
         .any(|segment| segment.is_empty() || segment == "." || segment == "..")
     {
@@ -284,7 +298,7 @@ fn normalize_upload_prefix(value: &str, key: &str) -> Result<String, String> {
         ));
     }
 
-    Ok(prefix.to_string())
+    Ok(path.to_string())
 }
 
 fn parse_oss_virtual_host_endpoint(endpoint: &str) -> Result<(String, String), String> {
@@ -327,46 +341,46 @@ fn optional_env(key: &str) -> Option<String> {
 
 #[cfg(test)]
 mod tests {
-    use super::normalize_upload_prefix;
+    use super::normalize_storage_path;
 
     #[test]
-    fn normalize_upload_prefix_trims_surrounding_slashes() {
-        let prefix = normalize_upload_prefix(" /dev/uploads/ ", "STORAGE_S3_UPLOAD_PREFIX")
-            .expect("prefix should be valid");
+    fn normalize_storage_path_trims_surrounding_slashes() {
+        let path = normalize_storage_path(" /dev/uploads/ ", "STORAGE_S3_UPLOAD_PATH")
+            .expect("path should be valid");
 
-        assert_eq!(prefix, "dev/uploads");
+        assert_eq!(path, "dev/uploads");
     }
 
     #[test]
-    fn normalize_upload_prefix_rejects_empty_values() {
-        let error = normalize_upload_prefix("///", "STORAGE_S3_UPLOAD_PREFIX")
-            .expect_err("empty prefix should be rejected");
+    fn normalize_storage_path_rejects_empty_values() {
+        let error = normalize_storage_path("///", "STORAGE_S3_UPLOAD_PATH")
+            .expect_err("empty path should be rejected");
 
         assert_eq!(
             error,
-            "STORAGE_S3_UPLOAD_PREFIX is required when file storage is configured"
+            "STORAGE_S3_UPLOAD_PATH is required when file storage is configured"
         );
     }
 
     #[test]
-    fn normalize_upload_prefix_rejects_parent_path_segments() {
-        let error = normalize_upload_prefix("dev/../uploads", "STORAGE_OSS_UPLOAD_PREFIX")
-            .expect_err("unsafe prefix should be rejected");
+    fn normalize_storage_path_rejects_parent_path_segments() {
+        let error = normalize_storage_path("dev/../uploads", "STORAGE_OSS_UPLOAD_PATH")
+            .expect_err("unsafe path should be rejected");
 
         assert_eq!(
             error,
-            "STORAGE_OSS_UPLOAD_PREFIX must not contain empty, '.', or '..' path segments"
+            "STORAGE_OSS_UPLOAD_PATH must not contain empty, '.', or '..' path segments"
         );
     }
 
     #[test]
-    fn normalize_upload_prefix_rejects_empty_path_segments() {
-        let error = normalize_upload_prefix("dev//uploads", "STORAGE_OSS_UPLOAD_PREFIX")
+    fn normalize_storage_path_rejects_empty_path_segments() {
+        let error = normalize_storage_path("dev//uploads", "STORAGE_OSS_UPLOAD_PATH")
             .expect_err("empty segment should be rejected");
 
         assert_eq!(
             error,
-            "STORAGE_OSS_UPLOAD_PREFIX must not contain empty, '.', or '..' path segments"
+            "STORAGE_OSS_UPLOAD_PATH must not contain empty, '.', or '..' path segments"
         );
     }
 }
